@@ -34,11 +34,16 @@ export function useAuth(): AuthState {
         return;
       }
 
-      const { data: memberRow } = await supabase
+      const { data: rawMemberRow } = await supabase
         .from('members')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      const memberRow = rawMemberRow as {
+        id: string; user_id: string; name: string; slug: string; color: string; color_hex: string;
+        role: 'admin' | 'member'; is_active: boolean; avatar_url: string | null;
+        google_linked: boolean; created_at: string; updated_at: string;
+      } | null;
 
       if (!mounted) return;
 

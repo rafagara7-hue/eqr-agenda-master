@@ -73,11 +73,12 @@ async function getAuthorizedMember(
   if (member.role === 'admin') return member;
 
   // Membro só pode agir sobre seus próprios eventos
-  const { data: event } = await supabase
+  const { data: rawEvent } = await supabase
     .from('events')
     .select('member_id')
     .eq('id', eventId)
     .single();
+  const event = rawEvent as { member_id: string } | null;
 
   if (!event || event.member_id !== member.id) return null;
   return member;
@@ -124,11 +125,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   // Fetch event details before deletion (needed for notification after delete)
-  const { data: eventSnapshot } = await supabase
+  const { data: rawEventSnapshot } = await supabase
     .from('events')
     .select('title, member_id')
     .eq('id', id)
     .single();
+  const eventSnapshot = rawEventSnapshot as { title: string; member_id: string } | null;
 
   const serviceDb = await getSupabaseServiceClient();
   const service = new EventService({
