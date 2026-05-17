@@ -23,11 +23,15 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
     redirect(`/admin/members/${currentMember.id}`);
   }
 
-  const { data: member } = await supabase
+  const { data: rawMember } = await supabase
     .from('members')
     .select('*')
     .eq('id', params.id)
     .single();
+  const member = rawMember as {
+    id: string; name: string; slug: string; color_hex: string;
+    avatar_url: string | null; role: string; google_linked: boolean; created_at: string;
+  } | null;
 
   if (!member) notFound();
 
