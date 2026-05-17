@@ -139,12 +139,39 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['google_calendar_accounts']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+        Insert: {
           id?: string;
+          member_id: string;
+          google_email: string;
+          calendar_id: string;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          webhook_channel_id?: string | null;
+          webhook_expiry?: string | null;
+          is_primary?: boolean;
+          sync_enabled?: boolean;
+          last_synced_at?: string | null;
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['google_calendar_accounts']['Row']>;
+        Update: {
+          id?: string;
+          member_id?: string;
+          google_email?: string;
+          calendar_id?: string;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string;
+          webhook_channel_id?: string | null;
+          webhook_expiry?: string | null;
+          is_primary?: boolean;
+          sync_enabled?: boolean;
+          last_synced_at?: string | null;
+          metadata?: Json;
+          updated_at?: string;
+        };
       };
       conflicts: {
         Row: {
@@ -159,11 +186,29 @@ export interface Database {
           resolved_by: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['conflicts']['Row'], 'id' | 'created_at'> & {
+        Insert: {
           id?: string;
+          member_id: string;
+          event_id_a: string;
+          event_id_b: string;
+          overlap_start: string;
+          overlap_end: string;
+          resolved?: boolean;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['conflicts']['Row']>;
+        Update: {
+          id?: string;
+          member_id?: string;
+          event_id_a?: string;
+          event_id_b?: string;
+          overlap_start?: string;
+          overlap_end?: string;
+          resolved?: boolean;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
       };
       audit_logs: {
         Row: {
@@ -179,8 +224,17 @@ export interface Database {
           user_agent: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['audit_logs']['Row'], 'id' | 'created_at'> & {
+        Insert: {
           id?: string;
+          actor_id: string;
+          actor_role: string;
+          action: string;
+          resource_type: string;
+          resource_id?: string | null;
+          before_state?: Json | null;
+          after_state?: Json | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
           created_at?: string;
         };
         Update: never;
@@ -198,14 +252,29 @@ export interface Database {
           metadata: Json;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['notifications']['Row'], 'id' | 'created_at' | 'read' | 'read_at' | 'metadata'> & {
+        Insert: {
           id?: string;
+          member_id: string;
+          type: string;
+          title: string;
+          body?: string | null;
+          event_id?: string | null;
+          read?: boolean;
+          read_at?: string | null;
+          metadata?: Json;
           created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          type?: string;
+          title?: string;
+          body?: string | null;
+          event_id?: string | null;
           read?: boolean;
           read_at?: string | null;
           metadata?: Json;
         };
-        Update: Partial<Database['public']['Tables']['notifications']['Row']>;
       };
       event_sync_log: {
         Row: {
@@ -224,11 +293,37 @@ export interface Database {
           error_message: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['event_sync_log']['Row'], 'id' | 'created_at'> & {
+        Insert: {
           id?: string;
+          event_id: string;
+          member_id: string;
+          operation: 'create' | 'update' | 'delete' | 'inbound';
+          direction: 'outbound' | 'inbound';
+          source: 'supabase' | 'google' | 'n8n';
+          status: 'success' | 'failed' | 'pending' | 'retry';
+          attempt_count?: number;
+          n8n_execution_id?: string | null;
+          google_event_id?: string | null;
+          payload?: Json | null;
+          response?: Json | null;
+          error_message?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['event_sync_log']['Row']>;
+        Update: {
+          id?: string;
+          event_id?: string;
+          member_id?: string;
+          operation?: 'create' | 'update' | 'delete' | 'inbound';
+          direction?: 'outbound' | 'inbound';
+          source?: 'supabase' | 'google' | 'n8n';
+          status?: 'success' | 'failed' | 'pending' | 'retry';
+          attempt_count?: number;
+          n8n_execution_id?: string | null;
+          google_event_id?: string | null;
+          payload?: Json | null;
+          response?: Json | null;
+          error_message?: string | null;
+        };
       };
       recurrence_rules: {
         Row: {
@@ -243,11 +338,29 @@ export interface Database {
           rrule_string: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['recurrence_rules']['Row'], 'id' | 'created_at'> & {
+        Insert: {
           id?: string;
+          freq: 'daily' | 'weekly' | 'monthly' | 'yearly';
+          interval?: number;
+          by_day?: string[] | null;
+          by_month_day?: number[] | null;
+          by_month?: number[] | null;
+          count?: number | null;
+          until?: string | null;
+          rrule_string?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['recurrence_rules']['Row']>;
+        Update: {
+          id?: string;
+          freq?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+          interval?: number;
+          by_day?: string[] | null;
+          by_month_day?: number[] | null;
+          by_month?: number[] | null;
+          count?: number | null;
+          until?: string | null;
+          rrule_string?: string | null;
+        };
       };
       app_settings: {
         Row: {
@@ -262,7 +375,12 @@ export interface Database {
           description?: string | null;
           updated_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['app_settings']['Row']>;
+        Update: {
+          key?: string;
+          value?: Json;
+          description?: string | null;
+          updated_at?: string;
+        };
       };
     };
     Views: Record<never, never>;
