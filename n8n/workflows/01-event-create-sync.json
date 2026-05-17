@@ -1,0 +1,147 @@
+{
+  "name": "01 — EQR Event Create Sync (Outbound)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "event-create",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-receiver",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "eqr-event-create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sig = $input.first().json.headers['x-eqr-signature'];\nconst secret = $env['N8N_WEBHOOK_SECRET'];\nconst body = JSON.stringify($input.first().json.body);\nconst expected = await crypto.subtle.sign(\n  'HMAC',\n  await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']),\n  new TextEncoder().encode(body)\n);\nconst hex = Array.from(new Uint8Array(expected)).map(b => b.toString(16).padStart(2,'0')).join('');\nif ('sha256=' + hex !== sig) throw new Error('Invalid signature');\nreturn $input.all();"
+      },
+      "id": "verify-signature",
+      "name": "Verify HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/google_calendar_accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "member_id", "value": "=eq.{{ $json.body.event.member_id }}" },
+            { "name": "is_primary", "value": "=eq.true" },
+            { "name": "sync_enabled", "value": "=eq.true" },
+            { "name": "select", "value": "id,calendar_id,google_email,access_token,refresh_token,token_expires_at" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "load-google-account",
+      "name": "Load Google Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "no-account",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-google-account",
+      "name": "Has Google Account?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapeia campos EQR → Google Calendar\nconst event = $('Webhook Receiver').first().json.body.event;\nconst googleBody = {\n  summary: event.title,\n  description: event.description ?? '',\n  location: event.location ?? '',\n  start: event.all_day ? { date: event.start_at.split('T')[0] } : { dateTime: event.start_at, timeZone: 'America/Sao_Paulo' },\n  end: event.all_day ? { date: event.end_at.split('T')[0] } : { dateTime: event.end_at, timeZone: 'America/Sao_Paulo' },\n  extendedProperties: { private: { eqrEventId: event.id } },\n  status: event.status === 'tentative' ? 'tentative' : 'confirmed'\n};\nreturn [{ json: googleBody }];"
+      },
+      "id": "map-to-google",
+      "name": "Map EQR → Google Format",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $('Load Google Account').first().json.calendar_id }}/events",
+        "authentication": "oAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [{ "name": "=", "value": "={{ $json }}" }]
+        },
+        "options": {}
+      },
+      "id": "create-google-event",
+      "name": "Google Calendar: Create Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-EQR-Signature", "value": "={{ $env['N8N_COMPUTED_SIGNATURE'] }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "=", "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, googleEventId: $json.id, syncStatus: 'synced', event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-sync-status-success",
+      "name": "Update Sync Status: Synced",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "=", "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, syncStatus: 'failed', syncError: $json.message, event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-sync-status-failed",
+      "name": "Update Sync Status: Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": { "main": [[{ "node": "Verify HMAC Signature", "type": "main", "index": 0 }]] },
+    "Verify HMAC Signature": { "main": [[{ "node": "Load Google Account", "type": "main", "index": 0 }]] },
+    "Load Google Account": { "main": [[{ "node": "Has Google Account?", "type": "main", "index": 0 }]] },
+    "Has Google Account?": {
+      "main": [
+        [{ "node": "Update Sync Status: Failed", "type": "main", "index": 0 }],
+        [{ "node": "Map EQR → Google Format", "type": "main", "index": 0 }]
+      ]
+    },
+    "Map EQR → Google Format": { "main": [[{ "node": "Google Calendar: Create Event", "type": "main", "index": 0 }]] },
+    "Google Calendar: Create Event": { "main": [[{ "node": "Update Sync Status: Synced", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "calendar-sync", "outbound"]
+}

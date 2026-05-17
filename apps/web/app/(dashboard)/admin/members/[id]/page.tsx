@@ -1,0 +1,49 @@
+import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { redirect, notFound } from 'next/navigation';
+import { MemberProfileClient } from '@/components/admin/MemberProfileClient';
+
+export const metadata = { title: 'Perfil do membro' };
+
+export default async function MemberProfilePage({ params }: { params: { id: string } }) {
+  const supabase = await getSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: currentMember } = await supabase
+    .from('members')
+    .select('id, role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!currentMember) redirect('/login');
+
+  // Não-admin só pode ver o próprio perfil
+  if (currentMember.role !== 'admin' && currentMember.id !== params.id) {
+    redirect(`/admin/members/${currentMember.id}`);
+  }
+
+  const { data: member } = await supabase
+    .from('members')
+    .select('*')
+    .eq('id', params.id)
+    .single();
+
+  if (!member) notFound();
+
+  return (
+    <MemberProfileClient
+      member={{
+        id: member.id,
+        name: member.name,
+        slug: member.slug,
+        color_hex: member.color_hex,
+        avatar_url: member.avatar_url,
+        role: member.role,
+        google_linked: member.google_linked,
+        created_at: member.created_at,
+      }}
+      isOwnProfile={currentMember.id === params.id}
+      isAdmin={currentMember.role === 'admin'}
+    />
+  );
+}
