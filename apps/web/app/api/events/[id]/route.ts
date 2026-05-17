@@ -38,8 +38,10 @@ async function insertDeletedNotifications(
       serviceDb.from('members').select('name').eq('id', opts.actorMemberId).single(),
       serviceDb.from('members').select('id').eq('role', 'admin').eq('is_active', true),
     ]);
-    const actorName = actorRes.data?.name ?? 'Membro';
-    for (const admin of adminsRes.data ?? []) {
+    const actorData = actorRes.data as { name: string } | null;
+    const adminsData = adminsRes.data as { id: string }[] | null;
+    const actorName = actorData?.name ?? 'Membro';
+    for (const admin of adminsData ?? []) {
       rows.push({
         member_id: admin.id,
         type: 'event_deleted',
