@@ -198,9 +198,12 @@ export interface Database {
           metadata: Json;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['notifications']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['notifications']['Row'], 'id' | 'created_at' | 'read' | 'read_at' | 'metadata'> & {
           id?: string;
           created_at?: string;
+          read?: boolean;
+          read_at?: string | null;
+          metadata?: Json;
         };
         Update: Partial<Database['public']['Tables']['notifications']['Row']>;
       };
