@@ -11,11 +11,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: currentMember } = await supabase
+  const { data: rawCurrentMember } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  const currentMember = rawCurrentMember as { id: string; role: string } | null;
 
   if (!currentMember) return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
   if (currentMember.role !== 'admin' && currentMember.id !== id) {

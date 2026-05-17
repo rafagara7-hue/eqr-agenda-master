@@ -9,11 +9,12 @@ export default async function GeralPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: member } = await supabase
+  const { data: rawMember } = await supabase
     .from('members')
     .select('id, name, slug, color_hex, avatar_url, role')
     .eq('user_id', user.id)
     .single();
+  const member = rawMember as { id: string; name: string; slug: string; color_hex: string; avatar_url: string | null; role: string } | null;
 
   if (!member) redirect('/login');
   // Admin deve ver o painel completo

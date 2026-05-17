@@ -10,7 +10,8 @@ export default async function AdminPage() {
 
   if (!user) redirect('/login');
 
-  const { data: member } = await supabase.from('members').select('role').eq('user_id', user.id).single();
+  const { data: rawMember } = await supabase.from('members').select('role').eq('user_id', user.id).single();
+  const member = rawMember as { role: string } | null;
   if (member?.role !== 'admin') redirect('/calendar');
 
   // Busca dados para o overview

@@ -6,11 +6,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const { data: currentMember } = await supabase
+  const { data: rawCurrentMember } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  const currentMember = rawCurrentMember as { id: string; role: string } | null;
 
   if (!currentMember) return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
 

@@ -9,11 +9,12 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: currentMember } = await supabase
+  const { data: rawCurrentMember } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  const currentMember = rawCurrentMember as { id: string; role: string } | null;
 
   if (!currentMember) redirect('/login');
 

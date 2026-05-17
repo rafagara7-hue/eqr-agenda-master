@@ -62,11 +62,12 @@ async function getAuthorizedMember(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: member } = await supabase
+  const { data: rawMember } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  const member = rawMember as { id: string; role: string } | null;
 
   if (!member) return null;
   if (member.role === 'admin') return member;

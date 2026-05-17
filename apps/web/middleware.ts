@@ -72,7 +72,8 @@ async function getMemberRole(
     .select('role')
     .eq('user_id', userId)
     .single();
-  return data?.role ?? 'member';
+  const m = data as { role: string } | null;
+  return m?.role ?? 'member';
 }
 
 export const config = {

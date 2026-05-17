@@ -64,11 +64,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: member } = await supabase
+  const { data: rawMember } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  const member = rawMember as { id: string; role: string } | null;
 
   if (!member) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
