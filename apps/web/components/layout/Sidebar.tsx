@@ -138,12 +138,18 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         {/* User */}
         {member && (
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 border-l border-surface-border pl-2 sm:pl-3">
-            <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
-              <MemberAvatar member={member} size="sm" />
-            </div>
-            <span className="text-text-primary text-xs font-medium hidden md:block truncate max-w-[80px]">
-              {member.name}
-            </span>
+            <Link
+              href={{ pathname, query: { profile: member.id } }}
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg hover:bg-surface-overlay/60 transition-colors"
+              title="Ver meu perfil"
+            >
+              <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
+                <MemberAvatar member={member} size="sm" />
+              </div>
+              <span className="text-text-primary text-xs font-medium hidden md:block truncate max-w-[80px]">
+                {member.name}
+              </span>
+            </Link>
             <button
               onClick={() => void signOut()}
               className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
@@ -254,13 +260,19 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         {member && (
           <div className="border-t border-surface-border p-3">
             <div className="flex items-center gap-2.5">
-              <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
-                <MemberAvatar member={member} size="sm" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-text-primary text-xs font-medium truncate">{member.name}</p>
-                <p className="text-text-muted text-[10px] capitalize">{member.role}</p>
-              </div>
+              <Link
+                href={{ pathname, query: { profile: member.id } }}
+                className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg hover:bg-surface-overlay/60 transition-colors"
+                title="Ver meu perfil"
+              >
+                <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
+                  <MemberAvatar member={member} size="sm" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-text-primary text-xs font-medium truncate">{member.name}</p>
+                  <p className="text-text-muted text-[10px] capitalize">{member.role}</p>
+                </div>
+              </Link>
               <button
                 onClick={() => void signOut()}
                 className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
