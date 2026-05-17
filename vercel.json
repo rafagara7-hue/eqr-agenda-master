@@ -1,6 +1,7 @@
 {
+  "framework": "nextjs",
   "buildCommand": "npm run build -w @eqr/web",
   "outputDirectory": "apps/web/.next",
-  "framework": "nextjs",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "ignoreCommand": "exit 1"
 }
