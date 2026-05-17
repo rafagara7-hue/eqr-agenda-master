@@ -24,6 +24,7 @@
       }
     ],
     "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true
