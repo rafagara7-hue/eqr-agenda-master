@@ -34,7 +34,8 @@ export default function LoginPage() {
         .select('role')
         .eq('user_id', user.id)
         .single();
-      router.push(member?.role === 'admin' ? '/admin' : '/calendar');
+      const role = (member as { role?: string } | null)?.role;
+      router.push(role === 'admin' ? '/admin' : '/calendar');
     }
   }
 
@@ -156,7 +157,8 @@ export default function LoginPage() {
                       supabase.auth.getUser().then(({ data: { user } }) => {
                         if (!user) return;
                         supabase.from('members').select('role').eq('user_id', user.id).single().then(({ data: m }) => {
-                          router.push(m?.role === 'admin' ? '/admin' : '/calendar');
+                          const r = (m as { role?: string } | null)?.role;
+                          router.push(r === 'admin' ? '/admin' : '/calendar');
                         });
                       });
                     });
