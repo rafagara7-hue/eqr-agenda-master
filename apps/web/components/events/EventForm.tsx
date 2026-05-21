@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MemberSelector, type MemberOption } from './MemberSelector';
 import { ConflictWarning } from './ConflictWarning';
@@ -100,6 +100,12 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   const startAtValue = watch('startAt');
   const endAtValue = watch('endAt');
 
+  useEffect(() => {
+    if (!isEditing && !memberId && member?.id) {
+      setValue('memberId', member.id, { shouldValidate: true });
+    }
+  }, [isEditing, memberId, member?.id, setValue]);
+
   // Verificação de conflito em tempo real
   const checkConflicts = useCallback(async (start: string, end: string, mId: string) => {
     if (!start || !end || !mId) return;
@@ -163,6 +169,12 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
           members={dbMembers}
           disabled={isEditing}
         />
+      )}
+
+      {!isAdmin && errors.memberId && (
+        <p className={errorClass}>
+          {errors.memberId.message ?? 'Não foi possível identificar seu usuário. Recarregue a página.'}
+        </p>
       )}
 
       {/* Título */}
