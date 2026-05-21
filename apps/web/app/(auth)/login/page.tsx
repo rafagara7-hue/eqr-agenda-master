@@ -13,30 +13,49 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
+  async function signInAndRedirect(emailToUse: string, passwordToUse: string) {
     setError(null);
+    setIsLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: emailToUse,
+      password: passwordToUse,
+    });
 
     if (authError) {
-      setError('Credenciais inválidas. Verifique seu e-mail e senha.');
+      setError(authError.message);
       setIsLoading(false);
       return;
     }
 
-    // Busca role para redirecionar ao destino correto
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: member } = await supabase
-        .from('members')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      const role = (member as { role?: string } | null)?.role;
-      router.push(role === 'admin' ? '/admin' : '/calendar');
+    if (!user) {
+      setError('Sessão não foi criada após o login. Tente novamente.');
+      setIsLoading(false);
+      return;
     }
+
+    const { data: memberRow, error: memberError } = await supabase
+      .from('members')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (memberError) {
+      setError(`Erro ao buscar membro: ${memberError.message}`);
+      setIsLoading(false);
+      return;
+    }
+
+    const role = (memberRow as { role?: string } | null)?.role;
+    const destination = role === 'admin' ? '/admin' : '/calendar';
+    router.push(destination);
+    router.refresh();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await signInAndRedirect(email, password);
   }
 
   return (
@@ -147,24 +166,15 @@ export default function LoginPage() {
                 <button
                   key={u.email}
                   type="button"
+                  disabled={isLoading}
                   onClick={() => {
                     setEmail(u.email);
                     setPassword(u.password);
-                    setError(null);
-                    setIsLoading(true);
-                    supabase.auth.signInWithPassword({ email: u.email, password: u.password }).then(({ error: e }) => {
-                      if (e) { setError(e.message); setIsLoading(false); return; }
-                      supabase.auth.getUser().then(({ data: { user } }) => {
-                        if (!user) return;
-                        supabase.from('members').select('role').eq('user_id', user.id).single().then(({ data: m }) => {
-                          const r = (m as { role?: string } | null)?.role;
-                          router.push(r === 'admin' ? '/admin' : '/calendar');
-                        });
-                      });
-                    });
+                    void signInAndRedirect(u.email, u.password);
                   }}
                   className="py-1.5 px-2 rounded-md bg-surface-overlay hover:bg-surface-muted border border-surface-border
-                             text-text-secondary hover:text-text-primary text-xs font-medium transition-colors text-left truncate"
+                             text-text-secondary hover:text-text-primary text-xs font-medium transition-colors text-left truncate
+                             disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {u.label}
                 </button>
