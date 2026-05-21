@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
-import { Check, Users } from 'lucide-react';
+import { Check, UserPlus, X } from 'lucide-react';
 import type { MemberOption } from './MemberSelector';
 
 interface ParticipantsSelectorProps {
@@ -14,6 +15,8 @@ interface ParticipantsSelectorProps {
 }
 
 export function ParticipantsSelector({ value, onChange, members, hostId, disabled = false }: ParticipantsSelectorProps) {
+  const [expanded, setExpanded] = useState(value.length > 0);
+
   function toggle(id: string) {
     if (id === hostId) return;
     if (value.includes(id)) {
@@ -23,50 +26,81 @@ export function ParticipantsSelector({ value, onChange, members, hostId, disable
     }
   }
 
+  function handleClose() {
+    if (value.length > 0) onChange([]);
+    setExpanded(false);
+  }
+
   const additional = members.filter((m) => m.id !== hostId);
 
+  if (additional.length === 0) return null;
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setExpanded(true)}
+        className={cn(
+          'flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-surface-border',
+          'text-sm font-medium text-text-secondary hover:text-text-primary hover:border-surface-muted',
+          'transition-colors w-full justify-center',
+          disabled && 'opacity-50 cursor-not-allowed'
+        )}
+      >
+        <UserPlus className="w-4 h-4" />
+        Adicionar parceiros
+      </button>
+    );
+  }
+
   return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-        <Users className="w-3.5 h-3.5" />
-        Participantes adicionais (opcional)
-      </label>
-      <p className="text-text-muted text-xs -mt-0.5">
-        Marque outros membros para criar uma reunião em conjunto. Conflitos não serão sinalizados entre vocês neste evento.
-      </p>
-      {additional.length === 0 ? (
-        <p className="text-text-muted text-xs italic">Nenhum outro membro disponível.</p>
-      ) : (
-        <div className="flex gap-2 flex-wrap pt-1">
-          {additional.map((m) => {
-            const isSelected = value.includes(m.id);
-            return (
-              <button
-                key={m.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => toggle(m.id)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-150',
-                  'text-xs font-medium',
-                  isSelected
-                    ? 'border-transparent text-white'
-                    : 'border-surface-border text-text-secondary hover:border-surface-muted hover:text-text-primary',
-                  disabled && 'opacity-50 cursor-not-allowed'
-                )}
-                style={isSelected ? { backgroundColor: m.colorHex, borderColor: m.colorHex } : {}}
-              >
-                <MemberAvatar
-                  member={{ name: m.name, colorHex: m.colorHex, avatarUrl: m.avatarUrl }}
-                  size="xs"
-                />
-                <span>{m.name}</span>
-                {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-              </button>
-            );
-          })}
+    <div className="space-y-1.5 rounded-lg border border-surface-border bg-surface-overlay/30 p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <label className="text-sm font-medium text-text-secondary">Parceiros nesta reunião</label>
+          <p className="text-text-muted text-xs">
+            Marque outros membros. Conflitos não serão sinalizados entre vocês neste evento.
+          </p>
         </div>
-      )}
+        <button
+          type="button"
+          onClick={handleClose}
+          className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+          title="Remover todos e ocultar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="flex gap-2 flex-wrap pt-1">
+        {additional.map((m) => {
+          const isSelected = value.includes(m.id);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => toggle(m.id)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-150',
+                'text-xs font-medium',
+                isSelected
+                  ? 'border-transparent text-white'
+                  : 'border-surface-border text-text-secondary hover:border-surface-muted hover:text-text-primary',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+              style={isSelected ? { backgroundColor: m.colorHex, borderColor: m.colorHex } : {}}
+            >
+              <MemberAvatar
+                member={{ name: m.name, colorHex: m.colorHex, avatarUrl: m.avatarUrl }}
+                size="xs"
+              />
+              <span>{m.name}</span>
+              {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
