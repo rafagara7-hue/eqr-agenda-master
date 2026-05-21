@@ -8,6 +8,7 @@ function toCalendarEvent(row: DbEvent): CalendarEvent {
   return {
     id: row.id,
     memberId: row.member_id,
+    participantIds: row.participants ?? [row.member_id],
     createdBy: row.created_by,
     title: row.title,
     description: row.description,
@@ -73,17 +74,22 @@ export class EventRepository implements IEventRepository {
       .lt('start_at', endAt.toISOString())
       .gt('end_at', startAt.toISOString())
       .neq('status', 'cancelled');
-    if (memberId) query = query.eq('member_id', memberId);
+    if (memberId) query = query.contains('participants', [memberId]);
     const { data, error } = await query.order('start_at', { ascending: true });
     if (error) throw new Error(`EventRepository.findByDateRange: ${error.message}`);
     return (data ?? []).map(toCalendarEvent);
   }
 
   async create(input: CreateEventInput): Promise<CalendarEvent> {
+    const participants = input.participantIds && input.participantIds.length > 0
+      ? Array.from(new Set([input.memberId, ...input.participantIds]))
+      : [input.memberId];
+
     const { data, error } = await this.db
       .from('events')
       .insert({
         member_id: input.memberId,
+        participants,
         created_by: input.createdBy,
         title: input.title,
         description: input.description ?? null,
@@ -114,6 +120,12 @@ export class EventRepository implements IEventRepository {
     if (input.allDay !== undefined) updatePayload.all_day = input.allDay;
     if (input.status !== undefined) updatePayload.status = input.status;
     if (input.colorOverride !== undefined) updatePayload.color_override = input.colorOverride ?? null;
+    if (input.participantIds !== undefined) {
+      const base = input.participantIds;
+      updatePayload.participants = input.memberId
+        ? Array.from(new Set([input.memberId, ...base]))
+        : base;
+    }
 
     const { data, error } = await this.db
       .from('events')

@@ -18,6 +18,7 @@ export interface RecurrenceRule {
 export interface CalendarEvent {
   id: string;
   memberId: string;
+  participantIds: string[];
   createdBy: string;
   title: string;
   description: string | null;
@@ -42,6 +43,7 @@ export interface CalendarEvent {
 
 export interface CreateEventInput {
   memberId: string;
+  participantIds?: string[];
   createdBy: string;
   title: string;
   description?: string;

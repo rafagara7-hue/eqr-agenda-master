@@ -4,7 +4,8 @@ import { EventService } from '@eqr/services';
 import { z } from 'zod';
 
 const createSchema = z.object({
-  memberId: z.string().min(1),
+  memberId: z.string().uuid(),
+  participantIds: z.array(z.string().uuid()).max(20).optional(),
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   location: z.string().optional(),
@@ -18,20 +19,26 @@ type ServiceDb = Awaited<ReturnType<typeof getSupabaseServiceClient>>;
 
 async function insertCreatedNotifications(
   serviceDb: ServiceDb,
-  opts: { eventId: string; eventTitle: string; targetMemberId: string; actorMemberId: string; actorRole: string }
+  opts: { eventId: string; eventTitle: string; participantIds: string[]; actorMemberId: string; actorRole: string }
 ) {
   const rows: Array<{
     member_id: string; type: string; title: string; body: string; event_id: string | null;
   }> = [];
 
-  // Always notify the event owner
-  rows.push({
-    member_id: opts.targetMemberId,
-    type: 'event_created',
-    title: 'Evento criado',
-    body: opts.eventTitle,
-    event_id: opts.eventId,
-  });
+  const isJoint = opts.participantIds.length > 1;
+  const baseTitle = isJoint ? 'Você foi incluído em uma reunião' : 'Evento criado';
+
+  // Notify every participant (except the actor themselves)
+  for (const pid of opts.participantIds) {
+    if (pid === opts.actorMemberId) continue;
+    rows.push({
+      member_id: pid,
+      type: 'event_created',
+      title: baseTitle,
+      body: opts.eventTitle,
+      event_id: opts.eventId,
+    });
+  }
 
   // If actor is a regular member, also notify all admins
   if (opts.actorRole !== 'admin') {
@@ -42,7 +49,9 @@ async function insertCreatedNotifications(
     const actorData = actorRes.data as { name: string } | null;
     const adminsData = adminsRes.data as { id: string }[] | null;
     const actorName = actorData?.name ?? 'Membro';
+    const existingTargets = new Set(rows.map((r) => r.member_id));
     for (const admin of adminsData ?? []) {
+      if (existingTargets.has(admin.id)) continue;
       rows.push({
         member_id: admin.id,
         type: 'event_created',
@@ -84,9 +93,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Membro só pode criar eventos para si mesmo
+  // Membro só pode marcar a si mesmo como host principal (memberId).
+  // Pode adicionar outros membros como participantes — sem aceite necessário.
   if (member.role !== 'admin' && parsed.data.memberId !== member.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Valida que todos os participantes existem e estão ativos
+  const requestedParticipantIds = Array.from(
+    new Set([parsed.data.memberId, ...(parsed.data.participantIds ?? [])])
+  );
+  if (requestedParticipantIds.length > 1) {
+    const serviceDbCheck = await getSupabaseServiceClient();
+    const { data: validMembers, error: membersErr } = await serviceDbCheck
+      .from('members')
+      .select('id')
+      .in('id', requestedParticipantIds)
+      .eq('is_active', true);
+    if (membersErr) {
+      return NextResponse.json({ error: `Erro ao validar participantes: ${membersErr.message}` }, { status: 500 });
+    }
+    const validIds = new Set((validMembers as { id: string }[] | null ?? []).map((m) => m.id));
+    const invalid = requestedParticipantIds.filter((id) => !validIds.has(id));
+    if (invalid.length > 0) {
+      return NextResponse.json({ error: `Participantes inválidos ou inativos: ${invalid.join(', ')}` }, { status: 400 });
+    }
   }
 
   const serviceDb = await getSupabaseServiceClient();
@@ -101,6 +132,7 @@ export async function POST(req: NextRequest) {
   try {
     const { event, hasConflict } = await service.create({
       memberId: parsed.data.memberId,
+      participantIds: parsed.data.participantIds,
       createdBy: member.id,
       title: parsed.data.title,
       description: parsed.data.description,
@@ -115,7 +147,7 @@ export async function POST(req: NextRequest) {
     void insertCreatedNotifications(serviceDb, {
       eventId: event.id,
       eventTitle: event.title,
-      targetMemberId: parsed.data.memberId,
+      participantIds: event.participantIds,
       actorMemberId: member.id,
       actorRole: member.role,
     });
@@ -140,7 +172,7 @@ export async function GET(req: NextRequest) {
   let query = supabase.from('events').select('*');
   if (startAt) query = query.gte('start_at', startAt);
   if (endAt) query = query.lte('end_at', endAt);
-  if (memberId) query = query.eq('member_id', memberId);
+  if (memberId) query = query.contains('participants', [memberId]);
 
   const { data, error } = await query.order('start_at');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

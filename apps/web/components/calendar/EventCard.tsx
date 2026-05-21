@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 import { SyncStatusBadge } from './SyncStatusBadge';
@@ -20,6 +21,8 @@ interface EventCardProps {
 export function EventCard({ event, memberColor, style, onClick, onDelete, compact = false, hasConflict = false }: EventCardProps) {
   const isShort = !compact && event.endAt.getTime() - event.startAt.getTime() < 30 * 60 * 1000;
   const isTentative = event.status === 'tentative';
+  const participantCount = event.participantIds?.length ?? 1;
+  const isJoint = participantCount > 1;
 
   return (
     <motion.div
@@ -49,6 +52,16 @@ export function EventCard({ event, memberColor, style, onClick, onDelete, compac
     >
       {/* Indicadores de topo */}
       <div className="absolute top-1 right-1 flex items-center gap-1 z-10">
+        {isJoint && (
+          <span
+            className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-semibold"
+            style={{ backgroundColor: `${memberColor}55`, color: memberColor }}
+            title={`${participantCount} participantes`}
+          >
+            <Users className="w-2.5 h-2.5" />
+            {participantCount}
+          </span>
+        )}
         {hasConflict && <ConflictIndicator />}
         {!onDelete && <SyncStatusBadge status={event.syncStatus} />}
         {onDelete && (

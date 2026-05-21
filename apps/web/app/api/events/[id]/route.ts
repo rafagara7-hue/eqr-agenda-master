@@ -11,26 +11,30 @@ const updateSchema = z.object({
   endAt: z.string().datetime().optional(),
   allDay: z.boolean().optional(),
   status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
+  participantIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
 type ServiceDb = Awaited<ReturnType<typeof getSupabaseServiceClient>>;
 
 async function insertDeletedNotifications(
   serviceDb: ServiceDb,
-  opts: { eventTitle: string; targetMemberId: string; actorMemberId: string; actorRole: string }
+  opts: { eventTitle: string; participantIds: string[]; actorMemberId: string; actorRole: string }
 ) {
   const rows: Array<{
     member_id: string; type: string; title: string; body: string; event_id: null;
   }> = [];
 
-  // Notify the event owner (event_id is null because the event no longer exists)
-  rows.push({
-    member_id: opts.targetMemberId,
-    type: 'event_deleted',
-    title: 'Evento removido',
-    body: opts.eventTitle,
-    event_id: null,
-  });
+  // Notify every participant (except the actor)
+  for (const pid of opts.participantIds) {
+    if (pid === opts.actorMemberId) continue;
+    rows.push({
+      member_id: pid,
+      type: 'event_deleted',
+      title: 'Evento removido',
+      body: opts.eventTitle,
+      event_id: null,
+    });
+  }
 
   // If actor is a regular member, also notify all admins
   if (opts.actorRole !== 'admin') {
@@ -41,7 +45,9 @@ async function insertDeletedNotifications(
     const actorData = actorRes.data as { name: string } | null;
     const adminsData = adminsRes.data as { id: string }[] | null;
     const actorName = actorData?.name ?? 'Membro';
+    const existingTargets = new Set(rows.map((r) => r.member_id));
     for (const admin of adminsData ?? []) {
+      if (existingTargets.has(admin.id)) continue;
       rows.push({
         member_id: admin.id,
         type: 'event_deleted',
@@ -59,7 +65,8 @@ async function insertDeletedNotifications(
 
 async function getAuthorizedMember(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
-  eventId: string
+  eventId: string,
+  action: 'update' | 'delete'
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -74,22 +81,28 @@ async function getAuthorizedMember(
   if (!member) return null;
   if (member.role === 'admin') return member;
 
-  // Membro só pode agir sobre seus próprios eventos
   const { data: rawEvent } = await supabase
     .from('events')
-    .select('member_id')
+    .select('member_id, created_by, participants')
     .eq('id', eventId)
     .single();
-  const event = rawEvent as { member_id: string } | null;
+  const event = rawEvent as { member_id: string; created_by: string; participants: string[] } | null;
+  if (!event) return null;
 
-  if (!event || event.member_id !== member.id) return null;
-  return member;
+  if (action === 'delete') {
+    // Apenas o criador (ou admin) pode deletar
+    return event.created_by === member.id ? member : null;
+  }
+
+  // update: criador, host (member_id) ou qualquer participante pode editar
+  const isParticipant = (event.participants ?? []).includes(member.id);
+  return (event.created_by === member.id || event.member_id === member.id || isParticipant) ? member : null;
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await getSupabaseServerClient();
-  const member = await getAuthorizedMember(supabase, id);
+  const member = await getAuthorizedMember(supabase, id, 'update');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
@@ -123,16 +136,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await getSupabaseServerClient();
-  const member = await getAuthorizedMember(supabase, id);
+  const member = await getAuthorizedMember(supabase, id, 'delete');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   // Fetch event details before deletion (needed for notification after delete)
   const { data: rawEventSnapshot } = await supabase
     .from('events')
-    .select('title, member_id')
+    .select('title, member_id, participants')
     .eq('id', id)
     .single();
-  const eventSnapshot = rawEventSnapshot as { title: string; member_id: string } | null;
+  const eventSnapshot = rawEventSnapshot as { title: string; member_id: string; participants: string[] } | null;
 
   const serviceDb = await getSupabaseServiceClient();
   const service = new EventService({
@@ -148,7 +161,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (eventSnapshot) {
       void insertDeletedNotifications(serviceDb, {
         eventTitle: eventSnapshot.title,
-        targetMemberId: eventSnapshot.member_id,
+        participantIds: eventSnapshot.participants ?? [eventSnapshot.member_id],
         actorMemberId: member.id,
         actorRole: member.role,
       });

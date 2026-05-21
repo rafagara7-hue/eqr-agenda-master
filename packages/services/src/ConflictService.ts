@@ -5,10 +5,13 @@ export class ConflictService {
   constructor(private readonly db: SupabaseClient<Database>) {}
 
   async detect(memberId: string, eventId: string, startAt: Date, endAt: Date): Promise<string[]> {
+    // Conflito = outro evento (diferente) em que o member também participa, com overlap temporal.
+    // Reuniões em conjunto (mesmo evento com vários members) NUNCA conflitam consigo mesmas
+    // porque filtramos por `id != eventId`.
     const { data, error } = await this.db
       .from('events')
       .select('id, title, start_at, end_at')
-      .eq('member_id', memberId)
+      .contains('participants', [memberId])
       .neq('id', eventId)
       .neq('status', 'cancelled')
       .lt('start_at', endAt.toISOString())

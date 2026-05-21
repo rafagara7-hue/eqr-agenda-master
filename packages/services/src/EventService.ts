@@ -35,12 +35,7 @@ export class EventService {
   async create(input: CreateEventInput): Promise<{ event: CalendarEvent; hasConflict: boolean }> {
     const event = await this.events.create({ ...input, createdBy: this.actorId });
 
-    const conflictingIds = await this.conflicts.detect(
-      event.memberId,
-      event.id,
-      event.startAt,
-      event.endAt
-    );
+    const conflictingIds = await this.detectConflictsForAllParticipants(event);
 
     await this.audit.log({
       actorId: this.actorId,
@@ -56,16 +51,20 @@ export class EventService {
     return { event, hasConflict: conflictingIds.length > 0 };
   }
 
+  private async detectConflictsForAllParticipants(event: CalendarEvent): Promise<string[]> {
+    const allConflicts = new Set<string>();
+    for (const participantId of event.participantIds) {
+      const ids = await this.conflicts.detect(participantId, event.id, event.startAt, event.endAt);
+      for (const id of ids) allConflicts.add(id);
+    }
+    return Array.from(allConflicts);
+  }
+
   async update(input: UpdateEventInput): Promise<{ event: CalendarEvent; hasConflict: boolean }> {
     const before = await this.events.findById(input.id);
     const event = await this.events.update(input);
 
-    const conflictingIds = await this.conflicts.detect(
-      event.memberId,
-      event.id,
-      event.startAt,
-      event.endAt
-    );
+    const conflictingIds = await this.detectConflictsForAllParticipants(event);
 
     await this.audit.log({
       actorId: this.actorId,

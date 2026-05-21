@@ -56,6 +56,7 @@ export interface Database {
         Row: {
           id: string;
           member_id: string;
+          participants: string[];
           created_by: string;
           title: string;
           description: string | null;
@@ -80,6 +81,7 @@ export interface Database {
         Insert: {
           id?: string;
           member_id: string;
+          participants?: string[];
           created_by: string;
           title: string;
           description?: string | null;
@@ -104,6 +106,7 @@ export interface Database {
         Update: {
           id?: string;
           member_id?: string;
+          participants?: string[];
           title?: string;
           description?: string | null;
           location?: string | null;

@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MemberSelector, type MemberOption } from './MemberSelector';
+import { ParticipantsSelector } from './ParticipantsSelector';
 import { ConflictWarning } from './ConflictWarning';
 import { useCreateEvent, useUpdateEvent } from '@/hooks/useEventMutations';
 import { readAgendaSettingsSync } from '@/hooks/useAgendaSettings';
@@ -17,6 +18,7 @@ import type { CalendarEvent } from '@eqr/domain';
 
 const eventSchema = z.object({
   memberId: z.string().min(1, 'Selecione um membro'),
+  participantIds: z.array(z.string()).default([]),
   title: z.string().min(1, 'Título obrigatório').max(200),
   description: z.string().optional(),
   location: z.string().optional(),
@@ -73,7 +75,6 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         avatarUrl: m.avatar_url,
       }));
     },
-    enabled: isAdmin,
     staleTime: 5 * 60_000,
   });
 
@@ -82,10 +83,13 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   const defaultStart = initialDate ?? new Date();
   const defaultEnd = new Date(defaultStart.getTime() + readAgendaSettingsSync().defaultDuration * 60 * 1000);
 
+  const initialParticipants = (event?.participantIds ?? []).filter((p) => p !== (event?.memberId ?? ''));
+
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
       memberId: event?.memberId ?? member?.id ?? '',
+      participantIds: initialParticipants,
       title: event?.title ?? '',
       description: event?.description ?? '',
       location: event?.location ?? '',
@@ -97,6 +101,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   });
 
   const memberId = watch('memberId');
+  const participantIds = watch('participantIds') ?? [];
   const startAtValue = watch('startAt');
   const endAtValue = watch('endAt');
 
@@ -136,10 +141,12 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         endAt: new Date(data.endAt),
         allDay: data.allDay,
         status: data.status,
+        participantIds: data.participantIds,
       });
     } else {
       await createEvent.mutateAsync({
         memberId: data.memberId,
+        participantIds: data.participantIds,
         title: data.title,
         description: data.description,
         location: data.location,
@@ -175,6 +182,17 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         <p className={errorClass}>
           {errors.memberId.message ?? 'Não foi possível identificar seu usuário. Recarregue a página.'}
         </p>
+      )}
+
+      {/* Participantes adicionais — admin e member podem usar */}
+      {memberId && dbMembers.length > 0 && (
+        <ParticipantsSelector
+          value={participantIds}
+          hostId={memberId}
+          members={dbMembers}
+          onChange={(ids) => setValue('participantIds', ids)}
+          disabled={isEditing && !isAdmin && event?.createdBy !== member?.id}
+        />
       )}
 
       {/* Título */}

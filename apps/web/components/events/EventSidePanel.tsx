@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Edit2, Trash2, MapPin, Clock, User2, Calendar } from 'lucide-react';
+import { X, Edit2, Trash2, MapPin, Clock, User2, Calendar, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { EventForm } from './EventForm';
@@ -25,7 +25,11 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
   const [isEditing, setIsEditing] = useState(false);
   const deleteEvent = useDeleteEvent();
   const { isAdmin, member } = useAuth();
-  const canEdit = isAdmin || (!!event && event.memberId === member?.id);
+  const canEdit = isAdmin || (!!event && !!member && (
+    event.memberId === member.id
+    || event.createdBy === member.id
+    || (event.participantIds ?? []).includes(member.id)
+  ));
   const supabase = getSupabaseBrowserClient();
 
   const { data: memberInfo } = useQuery({
@@ -39,6 +43,20 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
       return data;
     },
     enabled: !!event?.memberId,
+    staleTime: 5 * 60_000,
+  });
+
+  const participantIds = event?.participantIds ?? [];
+  const { data: allParticipants = [] } = useQuery({
+    queryKey: ['event-participants', event?.id, participantIds.join(',')],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('members')
+        .select('id, name, color_hex, avatar_url')
+        .in('id', participantIds);
+      return (data ?? []) as Array<{ id: string; name: string; color_hex: string; avatar_url: string | null }>;
+    },
+    enabled: !!event && participantIds.length > 1,
     staleTime: 5 * 60_000,
   });
 
@@ -127,7 +145,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                   />
                 </div>
               ) : event ? (
-                <EventDetail event={event} memberInfo={memberInfo ?? null} />
+                <EventDetail event={event} memberInfo={memberInfo ?? null} allParticipants={allParticipants} />
               ) : null}
             </div>
           </motion.aside>
@@ -146,10 +164,14 @@ interface MemberInfo {
 function EventDetail({
   event,
   memberInfo,
+  allParticipants,
 }: {
   event: CalendarEvent;
   memberInfo: MemberInfo | null;
+  allParticipants: Array<{ id: string; name: string; color_hex: string; avatar_url: string | null }>;
 }) {
+  const isJoint = (event.participantIds?.length ?? 1) > 1;
+
   return (
     <div className="p-5 space-y-5">
       {/* Barra de cor do membro */}
@@ -166,8 +188,29 @@ function EventDetail({
         </div>
       </div>
 
-      {/* Membro */}
-      {memberInfo && (
+      {/* Participantes (reunião conjunta) ou Membro único */}
+      {isJoint ? (
+        <div className="flex items-start gap-3">
+          <Users className="w-4 h-4 text-text-muted flex-shrink-0 mt-1" />
+          <div className="flex-1 space-y-1.5">
+            <p className="text-text-muted text-xs uppercase tracking-wider">Reunião em conjunto</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allParticipants.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-surface-border bg-surface-elevated"
+                >
+                  <MemberAvatar
+                    member={{ name: p.name, colorHex: p.color_hex, avatarUrl: p.avatar_url }}
+                    size="xs"
+                  />
+                  <span className="text-text-secondary text-xs">{p.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : memberInfo && (
         <div className="flex items-center gap-3">
           <User2 className="w-4 h-4 text-text-muted flex-shrink-0" />
           <div className="flex items-center gap-2">
