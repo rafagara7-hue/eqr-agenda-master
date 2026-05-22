@@ -45,13 +45,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Protege rotas /admin/* para não-admins (configurações é acessível a todos)
-  if (user && pathname.startsWith('/admin') && pathname !== '/admin/settings') {
-    const role = await getMemberRole(supabase, user.id);
-    if (role !== 'admin') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/calendar';
-      return NextResponse.redirect(url);
+  // Protege rotas /admin/* para não-admins. Exceções:
+  // - /admin/settings: acessível a todos
+  // - /admin/members/[id]: acessível a todos; a página valida se o member pode ver aquele id específico
+  //   (admin vê todos; member só vê o próprio perfil — redireciona dentro da page.tsx)
+  if (user && pathname.startsWith('/admin')) {
+    // /admin/members (lista) continua admin-only; /admin/members/[id] libera (member só vê o próprio)
+    const isAllowedForMember = pathname === '/admin/settings' || /^\/admin\/members\/[^/]+$/.test(pathname);
+    if (!isAllowedForMember) {
+      const role = await getMemberRole(supabase, user.id);
+      if (role !== 'admin') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/calendar';
+        return NextResponse.redirect(url);
+      }
     }
   }
 

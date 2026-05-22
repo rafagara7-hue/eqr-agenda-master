@@ -9,6 +9,7 @@ import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { formatPhone } from '@/lib/phone';
+import { useAuth } from '@/hooks/useAuth';
 
 function PanelContent() {
   const searchParams = useSearchParams();
@@ -17,6 +18,7 @@ function PanelContent() {
   const profileId = searchParams.get('profile');
   const supabase = getSupabaseBrowserClient();
   const { onlineMemberIds } = usePresenceContext();
+  const { isAdmin, member: currentMember } = useAuth();
 
   const { data: member } = useQuery({
     queryKey: ['member-panel', profileId],
@@ -159,13 +161,15 @@ function PanelContent() {
                   <span className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </button>
 
-                <button
-                  onClick={() => { close(); router.push(`/admin/members/${member.id}`); }}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-surface-overlay border border-surface-border rounded-xl text-sm text-text-secondary hover:border-surface-muted hover:text-text-primary transition-all group"
-                >
-                  <span>Ver perfil</span>
-                  <span className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                </button>
+                {(isAdmin || currentMember?.id === member.id) && (
+                  <button
+                    onClick={() => { close(); router.push(`/admin/members/${member.id}`); }}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-surface-overlay border border-surface-border rounded-xl text-sm text-text-secondary hover:border-surface-muted hover:text-text-primary transition-all group"
+                  >
+                    <span>Ver perfil</span>
+                    <span className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center">
