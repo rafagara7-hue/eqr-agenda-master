@@ -63,8 +63,8 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         <p className="text-text-muted text-sm mt-1">Central de controle de todas as agendas EQR</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      {/* Stats — lista vertical em mobile, grid em telas maiores */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
           label="Total de eventos"
           value={totalEvents}
@@ -102,10 +102,10 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         />
       </div>
 
-      {/* Membros grid */}
+      {/* Membros — lista vertical em mobile, grid em desktop */}
       <div>
         <h2 className="text-text-secondary text-sm font-medium mb-3">Resumo por membro</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {activeMembers.map((m, i) => {
             const memberEvents = events.filter((e) => e.member_id === m.id);
             const memberConflicts = conflicts.filter((c) => c.member_id === m.id);

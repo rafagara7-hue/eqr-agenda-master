@@ -42,7 +42,7 @@ export function MembersListPage({ members, currentMemberId, isAdmin }: MembersLi
       </div>
 
       {/* Grid de membros */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {active.map((m, i) => {
           const isOwn = m.id === currentMemberId;
           const canClick = isAdmin || isOwn;
