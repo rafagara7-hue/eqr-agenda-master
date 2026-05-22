@@ -200,7 +200,18 @@ export interface GoogleEventInput {
   endAt: Date;
   allDay?: boolean;
   status?: 'confirmed' | 'tentative' | 'cancelled';
+  /** E-mails Google de participantes (excluindo o owner). O Google envia convite/cancelamento pra cada um. */
+  attendees?: string[];
 }
+
+/** Lembretes default aplicados a todo evento criado pelo app. */
+const DEFAULT_REMINDERS = {
+  useDefault: false,
+  overrides: [
+    { method: 'popup', minutes: 10 },
+    { method: 'email', minutes: 60 },
+  ],
+};
 
 function toGoogleEventBody(ev: GoogleEventInput) {
   const start = ev.allDay
@@ -209,14 +220,21 @@ function toGoogleEventBody(ev: GoogleEventInput) {
   const end = ev.allDay
     ? { date: ev.endAt.toISOString().slice(0, 10) }
     : { dateTime: ev.endAt.toISOString(), timeZone: 'America/Sao_Paulo' };
-  return {
+  const body: Record<string, unknown> = {
     summary: ev.title,
     description: ev.description ?? undefined,
     location: ev.location ?? undefined,
     status: ev.status === 'cancelled' ? 'cancelled' : ev.status === 'tentative' ? 'tentative' : 'confirmed',
     start,
     end,
+    reminders: DEFAULT_REMINDERS,
   };
+  if (ev.attendees && ev.attendees.length > 0) {
+    body['attendees'] = ev.attendees.map((email) => ({ email }));
+    body['guestsCanInviteOthers'] = false;
+    body['guestsCanModify'] = false;
+  }
+  return body;
 }
 
 async function withFreshToken<T>(
@@ -270,6 +288,9 @@ export interface GoogleApiResult {
   refreshed: { accessToken: string; expiresAt: Date } | null;
 }
 
+// sendUpdates=all → Google envia email aos guests em create/update/delete
+const SEND_UPDATES = 'sendUpdates=all';
+
 export async function createGoogleEvent(
   account: GoogleAccountRecord,
   event: GoogleEventInput
@@ -277,7 +298,7 @@ export async function createGoogleEvent(
   const { result, refreshed } = await withFreshToken(account, async (token) => {
     const body = toGoogleEventBody(event);
     const out = (await googleFetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events`,
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events?${SEND_UPDATES}`,
       { method: 'POST', body: JSON.stringify(body), accessToken: token }
     )) as { id: string };
     return out.id;
@@ -293,7 +314,7 @@ export async function updateGoogleEvent(
   const { result, refreshed } = await withFreshToken(account, async (token) => {
     const body = toGoogleEventBody(event);
     const out = (await googleFetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events/${encodeURIComponent(googleEventId)}`,
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events/${encodeURIComponent(googleEventId)}?${SEND_UPDATES}`,
       { method: 'PATCH', body: JSON.stringify(body), accessToken: token }
     )) as { id: string };
     return out.id;
@@ -307,7 +328,7 @@ export async function deleteGoogleEvent(
 ): Promise<{ refreshed: { accessToken: string; expiresAt: Date } | null }> {
   const { refreshed } = await withFreshToken(account, async (token) => {
     await googleFetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events/${encodeURIComponent(googleEventId)}`,
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(account.calendar_id)}/events/${encodeURIComponent(googleEventId)}?${SEND_UPDATES}`,
       { method: 'DELETE', accessToken: token }
     );
     return null;

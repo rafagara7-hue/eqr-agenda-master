@@ -28,6 +28,34 @@ async function getAccount(db: ServiceDb, memberId: string): Promise<GoogleAccoun
   return (data as unknown as GoogleAccountRecord | null) ?? null;
 }
 
+/**
+ * Para uma reunião conjunta, busca os e-mails Google dos OUTROS participantes
+ * (excluindo o owner/host, que é o dono da conta sincronizada).
+ * Só inclui members que conectaram o Google Calendar (têm google_email registrado).
+ */
+async function getAttendeeEmails(
+  db: ServiceDb,
+  eventId: string,
+  ownerMemberId: string
+): Promise<string[]> {
+  const { data: pRows } = await db
+    .from('event_participants')
+    .select('member_id')
+    .eq('event_id', eventId);
+  const participantIds = ((pRows ?? []) as { member_id: string }[])
+    .map((r) => r.member_id)
+    .filter((id) => id !== ownerMemberId);
+  if (participantIds.length === 0) return [];
+
+  const { data: accs } = await db
+    .from('google_calendar_accounts')
+    .select('google_email')
+    .in('member_id', participantIds);
+  return ((accs ?? []) as { google_email: string }[])
+    .map((a) => a.google_email)
+    .filter((e): e is string => !!e);
+}
+
 async function persistRefreshedToken(
   db: ServiceDb,
   accountId: string,
@@ -73,7 +101,9 @@ export async function syncCreateToGoogle(
   try {
     const account = await getAccount(db, opts.memberId);
     if (!account) return; // Member sem Google conectado — no-op
-    const { googleEventId, refreshed } = await createGoogleEvent(account, opts.data);
+    const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
+    const payload: GoogleEventInput = { ...opts.data, attendees };
+    const { googleEventId, refreshed } = await createGoogleEvent(account, payload);
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, googleEventId);
   } catch (err) {
@@ -89,15 +119,18 @@ export async function syncUpdateToGoogle(
     const account = await getAccount(db, opts.memberId);
     if (!account) return;
 
+    const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
+    const payload: GoogleEventInput = { ...opts.data, attendees };
+
     // Sem google_event_id ainda: trata como criar
     if (!opts.googleEventId) {
-      const { googleEventId, refreshed } = await createGoogleEvent(account, opts.data);
+      const { googleEventId, refreshed } = await createGoogleEvent(account, payload);
       if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
       await markSynced(db, opts.eventId, googleEventId);
       return;
     }
 
-    const { refreshed } = await updateGoogleEvent(account, opts.googleEventId, opts.data);
+    const { refreshed } = await updateGoogleEvent(account, opts.googleEventId, payload);
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, opts.googleEventId);
   } catch (err) {
