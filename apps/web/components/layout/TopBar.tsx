@@ -30,14 +30,20 @@ const VIEW_LABELS_SHORT: Record<CalendarView, string> = {
   month: 'Mês',
 };
 
-function getDateLabel(date: Date, view: CalendarView): string {
-  if (view === 'day') return formatDate(date, "EEEE, d 'de' MMMM yyyy");
+function getDateLabel(date: Date, view: CalendarView, withYear: boolean): string {
+  if (view === 'day') {
+    return withYear
+      ? formatDate(date, "EEEE, d 'de' MMMM yyyy")
+      : formatDate(date, "EEEE, d 'de' MMMM");
+  }
   if (view === 'week') {
     const start = startOfWeek(date, { weekStartsOn: 0 });
     const end = addDays(start, 6);
-    return `${formatDate(start, 'd MMM')} – ${formatDate(end, "d MMM yyyy")}`;
+    return withYear
+      ? `${formatDate(start, 'd MMM')} – ${formatDate(end, "d MMM yyyy")}`
+      : `${formatDate(start, 'd MMM')} – ${formatDate(end, 'd MMM')}`;
   }
-  return formatDate(date, 'MMMM yyyy');
+  return withYear ? formatDate(date, 'MMMM yyyy') : formatDate(date, 'MMMM');
 }
 
 export function TopBar({
@@ -57,7 +63,7 @@ export function TopBar({
           { label: '2 sem', date: () => addWeeks(new Date(), 2) },
         ].map(({ label, date: getDate }) => {
           const target = getDate();
-          const isActive = getDateLabel(currentDate, view) === getDateLabel(target, view);
+          const isActive = getDateLabel(currentDate, view, true) === getDateLabel(target, view, true);
           return (
             <button
               key={label}
@@ -75,14 +81,15 @@ export function TopBar({
         })}
       </div>
 
-      {/* Label da data atual */}
+      {/* Label da data atual — mobile sem ano, desktop com ano */}
       <motion.h2
-        key={getDateLabel(currentDate, view)}
+        key={getDateLabel(currentDate, view, true)}
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-text-primary font-medium text-xs sm:text-sm capitalize flex-1 truncate min-w-0"
       >
-        {getDateLabel(currentDate, view)}
+        <span className="sm:hidden">{getDateLabel(currentDate, view, false)}</span>
+        <span className="hidden sm:inline">{getDateLabel(currentDate, view, true)}</span>
       </motion.h2>
 
       {/* Botão Filtros — apenas mobile */}
