@@ -1,8 +1,8 @@
 'use client';
 
-import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { formatDate, navigateDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
+import { formatDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
 import { NotificationBell } from './NotificationBell';
 import { cn } from '@/lib/utils';
 
@@ -50,41 +50,29 @@ export function TopBar({
 }: TopBarProps) {
   return (
     <header className="h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10">
-      {/* Navegação de data */}
-      <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-        <button
-          onClick={() => onDateChange(navigateDate(currentDate, 'prev', view))}
-          className="p-2 rounded-md hover:bg-surface-overlay transition-colors text-text-secondary hover:text-text-primary min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="Anterior"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        {/* Atalhos "1 sem" / "2 sem" — só desktop (mobile reserva espaço pra título) */}
-        <div className="hidden sm:flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5">
-          {[
-            { label: '1 sem', date: () => addWeeks(new Date(), 1) },
-            { label: '2 sem', date: () => addWeeks(new Date(), 2) },
-          ].map(({ label, date: getDate }) => {
-            const target = getDate();
-            const isActive = getDateLabel(currentDate, view) === getDateLabel(target, view);
-            return (
-              <button
-                key={label}
-                onClick={() => onDateChange(getDate())}
-                className={cn(
-                  'px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-                  isActive
-                    ? 'bg-surface-base text-text-primary shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary'
-                )}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
+      {/* Atalhos "1 sem" / "2 sem" — só desktop */}
+      <div className="hidden sm:flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5 flex-shrink-0">
+        {[
+          { label: '1 sem', date: () => addWeeks(new Date(), 1) },
+          { label: '2 sem', date: () => addWeeks(new Date(), 2) },
+        ].map(({ label, date: getDate }) => {
+          const target = getDate();
+          const isActive = getDateLabel(currentDate, view) === getDateLabel(target, view);
+          return (
+            <button
+              key={label}
+              onClick={() => onDateChange(getDate())}
+              className={cn(
+                'px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                isActive
+                  ? 'bg-surface-base text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Label da data atual */}
