@@ -1,15 +1,24 @@
 import { getSupabaseBrowserClient } from './client';
 import { REALTIME_CHANNELS } from '@eqr/config';
 
+/**
+ * Sufixo único por subscription para evitar o erro do Supabase Realtime
+ * "cannot add callbacks after subscribe()" quando o mesmo nome de canal é
+ * reusado em re-renders ou no React StrictMode.
+ */
+function uniqueSuffix(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
 export function subscribeToMemberEvents(
   memberId: string,
   onEvent: (payload: { eventType: string; record: unknown; oldRecord: unknown }) => void
 ) {
   const supabase = getSupabaseBrowserClient();
-  const channelName = REALTIME_CHANNELS.events(memberId);
+  const channelName = `${REALTIME_CHANNELS.events(memberId)}:${uniqueSuffix()}`;
 
-  const channel = supabase
-    .channel(channelName)
+  const channel = supabase.channel(channelName);
+  channel
     .on(
       'postgres_changes',
       {
@@ -38,10 +47,10 @@ export function subscribeToNotifications(
   onNotification: (record: unknown) => void
 ) {
   const supabase = getSupabaseBrowserClient();
-  const channelName = REALTIME_CHANNELS.notifications(memberId);
+  const channelName = `${REALTIME_CHANNELS.notifications(memberId)}:${uniqueSuffix()}`;
 
-  const channel = supabase
-    .channel(channelName)
+  const channel = supabase.channel(channelName);
+  channel
     .on(
       'postgres_changes',
       {
@@ -69,8 +78,8 @@ export function subscribeToMemberParticipations(
 ) {
   const supabase = getSupabaseBrowserClient();
 
-  const channel = supabase
-    .channel(`event_participants:${memberId}`)
+  const channel = supabase.channel(`event_participants:${memberId}:${uniqueSuffix()}`);
+  channel
     .on(
       'postgres_changes',
       {
@@ -94,8 +103,8 @@ export function subscribeToConflicts(
 ) {
   const supabase = getSupabaseBrowserClient();
 
-  const channel = supabase
-    .channel(`conflicts:${memberId}`)
+  const channel = supabase.channel(`conflicts:${memberId}:${uniqueSuffix()}`);
+  channel
     .on(
       'postgres_changes',
       {

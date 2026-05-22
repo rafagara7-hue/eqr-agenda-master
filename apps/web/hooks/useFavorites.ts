@@ -34,11 +34,14 @@ export function useFavorites() {
     staleTime: 60_000,
   });
 
-  // Realtime: invalida ao receber qualquer mudança em event_favorites do membro
+  // Realtime: invalida ao receber qualquer mudança em event_favorites do membro.
+  // Nome único por mount evita o erro "cannot add callbacks after subscribe()"
+  // quando o useEffect roda duas vezes (React StrictMode / re-render rápido).
   useEffect(() => {
     if (!member) return;
-    const channel = supabase
-      .channel(`event_favorites:${member.id}`)
+    const channelName = `event_favorites:${member.id}:${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(channelName);
+    channel
       .on(
         'postgres_changes',
         {
