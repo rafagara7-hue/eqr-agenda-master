@@ -47,10 +47,20 @@ interface CalendarRootProps {
 }
 
 const FILTER_LABELS: Record<string, string> = {
-  conflicts: 'Horários cruzados',
-  'failed-sync': 'Syncs com falha',
+  confirmed: 'Eventos confirmados',
   tentative: 'Eventos provisórios',
+  conflicts: 'Eventos cruzados',
+  'failed-sync': 'Syncs com falha',
 };
+
+// Filtros de status que ficam expostos como chips clicáveis no calendário
+type StatusFilterKey = 'confirmed' | 'tentative' | 'conflicts';
+
+const STATUS_FILTERS: Array<{ key: StatusFilterKey; label: string; dotColor: string }> = [
+  { key: 'confirmed', label: 'Confirmados', dotColor: '#22C55E' },
+  { key: 'tentative', label: 'Provisórios', dotColor: '#F59E0B' },
+  { key: 'conflicts', label: 'Cruzados', dotColor: '#F97316' },
+];
 
 export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -141,6 +151,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
     if (activeFilter === 'conflicts') return events.filter((e) => conflictEventIds.has(e.id));
     if (activeFilter === 'failed-sync') return events.filter((e) => e.syncStatus === 'failed');
     if (activeFilter === 'tentative') return events.filter((e) => e.status === 'tentative');
+    if (activeFilter === 'confirmed') return events.filter((e) => e.status === 'confirmed');
     return events;
   }, [events, conflictEventIds, activeFilter]);
 
@@ -215,6 +226,40 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         </div>
       )}
 
+      {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado). Mobile fica dentro do BottomSheet. */}
+      <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+        <button
+          onClick={() => setActiveFilter(undefined)}
+          aria-pressed={!activeFilter}
+          className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+            !activeFilter
+              ? 'bg-surface-muted border-surface-muted text-text-primary scale-105'
+              : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
+          }`}
+        >
+          Todos
+        </button>
+        {STATUS_FILTERS.map((f) => {
+          const isActive = activeFilter === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(isActive ? undefined : f.key)}
+              aria-pressed={isActive}
+              className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                isActive
+                  ? 'text-white border-transparent scale-105'
+                  : 'border-surface-border text-text-muted opacity-90 hover:opacity-100 hover:text-text-secondary'
+              }`}
+              style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor, opacity: isActive ? 0.9 : 1 }} />
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Toggle de faixa de horário — apenas DESKTOP. Mobile usa BottomSheet. */}
       {view !== 'month' && (
         <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base shrink-0">
@@ -280,6 +325,42 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               </div>
             </section>
           )}
+
+          <section>
+            <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Tipo de evento</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveFilter(undefined)}
+                className={`min-h-[44px] px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                  !activeFilter
+                    ? 'bg-surface-muted border-surface-muted text-text-primary'
+                    : 'border-surface-border text-text-muted'
+                }`}
+              >
+                Todos
+              </button>
+              {STATUS_FILTERS.map((f) => {
+                const isActive = activeFilter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setActiveFilter(isActive ? undefined : f.key)}
+                    className={`min-h-[44px] flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                      isActive
+                        ? 'text-white border-transparent'
+                        : 'border-surface-border text-text-secondary'
+                    }`}
+                    style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? 'white' : f.dotColor }} />
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
           {isAdmin && memberOptions.length > 0 && (
             <section>

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock } from 'lucide-react';
+import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock, CheckCircle2 } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 
 interface AdminOverviewProps {
@@ -50,6 +50,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const totalConflicts = conflicts.length;
   const failedSyncCount = failedSyncs.filter((s) => s.status === 'failed').length;
   const tentativeCount = events.filter((e) => e.status === 'tentative').length;
+  const confirmedCount = events.filter((e) => e.status === 'confirmed').length;
 
   const activeMembers = members.filter((m) => m.slug !== 'admin');
   const onlineCount = activeMembers.filter((m) => onlineMemberIds.has(m.id)).length;
@@ -62,8 +63,8 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         <p className="text-text-muted text-sm mt-1">Central de controle de todas as agendas EQR</p>
       </div>
 
-      {/* Stats — lista vertical em mobile, grid em telas maiores */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+      {/* Stats — lista vertical em mobile, grid em telas maiores. Cada card de filtro abre o calendário com o filtro correspondente já aplicado. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
           label="Total de eventos"
           value={totalEvents}
@@ -79,6 +80,13 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
           onClick={() => router.push('/admin/members')}
         />
         <StatCard
+          label="Confirmados"
+          value={confirmedCount}
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          color="#22C55E"
+          onClick={() => router.push('/calendar?filter=confirmed')}
+        />
+        <StatCard
           label="Provisórios"
           value={tentativeCount}
           icon={<Clock className="w-4 h-4" />}
@@ -86,7 +94,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
           onClick={() => router.push('/calendar?filter=tentative')}
         />
         <StatCard
-          label="Horários cruzados"
+          label="Eventos cruzados"
           value={totalConflicts}
           icon={<AlertTriangle className="w-4 h-4" />}
           color="#F97316"
