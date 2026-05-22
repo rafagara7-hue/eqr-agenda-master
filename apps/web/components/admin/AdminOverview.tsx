@@ -25,18 +25,18 @@ function StatCard({
     <motion.div
       onClick={onClick}
       whileHover={onClick ? { y: -2 } : undefined}
-      className={`bg-surface-elevated border border-surface-border rounded-xl p-4 transition-colors ${
+      className={`bg-surface-elevated border border-surface-border rounded-xl p-4 sm:p-5 lg:p-6 transition-colors ${
         onClick ? 'cursor-pointer hover:border-surface-muted group' : ''
       }`}
     >
-      <div className="flex items-center justify-between">
-        <p className="text-text-muted text-xs font-medium uppercase tracking-wider">{label}</p>
-        <span style={{ color }} className="opacity-70">{icon}</span>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-text-muted text-xs sm:text-sm font-medium uppercase tracking-wider">{label}</p>
+        <span style={{ color }} className="opacity-70 sm:scale-125 lg:scale-150 flex-shrink-0">{icon}</span>
       </div>
-      <div className="flex items-end justify-between mt-2">
-        <p className="text-text-primary text-2xl font-semibold">{value}</p>
+      <div className="flex items-end justify-between mt-2 sm:mt-4">
+        <p className="text-text-primary text-2xl sm:text-3xl lg:text-4xl font-semibold font-mono leading-none">{value}</p>
         {onClick && (
-          <ArrowRight className="w-3.5 h-3.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mb-1" />
+          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mb-1" />
         )}
       </div>
     </motion.div>
@@ -63,8 +63,8 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         <p className="text-text-muted text-sm mt-1">Central de controle de todas as agendas EQR</p>
       </div>
 
-      {/* Stats — lista vertical em mobile, grid em telas maiores. Cada card de filtro abre o calendário com o filtro correspondente já aplicado. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      {/* Stats — lista vertical em mobile, grid maior em desktop. Cada card de filtro abre o calendário com o filtro correspondente já aplicado. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3 sm:gap-5">
         <StatCard
           label="Total de eventos"
           value={totalEvents}
