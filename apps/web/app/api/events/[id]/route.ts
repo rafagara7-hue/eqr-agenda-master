@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
+import { syncUpdateToGoogle, syncDeleteFromGoogle } from '@/lib/googleSync';
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -137,6 +138,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       startAt: parsed.data.startAt ? new Date(parsed.data.startAt) : undefined,
       endAt: parsed.data.endAt ? new Date(parsed.data.endAt) : undefined,
     });
+
+    // Fire-and-forget: propaga update para o Google Calendar
+    void syncUpdateToGoogle(serviceDb, {
+      eventId: event.id,
+      memberId: event.memberId,
+      googleEventId: event.googleEventId,
+      data: {
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        allDay: event.allDay,
+        status: event.status === 'tentative' ? 'tentative' : event.status === 'cancelled' ? 'cancelled' : 'confirmed',
+      },
+    });
+
     return NextResponse.json({ event, hasConflict });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
@@ -149,15 +167,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const member = await getAuthorizedMember(supabase, id, 'delete');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Fetch event details + participants before deletion (needed for notification after delete)
+  // Fetch event details + participants before deletion (needed for notification + Google sync)
   const { data: rawEventSnapshot } = await supabase
     .from('events')
-    .select('title, member_id, event_participants(member_id)')
+    .select('title, member_id, google_event_id, event_participants(member_id)')
     .eq('id', id)
     .single();
   const eventSnapshot = rawEventSnapshot as {
     title: string;
     member_id: string;
+    google_event_id: string | null;
     event_participants: { member_id: string }[];
   } | null;
 
@@ -179,6 +198,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         participantIds: partIds.length > 0 ? partIds : [eventSnapshot.member_id],
         actorMemberId: member.id,
         actorRole: member.role,
+      });
+
+      // Fire-and-forget: remove o evento correspondente no Google Calendar
+      void syncDeleteFromGoogle(serviceDb, {
+        memberId: eventSnapshot.member_id,
+        googleEventId: eventSnapshot.google_event_id,
       });
     }
 

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
+import { syncCreateToGoogle } from '@/lib/googleSync';
 
 const createSchema = z.object({
   memberId: z.string().uuid(),
@@ -152,6 +153,22 @@ export async function POST(req: NextRequest) {
       participantIds: event.participantIds,
       actorMemberId: member.id,
       actorRole: member.role,
+    });
+
+    // Fire-and-forget: sync para o Google Calendar do member dono (memberId).
+    // Falhas marcam sync_status='failed' no banco, mas não bloqueiam a resposta.
+    void syncCreateToGoogle(serviceDb, {
+      eventId: event.id,
+      memberId: event.memberId,
+      data: {
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        allDay: event.allDay,
+        status: event.status === 'tentative' ? 'tentative' : 'confirmed',
+      },
     });
 
     return NextResponse.json({ event, hasConflict }, { status: 201 });

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, User, Link2, Link2Off, Camera, Check, X, Phone } from 'lucide-react';
@@ -43,6 +43,41 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
+
+  // Lê resultado do callback OAuth Google (?google=connected|denied|error&reason=...)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const status = searchParams.get('google');
+    if (!status) return;
+    if (status === 'connected') toast.success('Google Calendar conectado');
+    else if (status === 'denied') toast.error('Permissão negada no Google');
+    else toast.error(`Erro ao conectar (${status}${searchParams.get('reason') ? ': ' + searchParams.get('reason') : ''})`);
+    // Limpa o param da URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('google');
+    url.searchParams.delete('reason');
+    router.replace(url.pathname + (url.search || ''));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function handleDisconnectGoogle() {
+    if (!confirm('Desvincular sua conta Google? Eventos atuais não serão removidos do Google, mas novas alterações deixarão de sincronizar.')) return;
+    setDisconnectingGoogle(true);
+    try {
+      const res = await fetch('/api/google/disconnect', { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? 'Erro ao desvincular');
+      }
+      toast.success('Google Calendar desvinculado');
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
+    } finally {
+      setDisconnectingGoogle(false);
+    }
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -296,11 +331,38 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
               )}
             </div>
 
-            <div className="flex justify-between items-center text-sm">
+            {/* Google Calendar: só o próprio dono pode conectar/desconectar */}
+            <div className="flex justify-between items-center gap-3 text-sm">
               <span className="text-text-muted">Google Calendar</span>
-              <span className={`flex items-center gap-1 text-xs font-medium ${member.google_linked ? 'text-success' : 'text-text-muted'}`}>
-                {member.google_linked ? <><Link2 className="w-3.5 h-3.5" /> Vinculado</> : <><Link2Off className="w-3.5 h-3.5" /> Não vinculado</>}
-              </span>
+              {member.google_linked ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs font-medium text-success">
+                    <Link2 className="w-3.5 h-3.5" /> Vinculado
+                  </span>
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDisconnectGoogle()}
+                      disabled={disconnectingGoogle}
+                      className="text-xs text-text-muted hover:text-danger underline underline-offset-2 disabled:opacity-50"
+                    >
+                      {disconnectingGoogle ? 'Desvinculando…' : 'Desvincular'}
+                    </button>
+                  )}
+                </div>
+              ) : isOwnProfile ? (
+                <a
+                  href="/api/google/connect"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-member-blue hover:underline"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  Conectar
+                </a>
+              ) : (
+                <span className="flex items-center gap-1 text-xs font-medium text-text-muted">
+                  <Link2Off className="w-3.5 h-3.5" /> Não vinculado
+                </span>
+              )}
             </div>
 
             <div className="flex justify-between items-center text-sm">
