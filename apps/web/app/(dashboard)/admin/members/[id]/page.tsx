@@ -30,7 +30,8 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
     .single();
   const member = rawMember as {
     id: string; name: string; slug: string; color_hex: string;
-    avatar_url: string | null; role: string; google_linked: boolean; created_at: string;
+    avatar_url: string | null; role: string; google_linked: boolean;
+    phone: string | null; created_at: string;
   } | null;
 
   if (!member) notFound();
@@ -45,6 +46,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
         avatar_url: member.avatar_url,
         role: member.role,
         google_linked: member.google_linked,
+        phone: member.phone,
         created_at: member.created_at,
       }}
       isOwnProfile={currentMember.id === params.id}
