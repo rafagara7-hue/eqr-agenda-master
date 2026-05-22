@@ -230,7 +230,13 @@ function toGoogleEventBody(ev: GoogleEventInput) {
     reminders: DEFAULT_REMINDERS,
   };
   if (ev.attendees && ev.attendees.length > 0) {
-    body['attendees'] = ev.attendees.map((email) => ({ email }));
+    // responseStatus='accepted' marca o convidado como já-aceito.
+    // O Google ainda envia a notificação (sendUpdates=all), mas o evento aparece
+    // diretamente no calendário do convidado sem botões Sim/Não/Talvez.
+    body['attendees'] = ev.attendees.map((email) => ({
+      email,
+      responseStatus: 'accepted',
+    }));
     body['guestsCanInviteOthers'] = false;
     body['guestsCanModify'] = false;
   }
