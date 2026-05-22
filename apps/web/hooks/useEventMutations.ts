@@ -17,6 +17,27 @@ async function fetchApi(path: string, method: string, body?: unknown) {
   return res.json() as Promise<unknown>;
 }
 
+/**
+ * Dispara uma Notification do browser/sistema operacional pra dar feedback push
+ * imediato ao criador do evento (o realtime do app só notifica os OUTROS
+ * participantes, então o criador não receberia sem isso).
+ */
+function pushLocalNotification(title: string, body: string) {
+  if (typeof window === 'undefined') return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (localStorage.getItem('eqr-notif') === 'off') return;
+  try {
+    new Notification(title, { body, icon: '/logo-eqr.png' });
+  } catch {
+    // navegador pode bloquear quando não há foco/SW; ignora
+  }
+}
+
+function formatHora(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export function useCreateEvent() {
   const queryClient = useQueryClient();
 
@@ -28,6 +49,11 @@ export function useCreateEvent() {
     onSuccess: (event) => {
       void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(`Evento "${event.title}" criado`);
+      const start = event.startAt instanceof Date ? event.startAt : new Date(event.startAt);
+      pushLocalNotification(
+        `Evento criado: ${event.title}`,
+        `${formatHora(start)} — sincronizado com seu Google Calendar`
+      );
     },
     onError: (err: Error) => {
       toast.error(`Erro ao criar evento: ${err.message}`);
@@ -74,8 +100,13 @@ export function useUpdateEvent() {
       }
       toast.error(`Erro ao atualizar evento: ${err.message}`);
     },
-    onSuccess: () => {
+    onSuccess: (event) => {
       toast.success('Evento atualizado');
+      const start = event.startAt instanceof Date ? event.startAt : new Date(event.startAt);
+      pushLocalNotification(
+        `Evento atualizado: ${event.title}`,
+        `Novo horário: ${formatHora(start)}`
+      );
     },
   });
 }
