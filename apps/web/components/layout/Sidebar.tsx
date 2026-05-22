@@ -75,12 +75,8 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center border"
-            style={{ backgroundColor: '#0D1B2A', borderColor: brandColor }}
-          >
-            <span className="text-xs font-bold font-mono tracking-tight" style={{ color: brandColor }}>EQR</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-eqr.png" alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg" />
           <span className="text-text-primary text-sm font-semibold hidden sm:block">Agenda</span>
         </div>
 
@@ -178,12 +174,8 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
           'border-surface-border'
         )}
       >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 flex-shrink-0 border"
-          style={{ backgroundColor: '#0D1B2A', borderColor: brandColor }}
-        >
-          <span className="text-[10px] font-bold font-mono tracking-tight" style={{ color: brandColor }}>EQR</span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-eqr.png" alt="EQR" width={36} height={36} className="w-9 h-9 rounded-lg mb-2 flex-shrink-0" />
 
         <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto w-full px-1">
           {visibleItems.map((item) => {
@@ -245,9 +237,8 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         {/* Logo */}
         <div className="h-14 flex items-center px-4 border-b border-surface-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: memberColor }}>
-              <span className="text-white text-xs font-bold">EQR</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-eqr.png" alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg flex-shrink-0" />
             <div>
               <p className="text-text-primary text-sm font-semibold leading-none">Agenda Master</p>
               <p className="text-text-muted text-[10px] mt-0.5">Central corporativa</p>

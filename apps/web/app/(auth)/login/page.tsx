@@ -74,9 +74,8 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 border" style={{ backgroundColor: '#0D1B2A', borderColor: '#C3A25E' }}>
-            <span className="text-xl font-bold font-mono tracking-tight" style={{ color: '#C3A25E' }}>EQR</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-eqr.png" alt="EQR" width={56} height={56} className="w-14 h-14 rounded-xl mb-4 mx-auto" />
           <h1 className="text-2xl font-semibold text-text-primary">Agenda Master</h1>
           <p className="text-text-muted text-sm mt-1">Central corporativa de agendas</p>
         </div>

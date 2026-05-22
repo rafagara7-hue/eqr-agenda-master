@@ -23,7 +23,11 @@ export const metadata: Metadata = {
   },
   description: 'Central corporativa inteligente de gerenciamento de agendas',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/favicon.ico' },
+    ],
+    apple: '/logo-eqr.png',
   },
 };
 
