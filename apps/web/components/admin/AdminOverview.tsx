@@ -136,7 +136,8 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                   <ArrowRight className="w-3.5 h-3.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                {/* Stats — mobile: lista vertical (label esquerda, número direita); desktop: 3 colunas centralizadas */}
+                <div className="hidden sm:grid grid-cols-3 gap-2">
                   <div className="text-center">
                     <p className="text-text-primary text-lg font-semibold">{memberEvents.length}</p>
                     <p className="text-text-muted text-[10px]">eventos</p>
@@ -152,6 +153,25 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                     <p className="text-text-muted text-[10px]">sincronizados</p>
                   </div>
                 </div>
+                <ul className="sm:hidden space-y-1.5 mt-1">
+                  <li className="flex items-center justify-between text-sm">
+                    <span className="text-text-muted">Eventos</span>
+                    <span className="text-text-primary font-semibold">{memberEvents.length}</span>
+                  </li>
+                  <li className="flex items-center justify-between text-sm">
+                    <span className="text-text-muted">Cruzamentos</span>
+                    <span
+                      className="font-semibold"
+                      style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}
+                    >
+                      {memberConflicts.length}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between text-sm">
+                    <span className="text-text-muted">Sincronizados</span>
+                    <span className="text-success font-semibold">{syncedCount}</span>
+                  </li>
+                </ul>
               </motion.button>
             );
           })}

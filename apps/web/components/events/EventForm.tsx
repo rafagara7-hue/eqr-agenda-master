@@ -206,8 +206,8 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         {errors.title && <p className={errorClass}>{errors.title.message}</p>}
       </div>
 
-      {/* Data/hora */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Data/hora — empilhado em mobile, lado a lado em desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className={labelClass}>Início</label>
           <input
