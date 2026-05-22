@@ -64,11 +64,21 @@
     @apply antialiased;
     background-color: var(--surface-base);
     color: var(--text-primary);
+    /* Combina UI do navegador (status bar, scrollbars, overscroll bounce) com o tema atual */
+    color-scheme: dark;
+    /* Sem rebote/pull-to-refresh: o final do scroll para nele mesmo no mobile */
+    overscroll-behavior-y: none;
+  }
+
+  .light html,
+  html.light {
+    color-scheme: light;
   }
 
   body {
     @apply bg-surface-base text-text-primary font-sans;
     min-height: 100dvh;
+    overscroll-behavior-y: none;
   }
 
   /* Scrollbar premium */

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Fragment_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
@@ -29,6 +29,21 @@ export const metadata: Metadata = {
     ],
     apple: '/logo-eqr.png',
   },
+  appleWebApp: {
+    statusBarStyle: 'black-translucent',
+    title: 'EQR Agenda',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0A141F' },
+    { media: '(prefers-color-scheme: light)', color: '#EFE8DB' },
+  ],
+  colorScheme: 'dark light',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
