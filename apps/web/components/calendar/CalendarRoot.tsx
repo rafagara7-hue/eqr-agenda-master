@@ -167,6 +167,25 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
     setSidePanelOpen(true);
   }
 
+  // Mobile + MonthView: tap num dia abre o painel com data pré-preenchida em horário útil.
+  // Se for hoje, usa o próximo slot redondo após "agora"; se for outro dia, usa o início do expediente.
+  function openNewEventForDay(day: Date) {
+    const now = new Date();
+    const isTodayDay =
+      day.getFullYear() === now.getFullYear() &&
+      day.getMonth() === now.getMonth() &&
+      day.getDate() === now.getDate();
+
+    const seed = new Date(day);
+    if (isTodayDay) {
+      const nextHour = now.getMinutes() === 0 ? now.getHours() : now.getHours() + 1;
+      seed.setHours(Math.min(Math.max(nextHour, settings.workStart), settings.workEnd - 1), 0, 0, 0);
+    } else {
+      seed.setHours(settings.workStart, 0, 0, 0);
+    }
+    openNewEvent(seed);
+  }
+
   function openEventDetail(event: CalendarEvent) {
     setSelectedEvent(event);
     setNewEventDate(null);
@@ -482,6 +501,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 favoriteEventIds={favoriteIds}
                 onEventClick={openEventDetail}
                 onDayClick={(date) => { setCurrentDate(date); setView('day'); }}
+                onDayCreate={openNewEventForDay}
                 onDeleteEvent={(id) => deleteEvent.mutate(id)}
               />
             )}

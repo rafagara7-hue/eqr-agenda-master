@@ -22,10 +22,14 @@ interface MonthViewProps {
   favoriteEventIds?: Set<string>;
   onEventClick?: (event: CalendarEvent) => void;
   onDayClick?: (date: Date) => void;
+  /** Mobile-only: ao tocar num dia, abre o painel de novo evento já pré-preenchido com a data. */
+  onDayCreate?: (date: Date) => void;
   onDeleteEvent?: (id: string) => void;
 }
 
-export function MonthView({ currentDate, events, memberColors, conflictEventIds, favoriteEventIds, onEventClick, onDayClick, onDeleteEvent }: MonthViewProps) {
+const MOBILE_BREAKPOINT = 640;
+
+export function MonthView({ currentDate, events, memberColors, conflictEventIds, favoriteEventIds, onEventClick, onDayClick, onDayCreate, onDeleteEvent }: MonthViewProps) {
   const calendarDays = useMemo(() => {
     const firstDay = startOfMonth(currentDate);
     const lastDay = endOfMonth(currentDate);
@@ -77,7 +81,15 @@ export function MonthView({ currentDate, events, memberColors, conflictEventIds,
                     'hover:bg-surface-elevated/40 transition-colors',
                     !inMonth && 'opacity-40'
                   )}
-                  onClick={() => onDayClick?.(day)}
+                  onClick={() => {
+                    // Mobile: tap no dia abre direto o formulário de novo evento (data pré-preenchida)
+                    // Desktop: tap muda pra DayView (comportamento atual)
+                    if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT && onDayCreate) {
+                      onDayCreate(day);
+                    } else {
+                      onDayClick?.(day);
+                    }
+                  }}
                 >
                   {/* Número do dia */}
                   <div className="flex justify-end mb-1">
