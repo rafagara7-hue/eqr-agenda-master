@@ -139,8 +139,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       endAt: parsed.data.endAt ? new Date(parsed.data.endAt) : undefined,
     });
 
-    // Fire-and-forget: propaga update para o Google Calendar
-    void syncUpdateToGoogle(serviceDb, {
+    await syncUpdateToGoogle(serviceDb, {
       eventId: event.id,
       memberId: event.memberId,
       googleEventId: event.googleEventId,
@@ -200,8 +199,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         actorRole: member.role,
       });
 
-      // Fire-and-forget: remove o evento correspondente no Google Calendar
-      void syncDeleteFromGoogle(serviceDb, {
+      await syncDeleteFromGoogle(serviceDb, {
         memberId: eventSnapshot.member_id,
         googleEventId: eventSnapshot.google_event_id,
       });

@@ -155,9 +155,11 @@ export async function POST(req: NextRequest) {
       actorRole: member.role,
     });
 
-    // Fire-and-forget: sync para o Google Calendar do member dono (memberId).
-    // Falhas marcam sync_status='failed' no banco, mas não bloqueiam a resposta.
-    void syncCreateToGoogle(serviceDb, {
+    // Awaitamos o sync com o Google: em serverless da Vercel, fire-and-forget
+    // (void) é cortado quando o handler retorna. Esperar 1-2s garante que o
+    // sync_status seja gravado (synced ou failed). Falhas internamente são
+    // tratadas por syncCreateToGoogle e nunca propagam — segura pra await.
+    await syncCreateToGoogle(serviceDb, {
       eventId: event.id,
       memberId: event.memberId,
       data: {
