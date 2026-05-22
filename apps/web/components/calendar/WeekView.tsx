@@ -138,8 +138,7 @@ export function WeekView({
               return (
                 <div
                   key={day.toISOString()}
-                  className="flex-1 relative border-l border-surface-border/40 h-full"
-                  style={{ minWidth: `${MIN_COL_WIDTH}px` }}
+                  className="flex-1 min-w-0 relative border-l border-surface-border/40 h-full"
                 >
                   {visibleHours.map((hour) => (
                     <div
