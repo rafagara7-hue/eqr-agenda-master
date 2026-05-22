@@ -18,7 +18,7 @@ export default async function MembersPage() {
 
   const { data: members } = await supabase
     .from('members')
-    .select('id, name, slug, color_hex, avatar_url, role, is_active, google_linked')
+    .select('id, name, slug, color_hex, avatar_url, role, is_active, google_linked, phone')
     .eq('is_active', true)
     .order('name');
 

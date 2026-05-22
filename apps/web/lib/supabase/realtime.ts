@@ -59,6 +59,35 @@ export function subscribeToNotifications(
   };
 }
 
+/**
+ * Avisa quando um evento é compartilhado com este member (INSERT em event_participants)
+ * ou quando deixa de ser (DELETE). Útil pra invalidar o cache de eventos.
+ */
+export function subscribeToMemberParticipations(
+  memberId: string,
+  onChange: () => void
+) {
+  const supabase = getSupabaseBrowserClient();
+
+  const channel = supabase
+    .channel(`event_participants:${memberId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'event_participants',
+        filter: `member_id=eq.${memberId}`,
+      },
+      () => onChange()
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 export function subscribeToConflicts(
   memberId: string,
   onConflict: (record: unknown) => void

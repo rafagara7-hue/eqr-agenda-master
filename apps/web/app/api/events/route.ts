@@ -6,6 +6,7 @@ import { z } from 'zod';
 const createSchema = z.object({
   memberId: z.string().uuid(),
   participantIds: z.array(z.string().uuid()).max(20).optional(),
+  participantsCanEdit: z.boolean().optional(),
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   location: z.string().optional(),
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
     const { event, hasConflict } = await service.create({
       memberId: parsed.data.memberId,
       participantIds: parsed.data.participantIds,
+      participantsCanEdit: parsed.data.participantsCanEdit,
       createdBy: member.id,
       title: parsed.data.title,
       description: parsed.data.description,
@@ -169,10 +171,20 @@ export async function GET(req: NextRequest) {
   const endAt = searchParams.get('endAt');
   const memberId = searchParams.get('memberId');
 
-  let query = supabase.from('events').select('*');
+  let query = supabase
+    .from('events')
+    .select('*, event_participants(member_id, role, can_edit)');
   if (startAt) query = query.gte('start_at', startAt);
   if (endAt) query = query.lte('end_at', endAt);
-  if (memberId) query = query.contains('participants', [memberId]);
+  if (memberId) {
+    const { data: pRows } = await supabase
+      .from('event_participants')
+      .select('event_id')
+      .eq('member_id', memberId);
+    const ids = (pRows ?? []).map((r) => (r as { event_id: string }).event_id);
+    if (ids.length === 0) return NextResponse.json({ events: [] });
+    query = query.in('id', ids);
+  }
 
   const { data, error } = await query.order('start_at');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -21,6 +21,7 @@ export interface Database {
           is_active: boolean;
           avatar_url: string | null;
           google_linked: boolean;
+          phone: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -35,6 +36,7 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           google_linked?: boolean;
+          phone?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -49,14 +51,47 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           google_linked?: boolean;
+          phone?: string | null;
           updated_at?: string;
         };
+      };
+      event_participants: {
+        Row: {
+          event_id: string;
+          member_id: string;
+          role: 'owner' | 'participant';
+          can_edit: boolean;
+          created_at: string;
+        };
+        Insert: {
+          event_id: string;
+          member_id: string;
+          role?: 'owner' | 'participant';
+          can_edit?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          role?: 'owner' | 'participant';
+          can_edit?: boolean;
+        };
+      };
+      event_favorites: {
+        Row: {
+          member_id: string;
+          event_id: string;
+          created_at: string;
+        };
+        Insert: {
+          member_id: string;
+          event_id: string;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
       };
       events: {
         Row: {
           id: string;
           member_id: string;
-          participants: string[];
           created_by: string;
           title: string;
           description: string | null;
@@ -81,7 +116,6 @@ export interface Database {
         Insert: {
           id?: string;
           member_id: string;
-          participants?: string[];
           created_by: string;
           title: string;
           description?: string | null;
@@ -106,7 +140,6 @@ export interface Database {
         Update: {
           id?: string;
           member_id?: string;
-          participants?: string[];
           title?: string;
           description?: string | null;
           location?: string | null;

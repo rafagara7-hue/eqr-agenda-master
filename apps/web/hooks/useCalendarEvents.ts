@@ -3,17 +3,30 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { subscribeToMemberEvents } from '@/lib/supabase/realtime';
+import { subscribeToMemberEvents, subscribeToMemberParticipations } from '@/lib/supabase/realtime';
 import { useAuth } from './useAuth';
-import type { CalendarEvent } from '@eqr/domain';
+import type { CalendarEvent, EventParticipant } from '@eqr/domain';
 import type { Database } from '@eqr/database';
 
 type DbEvent = Database['public']['Tables']['events']['Row'];
+type DbParticipantRow = { member_id: string; role: 'owner' | 'participant'; can_edit: boolean };
+type EventRowWithParticipants = DbEvent & { event_participants?: DbParticipantRow[] | null };
 
-function dbToCalendarEvent(row: DbEvent): CalendarEvent {
+function dbToCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
+  const participants: EventParticipant[] = (row.event_participants ?? []).map((p) => ({
+    memberId: p.member_id,
+    role: p.role,
+    canEdit: p.can_edit,
+  }));
+  const participantIds = participants.length > 0
+    ? participants.map((p) => p.memberId)
+    : [row.member_id];
+
   return {
     id: row.id,
     memberId: row.member_id,
+    participantIds,
+    participants,
     createdBy: row.created_by,
     title: row.title,
     description: row.description,
@@ -53,23 +66,37 @@ export function useCalendarEvents({ startAt, endAt, memberIds }: UseCalendarEven
   const query = useQuery({
     queryKey,
     queryFn: async (): Promise<CalendarEvent[]> => {
+      // Filtragem por member: usar event_participants (não member_id)
+      let allowedIds: string[] | null = null;
+      if (!isAdmin && member) {
+        const { data: pRows } = await supabase
+          .from('event_participants')
+          .select('event_id')
+          .eq('member_id', member.id);
+        allowedIds = ((pRows ?? []) as { event_id: string }[]).map((r) => r.event_id);
+        if (allowedIds.length === 0) return [];
+      } else if (memberIds && memberIds.length > 0) {
+        const { data: pRows } = await supabase
+          .from('event_participants')
+          .select('event_id')
+          .in('member_id', memberIds);
+        allowedIds = ((pRows ?? []) as { event_id: string }[]).map((r) => r.event_id);
+        if (allowedIds.length === 0) return [];
+      }
+
       let q = supabase
         .from('events')
-        .select('*')
+        .select('*, event_participants(member_id, role, can_edit)')
         .lt('start_at', endAt.toISOString())
         .gt('end_at', startAt.toISOString())
         .neq('status', 'cancelled')
         .order('start_at', { ascending: true });
 
-      if (!isAdmin && member) {
-        q = q.eq('member_id', member.id);
-      } else if (memberIds && memberIds.length > 0) {
-        q = q.in('member_id', memberIds);
-      }
+      if (allowedIds) q = q.in('id', allowedIds);
 
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map(dbToCalendarEvent);
+      return ((data ?? []) as unknown as EventRowWithParticipants[]).map(dbToCalendarEvent);
     },
     enabled: !!member,
     staleTime: 30_000,
@@ -116,6 +143,15 @@ export function useCalendarEvents({ startAt, endAt, memberIds }: UseCalendarEven
     return () => unsubscribes.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, isAdmin, memberIds?.join(',')]);
+
+  // Quando alguém me adiciona/remove de event_participants, reavalia.
+  useEffect(() => {
+    if (!member) return;
+    const unsub = subscribeToMemberParticipations(member.id, () => {
+      void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    });
+    return unsub;
+  }, [member?.id, queryClient]);
 
   return query;
 }

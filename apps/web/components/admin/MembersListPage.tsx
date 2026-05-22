@@ -2,9 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Shield, User, ChevronRight, Link2Off, Link2 } from 'lucide-react';
+import { Shield, User, ChevronRight, Link2Off, Link2, Phone } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { usePresenceContext } from '@/contexts/PresenceContext';
+import { formatPhone } from '@/lib/phone';
 
 interface MemberRow {
   id: string;
@@ -15,6 +16,7 @@ interface MemberRow {
   role: string;
   is_active: boolean;
   google_linked: boolean;
+  phone: string | null;
 }
 
 interface MembersListPageProps {
@@ -91,13 +93,13 @@ export function MembersListPage({ members, currentMemberId, isAdmin }: MembersLi
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-white"
-                  style={{ backgroundColor: m.color_hex }}
-                >
-                  {m.color_hex}
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {m.phone && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-text-muted">
+                    <Phone className="w-3 h-3" />
+                    {formatPhone(m.phone)}
+                  </span>
+                )}
                 <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${m.google_linked ? 'text-success' : 'text-text-muted'}`}>
                   {m.google_linked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
                   {m.google_linked ? 'Google vinculado' : 'Sem Google'}

@@ -16,6 +16,9 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from '@/lib/calendar/dateUtils';
 import type { CalendarEvent } from '@eqr/domain';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
+import { BottomSheet } from '@/components/shared/BottomSheet';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { useFavorites } from '@/hooks/useFavorites';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -23,6 +26,7 @@ interface MemberOption {
   id: string;
   name: string;
   colorHex: string;
+  avatarUrl: string | null;
 }
 
 function getDateRange(date: Date, view: CalendarView) {
@@ -68,6 +72,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
   );
   const [activeFilter, setActiveFilter] = useState<string | undefined>(initialFilter);
   const [showFilteredHours, setShowFilteredHours] = useState(true);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Volta para modo filtrado quando o usuário aplica novos horários
   useEffect(() => {
@@ -84,11 +89,16 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
     queryFn: async () => {
       const { data } = await supabase
         .from('members')
-        .select('id, name, color_hex')
+        .select('id, name, color_hex, avatar_url')
         .eq('is_active', true)
         .neq('slug', 'admin')
         .order('name');
-      return (data ?? []).map((m) => ({ id: m.id, name: m.name, colorHex: m.color_hex }));
+      return (data ?? []).map((m) => ({
+        id: m.id,
+        name: m.name,
+        colorHex: m.color_hex,
+        avatarUrl: m.avatar_url,
+      }));
     },
     enabled: isAdmin,
     staleTime: 5 * 60_000,
@@ -99,6 +109,8 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
     endAt,
     memberIds: isAdmin && activeMemberIds.length > 0 ? activeMemberIds : undefined,
   });
+
+  const { data: favoriteIds } = useFavorites();
 
   const eventMemberColors: Record<string, string> = useMemo(() => {
     const result: Record<string, string> = {};
@@ -157,49 +169,55 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         view={view}
         onDateChange={setCurrentDate}
         onViewChange={setView}
+        onOpenMobileFilters={() => setMobileFiltersOpen(true)}
+        showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
 
-      {/* Member filter pills — admin only */}
+      {/* Member filter pills — admin only — sem o texto "Filtrar" */}
       {isAdmin && memberOptions.length > 0 && (
         <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
-          <span className="text-text-muted text-xs shrink-0">Filtrar:</span>
           <button
             onClick={() => setActiveMemberIds([])}
-            className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+            aria-pressed={activeMemberIds.length === 0}
+            className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
               activeMemberIds.length === 0
-                ? 'bg-surface-muted border-surface-muted text-text-primary'
-                : 'border-surface-border text-text-muted hover:border-surface-muted hover:text-text-secondary'
+                ? 'bg-surface-muted border-surface-muted text-text-primary scale-105'
+                : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
             }`}
           >
             Todos
           </button>
           {memberOptions.map((m) => {
             const isActive = activeMemberIds.includes(m.id);
+            const hasSelection = activeMemberIds.length > 0;
             return (
               <button
                 key={m.id}
                 onClick={() => toggleMember(m.id)}
-                className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                aria-pressed={isActive}
+                aria-label={`Filtrar por ${m.name}`}
+                title={m.name}
+                className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
                   isActive
-                    ? 'text-white border-transparent'
-                    : 'border-surface-border text-text-muted hover:text-text-secondary'
+                    ? 'text-white border-transparent scale-105'
+                    : `border-surface-border text-text-muted ${hasSelection ? 'opacity-50' : 'opacity-90'} hover:opacity-100 hover:text-text-secondary`
                 }`}
                 style={isActive ? { backgroundColor: m.colorHex, borderColor: m.colorHex } : {}}
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: isActive ? 'white' : m.colorHex, opacity: isActive ? 0.85 : 1 }}
+                <MemberAvatar
+                  member={{ name: m.name, colorHex: m.colorHex, avatarUrl: m.avatarUrl }}
+                  size="xs"
                 />
-                {m.name}
+                <span className="hidden sm:inline">{m.name}</span>
               </button>
             );
           })}
         </div>
       )}
 
-      {/* Toggle de faixa de horário — apenas dia/semana */}
+      {/* Toggle de faixa de horário — apenas DESKTOP. Mobile usa BottomSheet. */}
       {view !== 'month' && (
-        <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-surface-border bg-surface-base shrink-0">
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base shrink-0">
           <span className="text-text-muted text-xs shrink-0">Horário:</span>
           <div className="flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5">
             <button
@@ -225,6 +243,86 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           </div>
         </div>
       )}
+
+      {/* BottomSheet de filtros mobile — espelha os controles que ficam acima no desktop */}
+      <BottomSheet
+        open={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        title="Filtros e exibição"
+      >
+        <div className="space-y-6 pb-2">
+          {view !== 'month' && (
+            <section>
+              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Recorte de horário</p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowFilteredHours(true); }}
+                  className={`w-full min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left border ${
+                    showFilteredHours
+                      ? 'bg-member-blue/15 border-member-blue text-text-primary'
+                      : 'bg-surface-overlay border-surface-border text-text-secondary'
+                  }`}
+                >
+                  {String(settings.workStart).padStart(2, '0')}h – {String(settings.workEnd).padStart(2, '0')}h
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowFilteredHours(false); }}
+                  className={`w-full min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left border ${
+                    !showFilteredHours
+                      ? 'bg-member-blue/15 border-member-blue text-text-primary'
+                      : 'bg-surface-overlay border-surface-border text-text-secondary'
+                  }`}
+                >
+                  Dia completo (00h – 24h)
+                </button>
+              </div>
+            </section>
+          )}
+
+          {isAdmin && memberOptions.length > 0 && (
+            <section>
+              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Filtrar por membro</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveMemberIds([])}
+                  className={`min-h-[44px] px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                    activeMemberIds.length === 0
+                      ? 'bg-surface-muted border-surface-muted text-text-primary'
+                      : 'border-surface-border text-text-muted'
+                  }`}
+                >
+                  Todos
+                </button>
+                {memberOptions.map((m) => {
+                  const isActive = activeMemberIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => toggleMember(m.id)}
+                      className={`min-h-[44px] flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                        isActive
+                          ? 'text-white border-transparent'
+                          : 'border-surface-border text-text-secondary'
+                      }`}
+                      style={isActive ? { backgroundColor: m.colorHex, borderColor: m.colorHex } : {}}
+                    >
+                      <MemberAvatar
+                        member={{ name: m.name, colorHex: m.colorHex, avatarUrl: m.avatarUrl }}
+                        size="xs"
+                      />
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      </BottomSheet>
 
       {/* Barra de filtro especial (horários cruzados / sync com falha) */}
       {activeFilter && FILTER_LABELS[activeFilter] && (
@@ -270,6 +368,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 events={eventsToShow}
                 memberColors={eventMemberColors}
                 conflictEventIds={conflictEventIds}
+                favoriteEventIds={favoriteIds}
                 onEventClick={openEventDetail}
                 onSlotClick={openNewEvent}
                 onDeleteEvent={(id) => deleteEvent.mutate(id)}
@@ -284,6 +383,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 events={eventsToShow}
                 memberColors={eventMemberColors}
                 conflictEventIds={conflictEventIds}
+                favoriteEventIds={favoriteIds}
                 onEventClick={openEventDetail}
                 onSlotClick={openNewEvent}
                 onDeleteEvent={(id) => deleteEvent.mutate(id)}
@@ -298,6 +398,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 events={eventsToShow}
                 memberColors={eventMemberColors}
                 conflictEventIds={conflictEventIds}
+                favoriteEventIds={favoriteIds}
                 onEventClick={openEventDetail}
                 onDayClick={(date) => { setCurrentDate(date); setView('day'); }}
                 onDeleteEvent={(id) => deleteEvent.mutate(id)}

@@ -10,12 +10,17 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { settings } = useAgendaSettings();
   const pos = settings.sidebarPosition;
 
-  // On mobile, always reserve space for the bottom nav (left/right become bottom on mobile)
+  // Reserva espaço para a sidebar nas 4 posições, tanto mobile quanto desktop.
+  // Mobile: rail vertical de 56px (left/right) ou barra de 56px (top/bottom).
+  // Desktop: sidebar de 240px (left/right) ou barra de 56px (top/bottom).
   const mainClass =
-    pos === 'left' ? 'pb-14 md:pb-0 md:ml-[240px]' :
-    pos === 'right' ? 'pb-14 md:pb-0 md:mr-[240px]' :
-    pos === 'top' ? 'pt-14' :
-    'pb-14';
+    pos === 'left'
+      ? 'ml-14 md:ml-[240px]'
+      : pos === 'right'
+      ? 'mr-14 md:mr-[240px]'
+      : pos === 'top'
+      ? 'pt-14'
+      : 'pb-14';
 
   return (
     <div className="min-h-screen bg-surface-base flex flex-col">

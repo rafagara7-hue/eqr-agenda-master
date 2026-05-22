@@ -55,6 +55,7 @@ const config: Config = {
         warning: '#F59E0B',
         danger: '#EF4444',
         info: '#3B82F6',
+        favorite: '#C9A84C',
         // Supabase Realtime status
         sync: {
           pending: '#F59E0B',

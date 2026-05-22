@@ -11,19 +11,21 @@ import { getMemberColor } from '@/lib/calendar/colorMap';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 
-const WEEK_HEADERS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const WEEK_HEADERS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const WEEK_HEADERS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 interface MonthViewProps {
   currentDate: Date;
   events: CalendarEvent[];
   memberColors: Record<string, string>;
   conflictEventIds?: Set<string>;
+  favoriteEventIds?: Set<string>;
   onEventClick?: (event: CalendarEvent) => void;
   onDayClick?: (date: Date) => void;
   onDeleteEvent?: (id: string) => void;
 }
 
-export function MonthView({ currentDate, events, memberColors, conflictEventIds, onEventClick, onDayClick, onDeleteEvent }: MonthViewProps) {
+export function MonthView({ currentDate, events, memberColors, conflictEventIds, favoriteEventIds, onEventClick, onDayClick, onDeleteEvent }: MonthViewProps) {
   const calendarDays = useMemo(() => {
     const firstDay = startOfMonth(currentDate);
     const lastDay = endOfMonth(currentDate);
@@ -50,9 +52,10 @@ export function MonthView({ currentDate, events, memberColors, conflictEventIds,
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Cabeçalho dos dias da semana */}
       <div className="grid grid-cols-7 border-b border-surface-border">
-        {WEEK_HEADERS.map((h) => (
-          <div key={h} className="py-2 text-center text-[10px] font-medium text-text-muted uppercase tracking-wider">
-            {h}
+        {WEEK_HEADERS_SHORT.map((short, i) => (
+          <div key={short} className="py-2 text-center text-[10px] font-medium text-text-muted uppercase tracking-wider truncate">
+            <span className="sm:hidden">{short}</span>
+            <span className="hidden sm:inline">{WEEK_HEADERS_FULL[i]}</span>
           </div>
         ))}
       </div>
@@ -104,6 +107,7 @@ export function MonthView({ currentDate, events, memberColors, conflictEventIds,
                         }}
                         onDelete={onDeleteEvent ? () => onDeleteEvent(event.id) : undefined}
                         hasConflict={conflictEventIds?.has(event.id)}
+                        isFavorite={favoriteEventIds?.has(event.id)}
                       />
                     ))}
                     {events.filter((e) => isSameDay(e.startAt, day)).length > 3 && (

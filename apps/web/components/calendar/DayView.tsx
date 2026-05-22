@@ -13,6 +13,7 @@ interface DayViewProps {
   events: CalendarEvent[];
   memberColors: Record<string, string>;
   conflictEventIds?: Set<string>;
+  favoriteEventIds?: Set<string>;
   onEventClick?: (event: CalendarEvent) => void;
   onSlotClick?: (date: Date) => void;
   onDeleteEvent?: (id: string) => void;
@@ -26,6 +27,7 @@ export function DayView({
   events,
   memberColors,
   conflictEventIds,
+  favoriteEventIds,
   onEventClick,
   onSlotClick,
   onDeleteEvent,
@@ -111,6 +113,7 @@ export function DayView({
             onClick={() => onEventClick?.(event)}
             onDelete={onDeleteEvent ? () => onDeleteEvent(event.id) : undefined}
             hasConflict={conflictEventIds?.has(event.id)}
+            isFavorite={favoriteEventIds?.has(event.id)}
           />
         ))}
       </div>

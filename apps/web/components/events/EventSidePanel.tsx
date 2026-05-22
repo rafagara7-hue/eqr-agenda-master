@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Edit2, Trash2, MapPin, Clock, User2, Calendar, Users } from 'lucide-react';
+import { X, Edit2, Trash2, MapPin, Clock, User2, Calendar, Users, Star } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { EventForm } from './EventForm';
@@ -9,6 +9,7 @@ import { SyncStatusBadge } from '@/components/calendar/SyncStatusBadge';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useDeleteEvent } from '@/hooks/useEventMutations';
 import { useAuth } from '@/hooks/useAuth';
+import { useFavorites, useToggleFavorite } from '@/hooks/useFavorites';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { cn } from '@/lib/utils';
@@ -25,11 +26,15 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
   const [isEditing, setIsEditing] = useState(false);
   const deleteEvent = useDeleteEvent();
   const { isAdmin, member } = useAuth();
+  const { data: favorites } = useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorite = !!event && !!favorites?.has(event.id);
   const canEdit = isAdmin || (!!event && !!member && (
     event.memberId === member.id
     || event.createdBy === member.id
     || (event.participantIds ?? []).includes(member.id)
   ));
+  const canFavorite = !!member;
   const supabase = getSupabaseBrowserClient();
 
   const { data: memberInfo } = useQuery({
@@ -105,6 +110,21 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
               </h2>
 
               <div className="flex items-center gap-1">
+                {!isNewEvent && canFavorite && !isEditing && event && (
+                  <button
+                    onClick={() => toggleFavorite.mutate({ eventId: event.id, isFavorite })}
+                    className={cn(
+                      'p-1.5 rounded-md transition-all duration-150',
+                      isFavorite
+                        ? 'text-favorite hover:bg-favorite/10'
+                        : 'text-text-muted hover:text-favorite hover:bg-surface-elevated'
+                    )}
+                    title={isFavorite ? 'Remover destaque' : 'Destacar reunião'}
+                    aria-label={isFavorite ? 'Remover destaque' : 'Destacar reunião'}
+                  >
+                    <Star className="w-3.5 h-3.5" fill={isFavorite ? '#C9A84C' : 'none'} />
+                  </button>
+                )}
                 {!isNewEvent && canEdit && !isEditing && (
                   <>
                     <button

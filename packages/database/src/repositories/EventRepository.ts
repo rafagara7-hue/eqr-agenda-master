@@ -1,14 +1,36 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CalendarEvent, CreateEventInput, UpdateEventInput, IEventRepository, EventsFilter } from '@eqr/domain';
+import type { CalendarEvent, CreateEventInput, UpdateEventInput, IEventRepository, EventsFilter, EventParticipant } from '@eqr/domain';
 import type { Database } from '../types/supabase.js';
 
 type DbEvent = Database['public']['Tables']['events']['Row'];
+type DbParticipantRow = { member_id: string; role: 'owner' | 'participant'; can_edit: boolean };
 
-function toCalendarEvent(row: DbEvent): CalendarEvent {
+type EventRowWithParticipants = DbEvent & {
+  event_participants?: DbParticipantRow[] | null;
+};
+
+const EVENT_SELECT_WITH_PARTICIPANTS =
+  '*, event_participants(member_id, role, can_edit)';
+
+function toParticipants(rows: DbParticipantRow[] | null | undefined): EventParticipant[] {
+  return (rows ?? []).map((p) => ({
+    memberId: p.member_id,
+    role: p.role,
+    canEdit: p.can_edit,
+  }));
+}
+
+function toCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
+  const participants = toParticipants(row.event_participants);
+  const participantIds = participants.length > 0
+    ? participants.map((p) => p.memberId)
+    : [row.member_id];
+
   return {
     id: row.id,
     memberId: row.member_id,
-    participantIds: row.participants ?? [row.member_id],
+    participantIds,
+    participants,
     createdBy: row.created_by,
     title: row.title,
     description: row.description,
@@ -32,64 +54,117 @@ function toCalendarEvent(row: DbEvent): CalendarEvent {
   };
 }
 
+async function syncParticipants(
+  db: SupabaseClient<Database>,
+  eventId: string,
+  hostId: string,
+  extraIds: string[],
+  hostCanEdit: boolean,
+  extrasCanEdit: boolean
+): Promise<void> {
+  const uniqueExtras = Array.from(new Set(extraIds.filter((id) => id !== hostId)));
+  const rows: Database['public']['Tables']['event_participants']['Insert'][] = [
+    { event_id: eventId, member_id: hostId, role: 'owner', can_edit: hostCanEdit },
+    ...uniqueExtras.map((mid) => ({
+      event_id: eventId,
+      member_id: mid,
+      role: 'participant' as const,
+      can_edit: extrasCanEdit,
+    })),
+  ];
+
+  const { error: delErr } = await db
+    .from('event_participants')
+    .delete()
+    .eq('event_id', eventId);
+  if (delErr) throw new Error(`EventRepository.syncParticipants(delete): ${delErr.message}`);
+
+  const { error: insErr } = await db.from('event_participants').insert(rows);
+  if (insErr) throw new Error(`EventRepository.syncParticipants(insert): ${insErr.message}`);
+}
+
 export class EventRepository implements IEventRepository {
   constructor(private readonly db: SupabaseClient<Database>) {}
 
   async findById(id: string): Promise<CalendarEvent | null> {
     const { data, error } = await this.db
       .from('events')
-      .select('*')
+      .select(EVENT_SELECT_WITH_PARTICIPANTS)
       .eq('id', id)
       .single();
     if (error || !data) return null;
-    return toCalendarEvent(data);
+    return toCalendarEvent(data as unknown as EventRowWithParticipants);
   }
 
   async findByMemberId(memberId: string, filter?: EventsFilter): Promise<CalendarEvent[]> {
-    let query = this.db.from('events').select('*').eq('member_id', memberId);
+    // Eventos onde o member é participante (owner ou participant).
+    const { data: pRows, error: pErr } = await this.db
+      .from('event_participants')
+      .select('event_id')
+      .eq('member_id', memberId);
+    if (pErr) throw new Error(`EventRepository.findByMemberId(participants): ${pErr.message}`);
+    const eventIds = (pRows ?? []).map((r) => r.event_id);
+    if (eventIds.length === 0) return [];
+
+    let query = this.db.from('events').select(EVENT_SELECT_WITH_PARTICIPANTS).in('id', eventIds);
     if (filter?.startAt) query = query.gte('start_at', filter.startAt.toISOString());
     if (filter?.endAt) query = query.lte('end_at', filter.endAt.toISOString());
     if (filter?.status) query = query.eq('status', filter.status);
     const { data, error } = await query.order('start_at', { ascending: true });
     if (error) throw new Error(`EventRepository.findByMemberId: ${error.message}`);
-    return (data ?? []).map(toCalendarEvent);
+    return ((data ?? []) as unknown as EventRowWithParticipants[]).map(toCalendarEvent);
   }
 
   async findAll(filter?: EventsFilter): Promise<CalendarEvent[]> {
-    let query = this.db.from('events').select('*');
-    if (filter?.memberId) query = query.eq('member_id', filter.memberId);
+    let query = this.db.from('events').select(EVENT_SELECT_WITH_PARTICIPANTS);
+    if (filter?.memberId) {
+      const { data: pRows } = await this.db
+        .from('event_participants')
+        .select('event_id')
+        .eq('member_id', filter.memberId);
+      const ids = (pRows ?? []).map((r) => r.event_id);
+      if (ids.length === 0) return [];
+      query = query.in('id', ids);
+    }
     if (filter?.startAt) query = query.gte('start_at', filter.startAt.toISOString());
     if (filter?.endAt) query = query.lte('end_at', filter.endAt.toISOString());
     if (filter?.status) query = query.eq('status', filter.status);
     if (filter?.syncStatus) query = query.eq('sync_status', filter.syncStatus);
     const { data, error } = await query.order('start_at', { ascending: true });
     if (error) throw new Error(`EventRepository.findAll: ${error.message}`);
-    return (data ?? []).map(toCalendarEvent);
+    return ((data ?? []) as unknown as EventRowWithParticipants[]).map(toCalendarEvent);
   }
 
   async findByDateRange(startAt: Date, endAt: Date, memberId?: string): Promise<CalendarEvent[]> {
+    let allowedIds: string[] | null = null;
+    if (memberId) {
+      const { data: pRows, error: pErr } = await this.db
+        .from('event_participants')
+        .select('event_id')
+        .eq('member_id', memberId);
+      if (pErr) throw new Error(`EventRepository.findByDateRange(participants): ${pErr.message}`);
+      allowedIds = (pRows ?? []).map((r) => r.event_id);
+      if (allowedIds.length === 0) return [];
+    }
+
     let query = this.db
       .from('events')
-      .select('*')
+      .select(EVENT_SELECT_WITH_PARTICIPANTS)
       .lt('start_at', endAt.toISOString())
       .gt('end_at', startAt.toISOString())
       .neq('status', 'cancelled');
-    if (memberId) query = query.contains('participants', [memberId]);
+    if (allowedIds) query = query.in('id', allowedIds);
+
     const { data, error } = await query.order('start_at', { ascending: true });
     if (error) throw new Error(`EventRepository.findByDateRange: ${error.message}`);
-    return (data ?? []).map(toCalendarEvent);
+    return ((data ?? []) as unknown as EventRowWithParticipants[]).map(toCalendarEvent);
   }
 
   async create(input: CreateEventInput): Promise<CalendarEvent> {
-    const participants = input.participantIds && input.participantIds.length > 0
-      ? Array.from(new Set([input.memberId, ...input.participantIds]))
-      : [input.memberId];
-
-    const { data, error } = await this.db
+    const { data: inserted, error } = await this.db
       .from('events')
       .insert({
         member_id: input.memberId,
-        participants,
         created_by: input.createdBy,
         title: input.title,
         description: input.description ?? null,
@@ -102,10 +177,22 @@ export class EventRepository implements IEventRepository {
         color_override: input.colorOverride ?? null,
         sync_status: 'pending',
       })
-      .select()
+      .select('id')
       .single();
-    if (error || !data) throw new Error(`EventRepository.create: ${error?.message}`);
-    return toCalendarEvent(data);
+    if (error || !inserted) throw new Error(`EventRepository.create: ${error?.message}`);
+
+    await syncParticipants(
+      this.db,
+      inserted.id,
+      input.memberId,
+      input.participantIds ?? [],
+      true,
+      input.participantsCanEdit ?? false
+    );
+
+    const created = await this.findById(inserted.id);
+    if (!created) throw new Error('EventRepository.create: failed to refetch created event');
+    return created;
   }
 
   async update(input: UpdateEventInput): Promise<CalendarEvent> {
@@ -120,21 +207,30 @@ export class EventRepository implements IEventRepository {
     if (input.allDay !== undefined) updatePayload.all_day = input.allDay;
     if (input.status !== undefined) updatePayload.status = input.status;
     if (input.colorOverride !== undefined) updatePayload.color_override = input.colorOverride ?? null;
-    if (input.participantIds !== undefined) {
-      const base = input.participantIds;
-      updatePayload.participants = input.memberId
-        ? Array.from(new Set([input.memberId, ...base]))
-        : base;
-    }
 
     const { data, error } = await this.db
       .from('events')
       .update(updatePayload)
       .eq('id', input.id)
-      .select()
+      .select('id, member_id')
       .single();
     if (error || !data) throw new Error(`EventRepository.update: ${error?.message}`);
-    return toCalendarEvent(data);
+
+    if (input.participantIds !== undefined) {
+      const host = input.memberId ?? data.member_id;
+      await syncParticipants(
+        this.db,
+        data.id,
+        host,
+        input.participantIds,
+        true,
+        input.participantsCanEdit ?? false
+      );
+    }
+
+    const updated = await this.findById(data.id);
+    if (!updated) throw new Error('EventRepository.update: failed to refetch event');
+    return updated;
   }
 
   async delete(id: string): Promise<void> {

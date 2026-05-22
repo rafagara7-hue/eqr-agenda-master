@@ -4,10 +4,11 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, User, Link2, Link2Off, Camera, Check, X } from 'lucide-react';
+import { ArrowLeft, Shield, User, Link2, Link2Off, Camera, Check, X, Phone } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/calendar/dateUtils';
+import { formatPhone, maskPhoneInput, validatePhone } from '@/lib/phone';
 
 interface MemberData {
   id: string;
@@ -17,6 +18,7 @@ interface MemberData {
   avatar_url: string | null;
   role: string;
   google_linked: boolean;
+  phone: string | null;
   created_at: string;
 }
 
@@ -37,6 +39,8 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
   const [name, setName] = useState(member.name);
   const [avatarUrl, setAvatarUrl] = useState(member.avatar_url ?? '');
   const [colorHex, setColorHex] = useState(member.color_hex);
+  const [phoneInput, setPhoneInput] = useState(formatPhone(member.phone));
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -79,12 +83,24 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
   }
 
   async function handleSave() {
+    const phoneCheck = validatePhone(phoneInput);
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.error ?? 'Telefone inválido');
+      return;
+    }
+    setPhoneError(null);
+
     setSaving(true);
     try {
       const res = await fetch(`/api/members/${member.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, avatar_url: avatarUrl || null, color_hex: colorHex }),
+        body: JSON.stringify({
+          name,
+          avatar_url: avatarUrl || null,
+          color_hex: colorHex,
+          phone: phoneCheck.value,
+        }),
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
@@ -111,6 +127,8 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
     setName(member.name);
     setAvatarUrl(member.avatar_url ?? '');
     setColorHex(member.color_hex);
+    setPhoneInput(formatPhone(member.phone));
+    setPhoneError(null);
     setIsEditing(false);
   }
 
@@ -242,10 +260,40 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
           <div className="p-6 space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-text-muted">Cor do calendário</span>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colorHex }} />
-                <span className="text-text-secondary font-mono text-xs">{colorHex}</span>
+              <span
+                className="w-4 h-4 rounded-full border border-surface-border"
+                style={{ backgroundColor: colorHex }}
+                aria-label="Cor selecionada"
+              />
+            </div>
+
+            {/* Telefone */}
+            <div className="flex justify-between items-start gap-3 text-sm py-1">
+              <span className="text-text-muted flex items-center gap-1.5 mt-1">
+                <Phone className="w-3.5 h-3.5" /> Telefone
               </span>
+              {isEditing && canEdit ? (
+                <div className="flex flex-col items-end gap-1 min-w-0">
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phoneInput}
+                    placeholder="(11) 99999-8888"
+                    onChange={(e) => {
+                      const masked = maskPhoneInput(e.target.value);
+                      setPhoneInput(masked);
+                      if (phoneError) setPhoneError(null);
+                    }}
+                    className="bg-surface-overlay border border-surface-border rounded-md px-2.5 py-1.5 text-text-primary text-sm outline-none focus:border-member-blue transition-colors w-44 text-right"
+                  />
+                  {phoneError && <span className="text-danger text-xs">{phoneError}</span>}
+                </div>
+              ) : (
+                <span className="text-text-secondary">
+                  {member.phone ? formatPhone(member.phone) : 'Não informado'}
+                </span>
+              )}
             </div>
 
             <div className="flex justify-between items-center text-sm">

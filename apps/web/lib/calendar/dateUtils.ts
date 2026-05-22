@@ -68,3 +68,14 @@ export function navigateDate(
   if (view === 'week') return direction === 'next' ? addWeeks(date, 1) : subWeeks(date, 1);
   return direction === 'next' ? addMonths(date, 1) : subMonths(date, 1);
 }
+
+// Nomes dos dias da semana, controlados explicitamente para evitar divergência
+// entre locale do date-fns e o que a UI mostra (não depende de `EEE`/`EEEE`).
+// Index = day.getDay() (0=domingo … 6=sábado).
+const WEEKDAY_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'] as const;
+const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
+
+export function getWeekdayLabel(date: Date, mode: 'full' | 'short' = 'full'): string {
+  const arr = mode === 'short' ? WEEKDAY_SHORT : WEEKDAY_FULL;
+  return arr[date.getDay()] ?? '';
+}

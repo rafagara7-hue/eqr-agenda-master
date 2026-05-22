@@ -166,6 +166,70 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
   // ── Vertical layout (left / right) ────────────────────────────────────────
   return (
     <>
+      {/* Mobile: mini-rail vertical (left / right) */}
+      <aside
+        className={cn(
+          'md:hidden fixed top-0 bottom-0 w-14 bg-surface-elevated z-20 flex flex-col items-center py-2',
+          position === 'left' ? 'left-0 border-r' : 'right-0 border-l',
+          'border-surface-border'
+        )}
+      >
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 flex-shrink-0"
+          style={{ backgroundColor: memberColor }}
+        >
+          <span className="text-white text-[10px] font-bold">EQR</span>
+        </div>
+
+        <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto w-full px-1">
+          {visibleItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/calendar' && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                aria-label={item.label}
+                className={cn(
+                  'flex items-center justify-center w-11 h-11 rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-surface-overlay text-text-primary'
+                    : 'text-text-muted hover:bg-surface-overlay/60 hover:text-text-secondary'
+                )}
+              >
+                <Icon className="w-5 h-5" />
+              </Link>
+            );
+          })}
+        </nav>
+
+        {member && (
+          <div className="flex flex-col items-center gap-1 pt-2 border-t border-surface-border w-full px-1">
+            <Link
+              href={{ pathname, query: { profile: member.id } }}
+              className="flex items-center justify-center w-11 h-11 rounded-full"
+              title="Meu perfil"
+              aria-label="Meu perfil"
+            >
+              <div className="rounded-full" style={{ boxShadow: `0 0 0 2px ${memberColor}` }}>
+                <MemberAvatar member={member} size="xs" />
+              </div>
+            </Link>
+            <button
+              onClick={() => void signOut()}
+              className="flex items-center justify-center w-11 h-11 rounded-lg text-text-muted hover:text-text-secondary hover:bg-surface-overlay/60 transition-colors"
+              title="Sair"
+              aria-label="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </aside>
+
       {/* Desktop: vertical sidebar */}
       <aside
         className={cn(
@@ -285,38 +349,6 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         )}
       </aside>
 
-      {/* Mobile: bottom navigation bar */}
-      <nav className="flex md:hidden fixed bottom-0 left-0 right-0 h-14 bg-surface-elevated border-t border-surface-border z-20 items-center justify-around px-1">
-        {visibleItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== '/calendar' && pathname.startsWith(item.href));
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-w-[48px] min-h-[48px]',
-                isActive ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-none">{item.label}</span>
-            </Link>
-          );
-        })}
-        {member && (
-          <button
-            onClick={() => void signOut()}
-            className="flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-w-[48px] min-h-[48px] text-text-muted hover:text-text-secondary"
-            title="Sair"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-[10px] font-medium leading-none">Sair</span>
-          </button>
-        )}
-      </nav>
     </>
   );
 }

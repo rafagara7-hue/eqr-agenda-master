@@ -3,8 +3,9 @@
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarDays, CheckCircle2, Clock, RefreshCw, ArrowRight, CalendarCheck } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock, RefreshCw, ArrowRight, CalendarCheck, Star } from 'lucide-react';
 import { formatDate } from '@/lib/calendar/dateUtils';
+import { useFavoritedEvents } from '@/hooks/useFavorites';
 
 interface MemberOverviewProps {
   member: {
@@ -59,6 +60,7 @@ function StatCard({
 
 export function MemberOverview({ member, events }: MemberOverviewProps) {
   const router = useRouter();
+  const { data: favoritedEvents = [] } = useFavoritedEvents();
 
   const { totalEvents, confirmedCount, tentativeCount, todayCount, failedSyncCount, nextEvent } =
     useMemo(() => {
@@ -159,6 +161,45 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
           </div>
         ) : (
           <p className="text-text-muted text-sm">Nenhum evento próximo agendado</p>
+        )}
+      </motion.div>
+
+      {/* Reuniões destacadas */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-surface-elevated border border-surface-border rounded-xl p-5"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Star className="w-3.5 h-3.5 text-favorite" fill="#C9A84C" />
+          <p className="text-text-muted text-xs font-medium uppercase tracking-wider">
+            Reuniões destacadas
+          </p>
+        </div>
+
+        {favoritedEvents.length === 0 ? (
+          <p className="text-text-muted text-sm">Nenhuma reunião destacada ainda.</p>
+        ) : (
+          <ul className="space-y-2">
+            {favoritedEvents.map((ev) => (
+              <li key={ev.id}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/calendar?event=${ev.id}`)}
+                  className="w-full flex items-start gap-3 px-3 py-2 rounded-lg border border-favorite/30 bg-favorite/5 hover:bg-favorite/10 transition-colors text-left min-h-[44px]"
+                >
+                  <Star className="w-3.5 h-3.5 text-favorite mt-0.5 flex-shrink-0" fill="#C9A84C" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-primary text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-text-muted text-xs mt-0.5">
+                      {formatDate(ev.startAt, "EEEE, d 'de' MMMM · HH:mm")}
+                    </p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </motion.div>
 

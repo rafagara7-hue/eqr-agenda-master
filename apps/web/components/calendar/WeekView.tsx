@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getWeekDays, formatDate, isSameDay, isToday } from '@/lib/calendar/dateUtils';
+import { getWeekDays, formatDate, isSameDay, isToday, getWeekdayLabel } from '@/lib/calendar/dateUtils';
 import { EventCard } from './EventCard';
 import { getMemberColor } from '@/lib/calendar/colorMap';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface WeekViewProps {
   events: CalendarEvent[];
   memberColors: Record<string, string>;
   conflictEventIds?: Set<string>;
+  favoriteEventIds?: Set<string>;
   onEventClick?: (event: CalendarEvent) => void;
   onSlotClick?: (date: Date) => void;
   onDeleteEvent?: (id: string) => void;
@@ -30,6 +31,7 @@ export function WeekView({
   events,
   memberColors,
   conflictEventIds,
+  favoriteEventIds,
   onEventClick,
   onSlotClick,
   onDeleteEvent,
@@ -97,8 +99,9 @@ export function WeekView({
                   className="flex-1 min-w-0 py-2 text-center border-l border-surface-border/40"
                   style={{ minWidth: `${MIN_COL_WIDTH}px` }}
                 >
-                  <p className="text-text-muted text-[10px] uppercase tracking-wider">
-                    {formatDate(day, 'EEE')}
+                  <p className="text-text-muted text-[10px] uppercase tracking-wider truncate">
+                    <span className="sm:hidden">{getWeekdayLabel(day, 'short')}</span>
+                    <span className="hidden sm:inline">{getWeekdayLabel(day, 'full')}</span>
                   </p>
                   <div
                     className={cn(
@@ -167,6 +170,7 @@ export function WeekView({
                       onClick={() => onEventClick?.(event)}
                       onDelete={onDeleteEvent ? () => onDeleteEvent(event.id) : undefined}
                       hasConflict={conflictEventIds?.has(event.id)}
+                      isFavorite={favoriteEventIds?.has(event.id)}
                     />
                   ))}
                 </div>

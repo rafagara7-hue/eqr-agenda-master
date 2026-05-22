@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users } from 'lucide-react';
+import { Users, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 import { SyncStatusBadge } from './SyncStatusBadge';
@@ -16,9 +16,10 @@ interface EventCardProps {
   onDelete?: () => void;
   compact?: boolean;
   hasConflict?: boolean;
+  isFavorite?: boolean;
 }
 
-export function EventCard({ event, memberColor, style, onClick, onDelete, compact = false, hasConflict = false }: EventCardProps) {
+export function EventCard({ event, memberColor, style, onClick, onDelete, compact = false, hasConflict = false, isFavorite = false }: EventCardProps) {
   const isShort = !compact && event.endAt.getTime() - event.startAt.getTime() < 30 * 60 * 1000;
   const isTentative = event.status === 'tentative';
   const participantCount = event.participantIds?.length ?? 1;
@@ -39,19 +40,23 @@ export function EventCard({ event, memberColor, style, onClick, onDelete, compac
         ...style,
         backgroundColor: `${memberColor}${isTentative ? '10' : '22'}`,
         borderLeft: `3px solid ${memberColor}`,
-        borderColor: `${memberColor}${isTentative ? '44' : '55'}`,
+        borderColor: isFavorite ? '#C9A84C' : `${memberColor}${isTentative ? '44' : '55'}`,
         borderLeftColor: memberColor,
         ...(isTentative && {
           borderTopStyle: 'dashed',
           borderRightStyle: 'dashed',
           borderBottomStyle: 'dashed',
         }),
+        ...(isFavorite && { borderWidth: '1.5px', boxShadow: '0 0 0 1px rgba(201, 168, 76, 0.35)' }),
         opacity: isTentative ? 0.8 : 1,
       }}
       onClick={onClick}
     >
       {/* Indicadores de topo */}
       <div className="absolute top-1 right-1 flex items-center gap-1 z-10">
+        {isFavorite && (
+          <Star className="w-3 h-3 text-favorite" fill="#C9A84C" aria-label="Favoritado" />
+        )}
         {isJoint && (
           <span
             className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-semibold"

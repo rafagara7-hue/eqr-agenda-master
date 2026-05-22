@@ -4,10 +4,11 @@ import { Suspense, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Shield, User, Link2, Link2Off } from 'lucide-react';
+import { X, Shield, User, Link2, Link2Off, Phone } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { usePresenceContext } from '@/contexts/PresenceContext';
+import { formatPhone } from '@/lib/phone';
 
 function PanelContent() {
   const searchParams = useSearchParams();
@@ -121,11 +122,23 @@ function PanelContent() {
                 <div className="space-y-0 rounded-xl border border-surface-border overflow-hidden">
                   <div className="flex justify-between items-center text-sm px-4 py-3 border-b border-surface-border">
                     <span className="text-text-muted">Cor</span>
-                    <span className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: member.color_hex }} />
-                      <span className="text-text-secondary font-mono text-xs">{member.color_hex}</span>
-                    </span>
+                    <span
+                      className="w-4 h-4 rounded-full border border-surface-border"
+                      style={{ backgroundColor: member.color_hex }}
+                      aria-label="Cor do membro"
+                    />
                   </div>
+                  {member.phone && (
+                    <a
+                      href={`tel:+${member.phone}`}
+                      className="flex justify-between items-center text-sm px-4 py-3 border-b border-surface-border hover:bg-surface-elevated transition-colors"
+                    >
+                      <span className="text-text-muted flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5" /> Telefone
+                      </span>
+                      <span className="text-text-secondary text-xs">{formatPhone(member.phone)}</span>
+                    </a>
+                  )}
                   <div className="flex justify-between items-center text-sm px-4 py-3">
                     <span className="text-text-muted">Google Calendar</span>
                     <span className={`flex items-center gap-1 text-xs font-medium ${member.google_linked ? 'text-success' : 'text-text-muted'}`}>

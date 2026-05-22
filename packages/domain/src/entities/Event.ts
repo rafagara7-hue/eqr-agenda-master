@@ -15,10 +15,19 @@ export interface RecurrenceRule {
   createdAt: Date;
 }
 
+export type EventParticipantRole = 'owner' | 'participant';
+
+export interface EventParticipant {
+  memberId: string;
+  role: EventParticipantRole;
+  canEdit: boolean;
+}
+
 export interface CalendarEvent {
   id: string;
   memberId: string;
   participantIds: string[];
+  participants: EventParticipant[];
   createdBy: string;
   title: string;
   description: string | null;
@@ -43,7 +52,10 @@ export interface CalendarEvent {
 
 export interface CreateEventInput {
   memberId: string;
+  /** IDs adicionais de participantes (sem o owner — ele é sempre adicionado automaticamente). */
   participantIds?: string[];
+  /** Se true, participants extras recebem can_edit=true (default false). */
+  participantsCanEdit?: boolean;
   createdBy: string;
   title: string;
   description?: string;
