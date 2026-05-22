@@ -17,7 +17,7 @@ export function TimeGrid({ className, children, onSlotClick }: TimeGridProps) {
         <div key={hour} className="time-slot flex" style={{ height: '60px' }}>
           {/* Label da hora */}
           <div className="w-14 flex-shrink-0 flex items-start pt-0 pl-2 pr-3">
-            <span className="text-text-muted text-[10px] font-medium -translate-y-2.5">
+            <span className="text-text-muted text-[10px] font-mono -translate-y-2.5">
               {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
             </span>
           </div>

@@ -1,11 +1,19 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Fragment_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const fragmentMono = Fragment_Mono({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-fragment-mono',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -29,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans bg-surface-base text-text-primary antialiased`}>
+      <body className={`${inter.variable} ${fragmentMono.variable} font-sans bg-surface-base text-text-primary antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

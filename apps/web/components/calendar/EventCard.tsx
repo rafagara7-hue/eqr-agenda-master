@@ -108,7 +108,7 @@ export function EventCard({ event, memberColor, style, onClick, onDelete, compac
         )}
 
         {!compact && !isShort && (
-          <p className="text-[10px] mt-0.5" style={{ color: `${memberColor}99` }}>
+          <p className="text-[10px] mt-0.5 font-mono" style={{ color: `${memberColor}99` }}>
             {formatDate(event.startAt, 'HH:mm')} – {formatDate(event.endAt, 'HH:mm')}
           </p>
         )}

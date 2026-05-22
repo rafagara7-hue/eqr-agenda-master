@@ -2,46 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Identidade visual EQR — Inter (texto) + Fragment Mono (números, datas, horários) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fragment+Mono&display=swap');
 
 @layer base {
+  /* Dark: azul-noite EQR como surface principal, creme como texto, dourado discreto como acento */
   :root,
   .dark {
-    --surface-base: #0A0A0B;
-    --surface-base-rgb: 10 10 11;
-    --surface-elevated: #111113;
-    --surface-elevated-rgb: 17 17 19;
-    --surface-overlay: #18181B;
-    --surface-overlay-rgb: 24 24 27;
-    --surface-border: #27272A;
-    --surface-border-rgb: 39 39 42;
-    --surface-muted: #3F3F46;
-    --surface-muted-rgb: 63 63 70;
-    --text-primary: #FAFAFA;
-    --text-primary-rgb: 250 250 250;
-    --text-secondary: #A1A1AA;
-    --text-secondary-rgb: 161 161 170;
-    --text-muted: #71717A;
-    --text-muted-rgb: 113 113 122;
+    --surface-base: #0A141F;
+    --surface-base-rgb: 10 20 31;
+    --surface-elevated: #0D1B2A;
+    --surface-elevated-rgb: 13 27 42;
+    --surface-overlay: #142539;
+    --surface-overlay-rgb: 20 37 57;
+    --surface-border: #1F3550;
+    --surface-border-rgb: 31 53 80;
+    --surface-muted: #2C4866;
+    --surface-muted-rgb: 44 72 102;
+    --text-primary: #EFE8DB;
+    --text-primary-rgb: 239 232 219;
+    --text-secondary: #C4C5C7;
+    --text-secondary-rgb: 196 197 199;
+    --text-muted: #8C8C8C;
+    --text-muted-rgb: 140 140 140;
+    --accent: #C3A25E;
+    --accent-rgb: 195 162 94;
+    --accent-bright: #FCD86A;
+    --accent-bright-rgb: 252 216 106;
   }
 
+  /* Light: creme papel EQR como surface, azul-noite como texto */
   .light {
-    --surface-base: #F4F4F5;
-    --surface-base-rgb: 244 244 245;
-    --surface-elevated: #FFFFFF;
-    --surface-elevated-rgb: 255 255 255;
-    --surface-overlay: #F9F9FA;
-    --surface-overlay-rgb: 249 249 250;
-    --surface-border: #D4D4D8;
-    --surface-border-rgb: 212 212 216;
-    --surface-muted: #A1A1AA;
-    --surface-muted-rgb: 161 161 170;
-    --text-primary: #09090B;
-    --text-primary-rgb: 9 9 11;
-    --text-secondary: #52525B;
-    --text-secondary-rgb: 82 82 91;
-    --text-muted: #71717A;
-    --text-muted-rgb: 113 113 122;
+    --surface-base: #EFE8DB;
+    --surface-base-rgb: 239 232 219;
+    --surface-elevated: #F8F4ED;
+    --surface-elevated-rgb: 248 244 237;
+    --surface-overlay: #FFFFFF;
+    --surface-overlay-rgb: 255 255 255;
+    --surface-border: #E4D4B4;
+    --surface-border-rgb: 228 212 180;
+    --surface-muted: #C3A25E;
+    --surface-muted-rgb: 195 162 94;
+    --text-primary: #0D1B2A;
+    --text-primary-rgb: 13 27 42;
+    --text-secondary: #22466D;
+    --text-secondary-rgb: 34 70 109;
+    --text-muted: #785E2B;
+    --text-muted-rgb: 120 94 43;
+    --accent: #785E2B;
+    --accent-rgb: 120 94 43;
+    --accent-bright: #C3A25E;
+    --accent-bright-rgb: 195 162 94;
   }
 
   * {
@@ -78,10 +89,10 @@
     @apply bg-text-muted;
   }
 
-  /* Seleção de texto */
+  /* Seleção de texto — dourado EQR */
   ::selection {
-    background-color: rgba(59, 130, 246, 0.3);
-    color: #FAFAFA;
+    background-color: rgba(195, 162, 94, 0.35);
+    color: var(--text-primary);
   }
 }
 
@@ -160,7 +171,7 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #FAFAFA 0%, #A1A1AA 100%);
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -169,14 +180,20 @@
   .glass {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    background: rgba(17, 17, 19, 0.8);
-    border: 1px solid rgba(39, 39, 42, 0.8);
+    background: rgba(13, 27, 42, 0.8);
+    border: 1px solid rgba(31, 53, 80, 0.8);
   }
 
   .glass-strong {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    background: rgba(10, 10, 11, 0.9);
-    border: 1px solid rgba(39, 39, 42, 0.6);
+    background: rgba(10, 20, 31, 0.9);
+    border: 1px solid rgba(31, 53, 80, 0.6);
+  }
+
+  /* Fragment Mono — para números, horários, datas */
+  .font-mono {
+    font-family: 'Fragment Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    font-feature-settings: 'tnum' 1;
   }
 }

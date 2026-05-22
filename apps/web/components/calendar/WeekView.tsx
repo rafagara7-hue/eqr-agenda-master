@@ -125,7 +125,7 @@ export function WeekView({
                   style={{ height: `${HOUR_HEIGHT}px` }}
                   className="flex items-start pt-0 pl-2 pr-3 border-b border-surface-border/40"
                 >
-                  <span className="text-text-muted text-[10px] font-medium -translate-y-2.5">
+                  <span className="text-text-muted text-[10px] font-mono -translate-y-2.5">
                     {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
                   </span>
                 </div>

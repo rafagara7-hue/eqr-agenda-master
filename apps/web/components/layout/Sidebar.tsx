@@ -59,8 +59,9 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
     return true;
   });
 
-  // Color used for logo background and avatar glow — gray for admin
+  // Cor de glow do avatar (cor pessoal do membro). Logo usa sempre o dourado EQR.
   const memberColor = isAdmin ? '#6B7280' : (member?.colorHex ?? '#6B7280');
+  const brandColor = '#C3A25E';
 
   // ── Horizontal layout (top / bottom) ──────────────────────────────────────
   if (position === 'top' || position === 'bottom') {
@@ -74,8 +75,11 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: memberColor }}>
-            <span className="text-white text-xs font-bold">EQR</span>
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center border"
+            style={{ backgroundColor: '#0D1B2A', borderColor: brandColor }}
+          >
+            <span className="text-xs font-bold font-mono tracking-tight" style={{ color: brandColor }}>EQR</span>
           </div>
           <span className="text-text-primary text-sm font-semibold hidden sm:block">Agenda</span>
         </div>
@@ -175,10 +179,10 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         )}
       >
         <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 flex-shrink-0"
-          style={{ backgroundColor: memberColor }}
+          className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 flex-shrink-0 border"
+          style={{ backgroundColor: '#0D1B2A', borderColor: brandColor }}
         >
-          <span className="text-white text-[10px] font-bold">EQR</span>
+          <span className="text-[10px] font-bold font-mono tracking-tight" style={{ color: brandColor }}>EQR</span>
         </div>
 
         <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto w-full px-1">

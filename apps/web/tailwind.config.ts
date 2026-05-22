@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // EQR dark surfaces — inspirado em Linear/Vercel
+        // EQR surfaces — azul-noite (#0D1B2A) como elevated, com creme (#EFE8DB) no light
         surface: {
           base: 'rgb(var(--surface-base-rgb) / <alpha-value>)',
           elevated: 'rgb(var(--surface-elevated-rgb) / <alpha-value>)',
@@ -22,6 +22,17 @@ const config: Config = {
           primary: 'rgb(var(--text-primary-rgb) / <alpha-value>)',
           secondary: 'rgb(var(--text-secondary-rgb) / <alpha-value>)',
           muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)',
+        },
+        // Accent dourado EQR (#C3A25E sóbrio, #FCD86A vibrante)
+        accent: {
+          DEFAULT: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          bright: 'rgb(var(--accent-bright-rgb) / <alpha-value>)',
+        },
+        brand: {
+          DEFAULT: '#0D1B2A',
+          accent: '#C3A25E',
+          accentBright: '#FCD86A',
+          cream: '#EFE8DB',
         },
         // Cores dos membros
         member: {
@@ -66,7 +77,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        mono: ['Fragment Mono', 'JetBrains Mono', 'Fira Code', 'monospace'],
       },
       borderRadius: {
         DEFAULT: '0.5rem',
@@ -81,8 +92,9 @@ const config: Config = {
         'glow-green': '0 0 20px rgba(34,197,94,0.3)',
         'glow-purple': '0 0 20px rgba(168,85,247,0.3)',
         'glow-orange': '0 0 20px rgba(249,115,22,0.3)',
+        'glow-accent': '0 0 20px rgba(195,162,94,0.3)',
         card: '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6)',
-        'card-hover': '0 4px 12px rgba(0,0,0,0.5)',
+        'card-hover': '0 4px 16px rgba(0,0,0,0.55), 0 0 0 1px rgba(195,162,94,0.08)',
         modal: '0 25px 50px rgba(0,0,0,0.8)',
       },
       animation: {

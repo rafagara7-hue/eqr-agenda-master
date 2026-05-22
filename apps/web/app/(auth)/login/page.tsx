@@ -60,10 +60,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface-base flex items-center justify-center p-4">
-      {/* Background gradient */}
+      {/* Background gradient — tons EQR (dourado + azul-noite profundo) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-member-blue/5 blur-3xl" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-member-purple/5 blur-3xl" />
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-accent/[0.04] blur-3xl" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-surface-muted/15 blur-3xl" />
       </div>
 
       <motion.div
@@ -74,8 +74,8 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-surface-elevated border border-surface-border mb-4">
-            <span className="text-xl font-bold text-text-primary">EQR</span>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 border" style={{ backgroundColor: '#0D1B2A', borderColor: '#C3A25E' }}>
+            <span className="text-xl font-bold font-mono tracking-tight" style={{ color: '#C3A25E' }}>EQR</span>
           </div>
           <h1 className="text-2xl font-semibold text-text-primary">Agenda Master</h1>
           <p className="text-text-muted text-sm mt-1">Central corporativa de agendas</p>
