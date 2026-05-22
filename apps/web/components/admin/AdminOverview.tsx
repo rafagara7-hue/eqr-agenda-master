@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarDays, AlertTriangle, RefreshCw, Users, ArrowRight, Circle, Clock } from 'lucide-react';
-import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 
 interface AdminOverviewProps {
@@ -102,81 +101,6 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         />
       </div>
 
-      {/* Membros — lista vertical em mobile, grid em desktop */}
-      <div>
-        <h2 className="text-text-secondary text-sm font-medium mb-3">Resumo por membro</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          {activeMembers.map((m, i) => {
-            const memberEvents = events.filter((e) => e.member_id === m.id);
-            const memberConflicts = conflicts.filter((c) => c.member_id === m.id);
-            const syncedCount = memberEvents.filter((e) => e.sync_status === 'synced').length;
-
-            return (
-              <motion.button
-                key={m.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                onClick={() => router.push(`/calendar?member=${m.id}`)}
-                className="bg-surface-elevated border border-surface-border rounded-xl p-4 text-left group hover:border-surface-muted transition-colors cursor-pointer w-full"
-                style={{ borderLeftColor: m.color_hex, borderLeftWidth: 3 }}
-                whileHover={{ y: -2 }}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <MemberAvatar
-                    member={{ name: m.name, colorHex: m.color_hex, avatarUrl: m.avatar_url }}
-                    size="md"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text-primary text-sm font-medium">{m.name}</p>
-                    <p className="text-text-muted text-xs" style={{ color: m.color_hex }}>
-                      Ver no calendário
-                    </p>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-
-                {/* Stats — mobile: lista vertical (label esquerda, número direita); desktop: 3 colunas centralizadas */}
-                <div className="hidden sm:grid grid-cols-3 gap-2">
-                  <div className="text-center">
-                    <p className="text-text-primary text-lg font-semibold">{memberEvents.length}</p>
-                    <p className="text-text-muted text-[10px]">eventos</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold" style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}>
-                      {memberConflicts.length}
-                    </p>
-                    <p className="text-text-muted text-[10px]">cruzamentos</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-success text-lg font-semibold">{syncedCount}</p>
-                    <p className="text-text-muted text-[10px]">sincronizados</p>
-                  </div>
-                </div>
-                <ul className="sm:hidden space-y-1.5 mt-1">
-                  <li className="flex items-center justify-between text-sm">
-                    <span className="text-text-muted">Eventos</span>
-                    <span className="text-text-primary font-semibold">{memberEvents.length}</span>
-                  </li>
-                  <li className="flex items-center justify-between text-sm">
-                    <span className="text-text-muted">Cruzamentos</span>
-                    <span
-                      className="font-semibold"
-                      style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}
-                    >
-                      {memberConflicts.length}
-                    </span>
-                  </li>
-                  <li className="flex items-center justify-between text-sm">
-                    <span className="text-text-muted">Sincronizados</span>
-                    <span className="text-success font-semibold">{syncedCount}</span>
-                  </li>
-                </ul>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

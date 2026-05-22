@@ -21,11 +21,15 @@ interface MemberRow {
 
 interface MembersListPageProps {
   members: MemberRow[];
+  /** Eventos de TODOS membros (apenas admin recebe não-vazio). Usado pros contadores nos cards. */
+  events?: Array<{ member_id: string; sync_status: string; status: string }>;
+  /** Conflitos não resolvidos. */
+  conflicts?: Array<{ member_id: string }>;
   currentMemberId: string;
   isAdmin: boolean;
 }
 
-export function MembersListPage({ members, currentMemberId, isAdmin }: MembersListPageProps) {
+export function MembersListPage({ members, events = [], conflicts = [], currentMemberId, isAdmin }: MembersListPageProps) {
   const router = useRouter();
   const { onlineMemberIds } = usePresenceContext();
 
@@ -93,7 +97,7 @@ export function MembersListPage({ members, currentMemberId, isAdmin }: MembersLi
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 {m.phone && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-text-muted">
                     <Phone className="w-3 h-3" />
@@ -105,6 +109,55 @@ export function MembersListPage({ members, currentMemberId, isAdmin }: MembersLi
                   {m.google_linked ? 'Google vinculado' : 'Sem Google'}
                 </span>
               </div>
+
+              {/* Indicadores (admin only) — desktop em 3 colunas, mobile em lista vertical */}
+              {isAdmin && (() => {
+                const memberEvents = events.filter((e) => e.member_id === m.id);
+                const memberConflicts = conflicts.filter((c) => c.member_id === m.id);
+                const syncedCount = memberEvents.filter((e) => e.sync_status === 'synced').length;
+                return (
+                  <div className="pt-3 border-t border-surface-border">
+                    <div className="hidden sm:grid grid-cols-3 gap-2">
+                      <div className="text-center">
+                        <p className="text-text-primary text-lg font-semibold">{memberEvents.length}</p>
+                        <p className="text-text-muted text-[10px]">eventos</p>
+                      </div>
+                      <div className="text-center">
+                        <p
+                          className="text-lg font-semibold"
+                          style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}
+                        >
+                          {memberConflicts.length}
+                        </p>
+                        <p className="text-text-muted text-[10px]">cruzamentos</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-success text-lg font-semibold">{syncedCount}</p>
+                        <p className="text-text-muted text-[10px]">sincronizados</p>
+                      </div>
+                    </div>
+                    <ul className="sm:hidden space-y-1.5">
+                      <li className="flex items-center justify-between text-sm">
+                        <span className="text-text-muted">Eventos</span>
+                        <span className="text-text-primary font-semibold">{memberEvents.length}</span>
+                      </li>
+                      <li className="flex items-center justify-between text-sm">
+                        <span className="text-text-muted">Cruzamentos</span>
+                        <span
+                          className="font-semibold"
+                          style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}
+                        >
+                          {memberConflicts.length}
+                        </span>
+                      </li>
+                      <li className="flex items-center justify-between text-sm">
+                        <span className="text-text-muted">Sincronizados</span>
+                        <span className="text-success font-semibold">{syncedCount}</span>
+                      </li>
+                    </ul>
+                  </div>
+                );
+              })()}
             </motion.div>
           );
         })}
