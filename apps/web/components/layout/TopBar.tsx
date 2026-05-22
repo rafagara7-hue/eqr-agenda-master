@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate, navigateDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
 import { NotificationBell } from './NotificationBell';
@@ -85,13 +85,6 @@ export function TopBar({
           })}
         </div>
 
-        <button
-          onClick={() => onDateChange(navigateDate(currentDate, 'next', view))}
-          className="p-2 rounded-md hover:bg-surface-overlay transition-colors text-text-secondary hover:text-text-primary min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="Próximo"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Label da data atual */}

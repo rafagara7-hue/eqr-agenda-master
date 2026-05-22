@@ -9,8 +9,6 @@ import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 
 const HOUR_HEIGHT = 60;
-// Minimum column width for each day (ensures horizontal scroll on narrow screens)
-const MIN_COL_WIDTH = 52;
 
 interface WeekViewProps {
   currentDate: Date;
@@ -47,9 +45,6 @@ export function WeekView({
   const visibleHours = Array.from({ length: visibleEnd - visibleStart }, (_, i) => i + visibleStart);
   const totalHeight  = visibleHours.length * HOUR_HEIGHT;
 
-  // hour-col (w-14 = 56px) + 7 × MIN_COL_WIDTH
-  const minContentWidth = 56 + 7 * MIN_COL_WIDTH;
-
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: filteredHours ? 0 : workStart * HOUR_HEIGHT,
@@ -85,19 +80,21 @@ export function WeekView({
         - sticky top-0 on header works within this container
         - sticky left-0 on hour column works within this container
       */}
-      <div ref={scrollRef} className="flex-1 overflow-auto">
-        {/* Min-width forces horizontal scroll on narrow screens */}
-        <div style={{ minWidth: `${minContentWidth}px` }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden sm:overflow-auto">
+        {/*
+          Desktop: força min-width pra evitar colunas estreitíssimas em janelas grandes.
+          Mobile: sem min-width — a semana inteira cabe na viewport (sem scroll lateral).
+        */}
+        <div className="w-full sm:w-auto sm:min-w-[420px]">
           {/* Cabeçalho dos dias — sticky within scroll container */}
           <div className="flex border-b border-surface-border bg-surface-elevated z-10 sticky top-0">
-            <div className="w-14 flex-shrink-0" />
+            <div className="w-10 sm:w-14 flex-shrink-0" />
             {days.map((day) => {
               const today = isToday(day);
               return (
                 <div
                   key={day.toISOString()}
                   className="flex-1 min-w-0 py-2 text-center border-l border-surface-border/40"
-                  style={{ minWidth: `${MIN_COL_WIDTH}px` }}
                 >
                   <p className="text-text-muted text-[10px] uppercase tracking-wider truncate">
                     <span className="sm:hidden">{getWeekdayLabel(day, 'short')}</span>
@@ -121,7 +118,7 @@ export function WeekView({
           {/* Grade de horas */}
           <div className="flex" style={{ height: `${totalHeight}px` }}>
             {/* Coluna de horas — sticky left within scroll container */}
-            <div className="w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-10">
+            <div className="w-10 sm:w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-10">
               {visibleHours.map((hour) => (
                 <div
                   key={hour}
