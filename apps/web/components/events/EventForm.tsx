@@ -213,7 +213,23 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
           <input
             {...register('startAt', {
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                void checkConflicts(e.target.value, endAtValue, memberId);
+                const newStartStr = e.target.value;
+                // Auto-ajusta o término preservando a duração atual.
+                // Ex: tinha 16:00-17:00 (1h) e troca o início pra 14:00 → vira 14:00-15:00.
+                if (newStartStr && startAtValue && endAtValue) {
+                  const oldStart = new Date(startAtValue).getTime();
+                  const oldEnd = new Date(endAtValue).getTime();
+                  const duration = oldEnd - oldStart;
+                  if (Number.isFinite(duration) && duration > 0) {
+                    const newStart = new Date(newStartStr).getTime();
+                    const newEndDate = new Date(newStart + duration);
+                    const newEndStr = formatDateTimeLocal(newEndDate);
+                    setValue('endAt', newEndStr, { shouldValidate: true });
+                    void checkConflicts(newStartStr, newEndStr, memberId);
+                    return;
+                  }
+                }
+                void checkConflicts(newStartStr, endAtValue, memberId);
               }
             })}
             type="datetime-local"
