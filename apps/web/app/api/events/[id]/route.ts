@@ -156,7 +156,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ event, hasConflict });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Error';
+    if (message === 'EVENT_NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'Este evento não existe mais (pode ter sido removido). Recarregue a página.', code: 'EVENT_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

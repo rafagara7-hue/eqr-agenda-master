@@ -213,8 +213,9 @@ export class EventRepository implements IEventRepository {
       .update(updatePayload)
       .eq('id', input.id)
       .select('id, member_id')
-      .single();
-    if (error || !data) throw new Error(`EventRepository.update: ${error?.message}`);
+      .maybeSingle();
+    if (error) throw new Error(`EventRepository.update: ${error.message}`);
+    if (!data) throw new Error('EVENT_NOT_FOUND');
 
     if (input.participantIds !== undefined) {
       const host = input.memberId ?? data.member_id;

@@ -4,6 +4,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { CalendarEvent, CreateEventInput, UpdateEventInput } from '@eqr/domain';
 
+class ApiError extends Error {
+  status: number;
+  code: string | null;
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function fetchApi(path: string, method: string, body?: unknown) {
   const res = await fetch(path, {
     method,
@@ -11,8 +21,8 @@ async function fetchApi(path: string, method: string, body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-    throw new Error((err as { error?: string }).error ?? 'Erro na requisição');
+    const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    throw new ApiError(err.error ?? 'Erro na requisição', res.status, err.code ?? null);
   }
   return res.json() as Promise<unknown>;
 }
@@ -98,6 +108,12 @@ export function useUpdateEvent() {
           queryClient.setQueryData(key, data);
         });
       }
+      // Evento sumiu do banco — limpa cache pra remover da UI também
+      if (err instanceof ApiError && (err.status === 404 || err.code === 'EVENT_NOT_FOUND')) {
+        void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+        toast.error('Este evento não existe mais. A lista foi atualizada.');
+        return;
+      }
       toast.error(`Erro ao atualizar evento: ${err.message}`);
     },
     onSuccess: (event) => {
@@ -133,6 +149,11 @@ export function useDeleteEvent() {
         context.snapshot.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);
         });
+      }
+      if (err instanceof ApiError && (err.status === 404 || err.code === 'EVENT_NOT_FOUND')) {
+        void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+        toast.error('Este evento já não existia. A lista foi atualizada.');
+        return;
       }
       toast.error(`Erro ao deletar evento: ${err.message}`);
     },
