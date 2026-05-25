@@ -17,8 +17,15 @@ export default async function AdminPage() {
   // Busca dados para o overview
   const [membersRes, eventsRes, conflictsRes, syncRes] = await Promise.all([
     supabase.from('members').select('*').eq('is_active', true).order('name'),
-    supabase.from('events').select('member_id, sync_status, status').neq('status', 'cancelled'),
-    supabase.from('conflicts').select('member_id').eq('resolved', false),
+    supabase
+      .from('events')
+      .select('id, title, member_id, status, sync_status, sync_error, start_at, end_at')
+      .neq('status', 'cancelled')
+      .order('start_at'),
+    supabase
+      .from('conflicts')
+      .select('id, member_id, event_id_a, event_id_b')
+      .eq('resolved', false),
     supabase.from('event_sync_log').select('status').in('status', ['failed', 'pending']).limit(50),
   ]);
 
