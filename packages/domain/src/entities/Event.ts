@@ -2,6 +2,14 @@ export type EventStatus = 'confirmed' | 'tentative';
 export type EventVisibility = 'public' | 'private';
 export type SyncStatus = 'pending' | 'synced' | 'failed' | 'conflict' | 'local_only';
 
+export type ReminderMethod = 'popup' | 'email';
+
+/** Lembrete customizado do evento: notificação X minutos antes do start. */
+export interface EventReminder {
+  method: ReminderMethod;
+  minutes: number;
+}
+
 export interface RecurrenceRule {
   id: string;
   freq: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -28,6 +36,7 @@ export interface CalendarEvent {
   memberId: string;
   participantIds: string[];
   participants: EventParticipant[];
+  reminders: EventReminder[];
   createdBy: string;
   title: string;
   description: string | null;
@@ -56,6 +65,8 @@ export interface CreateEventInput {
   participantIds?: string[];
   /** Se true, participants extras recebem can_edit=true (default false). */
   participantsCanEdit?: boolean;
+  /** Lembretes customizados; se undefined, app aplica default (popup 10min + email 60min). */
+  reminders?: EventReminder[];
   createdBy: string;
   title: string;
   description?: string;

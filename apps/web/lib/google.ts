@@ -202,16 +202,15 @@ export interface GoogleEventInput {
   status?: 'confirmed' | 'tentative' | 'cancelled';
   /** E-mails Google de participantes (excluindo o owner). O Google envia convite/cancelamento pra cada um. */
   attendees?: string[];
+  /** Lembretes customizados (popup/email + minutos antes). Se ausente, usa default. */
+  reminders?: Array<{ method: 'popup' | 'email'; minutes: number }>;
 }
 
-/** Lembretes default aplicados a todo evento criado pelo app. */
-const DEFAULT_REMINDERS = {
-  useDefault: false,
-  overrides: [
-    { method: 'popup', minutes: 10 },
-    { method: 'email', minutes: 60 },
-  ],
-};
+/** Lembretes default quando o evento não vem com reminders explícitos. */
+const DEFAULT_REMINDERS_OVERRIDES = [
+  { method: 'popup', minutes: 10 },
+  { method: 'email', minutes: 60 },
+] as const;
 
 function toGoogleEventBody(ev: GoogleEventInput) {
   const start = ev.allDay
@@ -220,6 +219,11 @@ function toGoogleEventBody(ev: GoogleEventInput) {
   const end = ev.allDay
     ? { date: ev.endAt.toISOString().slice(0, 10) }
     : { dateTime: ev.endAt.toISOString(), timeZone: 'America/Sao_Paulo' };
+
+  const overrides = ev.reminders && ev.reminders.length > 0
+    ? ev.reminders.map((r) => ({ method: r.method, minutes: r.minutes }))
+    : DEFAULT_REMINDERS_OVERRIDES.map((r) => ({ method: r.method, minutes: r.minutes }));
+
   const body: Record<string, unknown> = {
     summary: ev.title,
     description: ev.description ?? undefined,
@@ -227,7 +231,7 @@ function toGoogleEventBody(ev: GoogleEventInput) {
     status: ev.status === 'cancelled' ? 'cancelled' : ev.status === 'tentative' ? 'tentative' : 'confirmed',
     start,
     end,
-    reminders: DEFAULT_REMINDERS,
+    reminders: { useDefault: false, overrides },
   };
   if (ev.attendees && ev.attendees.length > 0) {
     // responseStatus='accepted' marca o convidado como já-aceito.

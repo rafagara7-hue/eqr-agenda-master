@@ -4,6 +4,11 @@ import { EventService } from '@eqr/services';
 import { z } from 'zod';
 import { syncCreateToGoogle } from '@/lib/googleSync';
 
+const reminderSchema = z.object({
+  method: z.enum(['popup', 'email']),
+  minutes: z.number().int().min(0).max(40320), // 0 até 4 semanas
+});
+
 const createSchema = z.object({
   memberId: z.string().uuid(),
   participantIds: z.array(z.string().uuid()).max(20).optional(),
@@ -15,6 +20,7 @@ const createSchema = z.object({
   endAt: z.string().datetime(),
   allDay: z.boolean().optional(),
   status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
+  reminders: z.array(reminderSchema).max(5).optional(),
 });
 
 type ServiceDb = Awaited<ReturnType<typeof getSupabaseServiceClient>>;
@@ -144,6 +150,7 @@ export async function POST(req: NextRequest) {
       endAt: new Date(parsed.data.endAt),
       allDay: parsed.data.allDay,
       status: parsed.data.status,
+      reminders: parsed.data.reminders,
     });
 
     // Fire-and-forget: insert notifications without blocking the response
@@ -170,6 +177,7 @@ export async function POST(req: NextRequest) {
         endAt: event.endAt,
         allDay: event.allDay,
         status: event.status === 'tentative' ? 'tentative' : 'confirmed',
+        reminders: event.reminders,
       },
     });
 

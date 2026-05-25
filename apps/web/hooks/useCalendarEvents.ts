@@ -5,12 +5,32 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { subscribeToMemberEvents, subscribeToMemberParticipations } from '@/lib/supabase/realtime';
 import { useAuth } from './useAuth';
-import type { CalendarEvent, EventParticipant } from '@eqr/domain';
+import type { CalendarEvent, EventParticipant, EventReminder } from '@eqr/domain';
 import type { Database } from '@eqr/database';
 
 type DbEvent = Database['public']['Tables']['events']['Row'];
 type DbParticipantRow = { member_id: string; role: 'owner' | 'participant'; can_edit: boolean };
 type EventRowWithParticipants = DbEvent & { event_participants?: DbParticipantRow[] | null };
+
+function extractReminders(metadata: Record<string, unknown> | null | undefined): EventReminder[] {
+  if (!metadata) return [];
+  const raw = (metadata as { reminders?: unknown }).reminders;
+  if (!Array.isArray(raw)) return [];
+  const valid: EventReminder[] = [];
+  for (const r of raw) {
+    if (
+      typeof r === 'object' &&
+      r !== null &&
+      'method' in r &&
+      'minutes' in r &&
+      (r.method === 'popup' || r.method === 'email') &&
+      typeof r.minutes === 'number'
+    ) {
+      valid.push({ method: r.method, minutes: r.minutes });
+    }
+  }
+  return valid;
+}
 
 function dbToCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
   const participants: EventParticipant[] = (row.event_participants ?? []).map((p) => ({
@@ -21,12 +41,14 @@ function dbToCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
   const participantIds = participants.length > 0
     ? participants.map((p) => p.memberId)
     : [row.member_id];
+  const metadata = (row.metadata as Record<string, unknown>) ?? {};
 
   return {
     id: row.id,
     memberId: row.member_id,
     participantIds,
     participants,
+    reminders: extractReminders(metadata),
     createdBy: row.created_by,
     title: row.title,
     description: row.description,
@@ -44,7 +66,7 @@ function dbToCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
     syncError: row.sync_error,
     lastSyncedAt: row.last_synced_at ? new Date(row.last_synced_at) : null,
     colorOverride: row.color_override,
-    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    metadata,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };

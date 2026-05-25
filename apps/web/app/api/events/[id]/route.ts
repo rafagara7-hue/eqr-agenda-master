@@ -4,6 +4,11 @@ import { EventService } from '@eqr/services';
 import { z } from 'zod';
 import { syncUpdateToGoogle, syncDeleteFromGoogle } from '@/lib/googleSync';
 
+const reminderSchema = z.object({
+  method: z.enum(['popup', 'email']),
+  minutes: z.number().int().min(0).max(40320),
+});
+
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
@@ -14,6 +19,7 @@ const updateSchema = z.object({
   status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
   participantIds: z.array(z.string().uuid()).max(20).optional(),
   participantsCanEdit: z.boolean().optional(),
+  reminders: z.array(reminderSchema).max(5).optional(),
 });
 
 type ServiceDb = Awaited<ReturnType<typeof getSupabaseServiceClient>>;
@@ -151,6 +157,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         endAt: event.endAt,
         allDay: event.allDay,
         status: event.status === 'tentative' ? 'tentative' : event.status === 'cancelled' ? 'cancelled' : 'confirmed',
+        reminders: event.reminders,
       },
     });
 

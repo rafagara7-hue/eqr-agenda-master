@@ -16,6 +16,11 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 
+const reminderEntrySchema = z.object({
+  method: z.enum(['popup', 'email']),
+  minutes: z.number().int().min(0).max(40320),
+});
+
 const eventSchema = z.object({
   memberId: z.string().min(1, 'Selecione um membro'),
   participantIds: z.array(z.string()).default([]),
@@ -26,10 +31,28 @@ const eventSchema = z.object({
   endAt: z.string().min(1, 'Data/hora de término obrigatória'),
   allDay: z.boolean().optional(),
   status: z.enum(['confirmed', 'tentative']).optional(),
+  reminders: z.array(reminderEntrySchema).max(5).default([{ method: 'popup', minutes: 10 }]),
 }).refine((d) => new Date(d.startAt) < new Date(d.endAt), {
   message: 'O término deve ser após o início',
   path: ['endAt'],
 });
+
+const REMINDER_TIME_OPTIONS: Array<{ minutes: number; label: string }> = [
+  { minutes: 0, label: 'Na hora' },
+  { minutes: 5, label: '5 minutos antes' },
+  { minutes: 10, label: '10 minutos antes' },
+  { minutes: 15, label: '15 minutos antes' },
+  { minutes: 30, label: '30 minutos antes' },
+  { minutes: 60, label: '1 hora antes' },
+  { minutes: 120, label: '2 horas antes' },
+  { minutes: 1440, label: '1 dia antes' },
+  { minutes: 2880, label: '2 dias antes' },
+];
+
+const REMINDER_METHOD_OPTIONS: Array<{ value: 'popup' | 'email'; label: string }> = [
+  { value: 'popup', label: 'Notificação' },
+  { value: 'email', label: 'E-mail' },
+];
 
 type EventFormData = z.infer<typeof eventSchema>;
 
@@ -84,6 +107,9 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   const defaultEnd = new Date(defaultStart.getTime() + readAgendaSettingsSync().defaultDuration * 60 * 1000);
 
   const initialParticipants = (event?.participantIds ?? []).filter((p) => p !== (event?.memberId ?? ''));
+  const initialReminders = event?.reminders && event.reminders.length > 0
+    ? event.reminders
+    : [{ method: 'popup' as const, minutes: 10 }];
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
@@ -97,6 +123,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
       endAt: formatDateTimeLocal(event?.endAt ?? defaultEnd),
       allDay: event?.allDay ?? false,
       status: event?.status ?? 'confirmed',
+      reminders: initialReminders,
     },
   });
 
@@ -104,6 +131,25 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   const participantIds = watch('participantIds') ?? [];
   const startAtValue = watch('startAt');
   const endAtValue = watch('endAt');
+  const reminders = watch('reminders') ?? [];
+
+  function updateReminder(index: number, patch: Partial<{ method: 'popup' | 'email'; minutes: number }>) {
+    const next = reminders.map((r, i) => (i === index ? { ...r, ...patch } : r));
+    setValue('reminders', next, { shouldValidate: true });
+  }
+
+  function removeReminder(index: number) {
+    const next = reminders.filter((_, i) => i !== index);
+    setValue('reminders', next, { shouldValidate: true });
+  }
+
+  function addReminder() {
+    if (reminders.length >= 5) return;
+    // Sugere o próximo "step" que ainda não foi usado, ou 10 min por padrão
+    const usedMinutes = new Set(reminders.map((r) => r.minutes));
+    const suggested = REMINDER_TIME_OPTIONS.find((o) => !usedMinutes.has(o.minutes))?.minutes ?? 10;
+    setValue('reminders', [...reminders, { method: 'popup', minutes: suggested }], { shouldValidate: true });
+  }
 
   useEffect(() => {
     if (!isEditing && !memberId && member?.id) {
@@ -162,6 +208,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         allDay: data.allDay,
         status: data.status,
         participantIds: data.participantIds,
+        reminders: data.reminders,
       });
     } else {
       await createEvent.mutateAsync({
@@ -174,6 +221,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         endAt: new Date(data.endAt),
         allDay: data.allDay,
         status: data.status,
+        reminders: data.reminders,
       });
     }
     onSuccess?.();
@@ -301,6 +349,63 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
           <option value="confirmed">Confirmado</option>
           <option value="tentative">Provisório</option>
         </select>
+      </div>
+
+      {/* Lembretes: como e quando avisar antes do evento */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className={labelClass}>Lembretes</label>
+          {reminders.length < 5 && (
+            <button
+              type="button"
+              onClick={addReminder}
+              className="text-xs font-medium text-member-blue hover:underline"
+            >
+              + Adicionar lembrete
+            </button>
+          )}
+        </div>
+        {reminders.length === 0 ? (
+          <p className="text-text-muted text-xs italic">
+            Nenhum lembrete. Você não vai receber notificação antes do evento.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {reminders.map((r, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <select
+                  value={r.method}
+                  onChange={(e) => updateReminder(i, { method: e.target.value as 'popup' | 'email' })}
+                  className={cn(inputClass, 'cursor-pointer flex-shrink-0 w-32 sm:w-36')}
+                >
+                  {REMINDER_METHOD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={r.minutes}
+                  onChange={(e) => updateReminder(i, { minutes: parseInt(e.target.value, 10) })}
+                  className={cn(inputClass, 'cursor-pointer flex-1 min-w-0')}
+                >
+                  {REMINDER_TIME_OPTIONS.map((opt) => (
+                    <option key={opt.minutes} value={opt.minutes}>{opt.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeReminder(i)}
+                  aria-label="Remover lembrete"
+                  className="p-2 rounded-md text-text-muted hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-text-muted text-[11px]">
+          Notificação aparece como pop-up. E-mail é enviado pelo Google Calendar pros membros que estão sincronizados.
+        </p>
       </div>
 
       {/* Aviso de conflito */}

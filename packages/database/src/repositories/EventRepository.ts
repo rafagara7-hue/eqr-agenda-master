@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CalendarEvent, CreateEventInput, UpdateEventInput, IEventRepository, EventsFilter, EventParticipant } from '@eqr/domain';
+import type { CalendarEvent, CreateEventInput, UpdateEventInput, IEventRepository, EventsFilter, EventParticipant, EventReminder } from '@eqr/domain';
 import type { Database } from '../types/supabase.js';
 
 type DbEvent = Database['public']['Tables']['events']['Row'];
@@ -20,17 +20,39 @@ function toParticipants(rows: DbParticipantRow[] | null | undefined): EventParti
   }));
 }
 
+function extractReminders(metadata: Record<string, unknown> | null | undefined): EventReminder[] {
+  if (!metadata) return [];
+  const raw = (metadata as { reminders?: unknown }).reminders;
+  if (!Array.isArray(raw)) return [];
+  const valid: EventReminder[] = [];
+  for (const r of raw) {
+    if (
+      typeof r === 'object' &&
+      r !== null &&
+      'method' in r &&
+      'minutes' in r &&
+      (r.method === 'popup' || r.method === 'email') &&
+      typeof r.minutes === 'number'
+    ) {
+      valid.push({ method: r.method, minutes: r.minutes });
+    }
+  }
+  return valid;
+}
+
 function toCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
   const participants = toParticipants(row.event_participants);
   const participantIds = participants.length > 0
     ? participants.map((p) => p.memberId)
     : [row.member_id];
+  const metadata = (row.metadata as Record<string, unknown>) ?? {};
 
   return {
     id: row.id,
     memberId: row.member_id,
     participantIds,
     participants,
+    reminders: extractReminders(metadata),
     createdBy: row.created_by,
     title: row.title,
     description: row.description,
@@ -161,6 +183,9 @@ export class EventRepository implements IEventRepository {
   }
 
   async create(input: CreateEventInput): Promise<CalendarEvent> {
+    const metadata: Record<string, unknown> = {};
+    if (input.reminders !== undefined) metadata['reminders'] = input.reminders;
+
     const { data: inserted, error } = await this.db
       .from('events')
       .insert({
@@ -176,6 +201,7 @@ export class EventRepository implements IEventRepository {
         recurrence_id: input.recurrenceId ?? null,
         color_override: input.colorOverride ?? null,
         sync_status: 'pending',
+        metadata,
       })
       .select('id')
       .single();
@@ -207,6 +233,17 @@ export class EventRepository implements IEventRepository {
     if (input.allDay !== undefined) updatePayload.all_day = input.allDay;
     if (input.status !== undefined) updatePayload.status = input.status;
     if (input.colorOverride !== undefined) updatePayload.color_override = input.colorOverride ?? null;
+
+    // Merge metadata.reminders sem perder outras chaves existentes
+    if (input.reminders !== undefined) {
+      const { data: existing } = await this.db
+        .from('events')
+        .select('metadata')
+        .eq('id', input.id)
+        .maybeSingle();
+      const currentMeta = ((existing?.metadata as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+      updatePayload.metadata = { ...currentMeta, reminders: input.reminders };
+    }
 
     const { data, error } = await this.db
       .from('events')
