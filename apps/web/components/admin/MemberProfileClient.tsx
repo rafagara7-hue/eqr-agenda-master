@@ -62,15 +62,28 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
   }, [searchParams]);
 
   async function handleDisconnectGoogle() {
-    if (!confirm('Desvincular sua conta Google? Eventos atuais não serão removidos do Google, mas novas alterações deixarão de sincronizar.')) return;
+    const confirmMsg = isOwnProfile
+      ? 'Desvincular sua conta Google? Eventos atuais não serão removidos do Google, mas novas alterações deixarão de sincronizar.'
+      : `Desvincular o Google Calendar de ${member.name}? O sócio precisará reconectar pra voltar a sincronizar.`;
+    if (!confirm(confirmMsg)) return;
+
     setDisconnectingGoogle(true);
     try {
-      const res = await fetch('/api/google/disconnect', { method: 'POST' });
+      // Próprio perfil usa /disconnect; admin desvinculando outro usa /admin-disconnect com memberId
+      const res = isOwnProfile
+        ? await fetch('/api/google/disconnect', { method: 'POST' })
+        : await fetch('/api/google/admin-disconnect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ memberId: member.id }),
+          });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? 'Erro ao desvincular');
       }
-      toast.success('Google Calendar desvinculado');
+      toast.success(
+        isOwnProfile ? 'Google Calendar desvinculado' : `Google Calendar de ${member.name} desvinculado`
+      );
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
@@ -339,7 +352,7 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
                   <span className="flex items-center gap-1 text-xs font-medium text-success">
                     <Link2 className="w-3.5 h-3.5" /> Vinculado
                   </span>
-                  {isOwnProfile && (
+                  {(isOwnProfile || isAdmin) && (
                     <button
                       type="button"
                       onClick={() => void handleDisconnectGoogle()}
