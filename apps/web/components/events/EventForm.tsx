@@ -131,13 +131,33 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   }, [event?.id]);
 
   async function onSubmit(data: EventFormData) {
+    const startDate = new Date(data.startAt);
+    const now = new Date();
+
+    // Confirma se o horário é passado. Em edição, só pergunta se a data mudou
+    // (não incomoda quando o user só ajusta título de evento antigo).
+    const startChanged = !event || startDate.getTime() !== event.startAt.getTime();
+    if (startDate.getTime() < now.getTime() && startChanged) {
+      const fmt = startDate.toLocaleString('pt-BR', {
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const ok = window.confirm(
+        `O horário escolhido (${fmt}) já passou. Deseja registrar este evento mesmo assim?`
+      );
+      if (!ok) return;
+    }
+
     if (isEditing && event) {
       await updateEvent.mutateAsync({
         id: event.id,
         title: data.title,
         description: data.description,
         location: data.location,
-        startAt: new Date(data.startAt),
+        startAt: startDate,
         endAt: new Date(data.endAt),
         allDay: data.allDay,
         status: data.status,
@@ -150,7 +170,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         title: data.title,
         description: data.description,
         location: data.location,
-        startAt: new Date(data.startAt),
+        startAt: startDate,
         endAt: new Date(data.endAt),
         allDay: data.allDay,
         status: data.status,
