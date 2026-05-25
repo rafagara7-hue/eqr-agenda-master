@@ -29,37 +29,6 @@ interface AdminOverviewProps {
   failedSyncs: Array<{ status: string }>;
 }
 
-function StatCard({
-  label, value, icon, color, onClick,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: string;
-  onClick?: () => void;
-}) {
-  return (
-    <motion.div
-      onClick={onClick}
-      whileHover={onClick ? { y: -2 } : undefined}
-      className={`bg-surface-elevated border border-surface-border rounded-xl p-4 sm:p-5 lg:p-6 transition-colors ${
-        onClick ? 'cursor-pointer hover:border-surface-muted group' : ''
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-text-muted text-xs sm:text-sm font-medium uppercase tracking-wider">{label}</p>
-        <span style={{ color }} className="opacity-70 sm:scale-125 lg:scale-150 flex-shrink-0">{icon}</span>
-      </div>
-      <div className="flex items-end justify-between mt-2 sm:mt-4">
-        <p className="text-text-primary text-2xl sm:text-3xl lg:text-4xl font-semibold font-mono leading-none">{value}</p>
-        {onClick && (
-          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mb-1" />
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
 interface MemberLite {
   id: string;
   name: string;
@@ -67,45 +36,72 @@ interface MemberLite {
   avatar_url: string | null;
 }
 
-interface SectionProps {
-  title: string;
+/**
+ * Card unificado: cabeçalho (label + ícone + número grande) + conteúdo detalhado
+ * dentro do mesmo retângulo. Substitui a separação StatCard / Section.
+ */
+function IndicatorCard({
+  label,
+  value,
+  icon,
+  color,
+  cta,
+  emptyText,
+  children,
+}: {
+  label: string;
+  value: number;
   icon: React.ReactNode;
-  iconColor: string;
-  count: number;
-  emptyText: string;
+  color: string;
   cta?: { label: string; href: string };
+  emptyText: string;
   children?: React.ReactNode;
-}
-
-function Section({ title, icon, iconColor, count, emptyText, cta, children }: SectionProps) {
+}) {
   const router = useRouter();
+  const clickable = !!cta;
   return (
-    <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-surface-border">
-        <div className="flex items-center gap-2">
-          <span style={{ color: iconColor }} className="opacity-80">{icon}</span>
-          <h2 className="text-text-secondary text-sm font-medium uppercase tracking-wider">{title}</h2>
-          <span className="text-text-muted text-xs font-mono">({count})</span>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden flex flex-col"
+    >
+      {/* Cabeçalho com indicador */}
+      <button
+        type="button"
+        disabled={!clickable}
+        onClick={() => cta && router.push(cta.href)}
+        className={`text-left px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-4 border-b border-surface-border ${
+          clickable ? 'cursor-pointer hover:bg-surface-overlay/30 group transition-colors' : ''
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span style={{ color }} className="opacity-80 flex-shrink-0">{icon}</span>
+              <p className="text-text-muted text-xs sm:text-sm font-medium uppercase tracking-wider truncate">{label}</p>
+            </div>
+            <p className="text-text-primary text-3xl sm:text-4xl lg:text-5xl font-semibold font-mono leading-none mt-3">{value}</p>
+          </div>
+          {clickable && (
+            <ArrowRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
+          )}
         </div>
         {cta && (
-          <button
-            type="button"
-            onClick={() => router.push(cta.href)}
-            className="text-text-muted hover:text-text-primary text-xs font-medium inline-flex items-center gap-1 group"
-          >
-            {cta.label}
-            <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          <p className="text-text-muted text-[11px] mt-2 sm:mt-3 group-hover:text-text-secondary transition-colors">
+            {cta.label} →
+          </p>
         )}
-      </div>
-      <div className="p-4 sm:p-5">
-        {count === 0 ? (
+      </button>
+
+      {/* Conteúdo detalhado */}
+      <div className="flex-1 p-4 sm:p-5 lg:p-6">
+        {value === 0 ? (
           <p className="text-text-muted text-sm italic">{emptyText}</p>
         ) : (
           children
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -164,34 +160,23 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const offlineMembers = activeMembers.filter((m) => !onlineMemberIds.has(m.id));
   const onlineCount = onlineMembers.length;
 
-  // Map id → member para lookup rápido
   const memberById = useMemo(() => {
     const m = new Map<string, MemberLite>();
     members.forEach((member) => m.set(member.id, member));
     return m;
   }, [members]);
 
-  // Map id → event para lookup nos conflitos
   const eventById = useMemo(() => {
     const m = new Map<string, AdminOverviewProps['events'][number]>();
     events.forEach((e) => m.set(e.id, e));
     return m;
   }, [events]);
 
-  const confirmedEvents = useMemo(
-    () => events.filter((e) => e.status === 'confirmed').slice(0, 8),
-    [events]
-  );
-  const tentativeEvents = useMemo(
-    () => events.filter((e) => e.status === 'tentative').slice(0, 8),
-    [events]
-  );
-  const failedEvents = useMemo(
-    () => events.filter((e) => e.sync_status === 'failed').slice(0, 8),
-    [events]
-  );
+  const upcomingEvents = useMemo(() => events.slice(0, 8), [events]);
+  const confirmedEvents = useMemo(() => events.filter((e) => e.status === 'confirmed').slice(0, 8), [events]);
+  const tentativeEvents = useMemo(() => events.filter((e) => e.status === 'tentative').slice(0, 8), [events]);
+  const failedEvents = useMemo(() => events.filter((e) => e.sync_status === 'failed').slice(0, 8), [events]);
 
-  // Conflitos: deduplica por par (event_id_a, event_id_b) e enriquece com event + member
   const conflictRows = useMemo(() => {
     const seen = new Set<string>();
     return conflicts
@@ -209,58 +194,64 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-text-primary text-xl font-semibold">Geral</h1>
         <p className="text-text-muted text-sm mt-1">Central de controle de todas as agendas EQR</p>
       </div>
 
-      {/* Stats — cada card é o link de cabeçalho do indicador correspondente abaixo */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3 sm:gap-5">
-        <StatCard label="Total de eventos" value={totalEvents} icon={<CalendarDays className="w-4 h-4" />} color="#3B82F6" onClick={() => router.push('/calendar')} />
-        <StatCard label="Membros online" value={onlineCount} icon={<Circle className="w-3.5 h-3.5 fill-current" />} color="#22C55E" onClick={() => router.push('/admin/members')} />
-        <StatCard label="Confirmados" value={confirmedCount} icon={<CheckCircle2 className="w-4 h-4" />} color="#22C55E" onClick={() => router.push('/calendar?filter=confirmed')} />
-        <StatCard label="Provisórios" value={tentativeCount} icon={<Clock className="w-4 h-4" />} color="#F59E0B" onClick={() => router.push('/calendar?filter=tentative')} />
-        <StatCard label="Eventos cruzados" value={totalConflicts} icon={<AlertTriangle className="w-4 h-4" />} color="#F97316" onClick={() => router.push('/calendar?filter=conflicts')} />
-        <StatCard label="Syncs com falha" value={failedSyncCount} icon={<RefreshCw className="w-4 h-4" />} color="#EF4444" onClick={() => router.push('/calendar?filter=failed-sync')} />
-      </div>
-
-      {/* Detalhes — grid responsivo de seções */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        {/* 1. Total de eventos — CTA */}
-        <Section
-          title="Total de eventos"
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
+        {/* Total */}
+        <IndicatorCard
+          label="Total de eventos"
+          value={totalEvents}
           icon={<CalendarDays className="w-4 h-4" />}
-          iconColor="#3B82F6"
-          count={totalEvents}
+          color="#3B82F6"
+          cta={{ label: 'Aperte para ver os eventos', href: '/calendar' }}
           emptyText="Nenhum evento cadastrado ainda."
-          cta={{ label: 'Ver todos no calendário', href: '/calendar' }}
         >
-          <p className="text-text-secondary text-sm">
-            {totalEvents === 1 ? '1 evento' : `${totalEvents} eventos`} na base.
-            Clique em <span className="text-text-primary">"Ver todos no calendário"</span> pra navegar.
-          </p>
-        </Section>
+          <ul className="space-y-0.5">
+            {upcomingEvents.map((e) => (
+              <li key={e.id}>
+                <EventRow
+                  event={e}
+                  member={memberById.get(e.member_id)}
+                  onClick={() => router.push('/calendar')}
+                />
+              </li>
+            ))}
+            {totalEvents > upcomingEvents.length && (
+              <li className="text-text-muted text-xs italic px-2 pt-2">
+                + {totalEvents - upcomingEvents.length} no calendário
+              </li>
+            )}
+          </ul>
+        </IndicatorCard>
 
-        {/* 2. Membros online */}
-        <Section
-          title="Membros online"
+        {/* Online */}
+        <IndicatorCard
+          label="Membros online"
+          value={onlineCount}
           icon={<Circle className="w-3.5 h-3.5 fill-current" />}
-          iconColor="#22C55E"
-          count={onlineCount}
+          color="#22C55E"
+          cta={{ label: 'Ver perfis dos membros', href: '/admin/members' }}
           emptyText="Nenhum membro online no momento."
-          cta={{ label: 'Ver perfis', href: '/admin/members' }}
         >
           <div className="space-y-1.5">
             {onlineMembers.map((m) => (
-              <div key={m.id} className="flex items-center gap-2.5">
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => router.push(`/admin/members/${m.id}`)}
+                className="w-full flex items-center gap-2.5 px-2 -mx-2 py-1.5 rounded-lg hover:bg-surface-overlay/60 transition-colors text-left group"
+              >
                 <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
                 <MemberAvatar
                   member={{ name: m.name, colorHex: m.color_hex, avatarUrl: m.avatar_url }}
                   size="xs"
                 />
-                <span className="text-text-primary text-sm">{m.name}</span>
-              </div>
+                <span className="text-text-primary text-sm flex-1">{m.name}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
             ))}
             {offlineMembers.length > 0 && (
               <p className="text-text-muted text-[11px] mt-2 pt-2 border-t border-surface-border">
@@ -268,16 +259,16 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </p>
             )}
           </div>
-        </Section>
+        </IndicatorCard>
 
-        {/* 3. Confirmados */}
-        <Section
-          title="Confirmados"
+        {/* Confirmados */}
+        <IndicatorCard
+          label="Confirmados"
+          value={confirmedCount}
           icon={<CheckCircle2 className="w-4 h-4" />}
-          iconColor="#22C55E"
-          count={confirmedCount}
+          color="#22C55E"
+          cta={{ label: 'Ver eventos confirmados', href: '/calendar?filter=confirmed' }}
           emptyText="Nenhum evento confirmado."
-          cta={{ label: 'Ver no calendário', href: '/calendar?filter=confirmed' }}
         >
           <ul className="space-y-0.5">
             {confirmedEvents.map((e) => (
@@ -285,7 +276,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                 <EventRow
                   event={e}
                   member={memberById.get(e.member_id)}
-                  onClick={() => router.push(`/calendar?filter=confirmed`)}
+                  onClick={() => router.push('/calendar?filter=confirmed')}
                 />
               </li>
             ))}
@@ -295,16 +286,16 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </li>
             )}
           </ul>
-        </Section>
+        </IndicatorCard>
 
-        {/* 4. Provisórios */}
-        <Section
-          title="Provisórios"
+        {/* Provisórios */}
+        <IndicatorCard
+          label="Provisórios"
+          value={tentativeCount}
           icon={<Clock className="w-4 h-4" />}
-          iconColor="#F59E0B"
-          count={tentativeCount}
+          color="#F59E0B"
+          cta={{ label: 'Ver eventos provisórios', href: '/calendar?filter=tentative' }}
           emptyText="Nenhum evento provisório."
-          cta={{ label: 'Ver no calendário', href: '/calendar?filter=tentative' }}
         >
           <ul className="space-y-0.5">
             {tentativeEvents.map((e) => (
@@ -312,7 +303,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                 <EventRow
                   event={e}
                   member={memberById.get(e.member_id)}
-                  onClick={() => router.push(`/calendar?filter=tentative`)}
+                  onClick={() => router.push('/calendar?filter=tentative')}
                   rightSlot={
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-warning/40 text-warning bg-warning/10">
                       Provisório
@@ -327,22 +318,25 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </li>
             )}
           </ul>
-        </Section>
+        </IndicatorCard>
 
-        {/* 5. Eventos cruzados */}
-        <Section
-          title="Eventos cruzados"
+        {/* Cruzados */}
+        <IndicatorCard
+          label="Eventos cruzados"
+          value={totalConflicts}
           icon={<AlertTriangle className="w-4 h-4" />}
-          iconColor="#F97316"
-          count={totalConflicts}
+          color="#F97316"
+          cta={{ label: 'Ver conflitos no calendário', href: '/calendar?filter=conflicts' }}
           emptyText="Nenhum conflito de agenda."
-          cta={{ label: 'Ver no calendário', href: '/calendar?filter=conflicts' }}
         >
           <ul className="space-y-2">
             {conflictRows.map((c) => {
               const member = memberById.get(c.member_id);
               return (
-                <li key={c.id} className="flex items-start gap-3 px-2 -mx-2 py-2 rounded-lg hover:bg-surface-overlay/60 transition-colors">
+                <li
+                  key={c.id}
+                  className="flex items-start gap-3 px-2 -mx-2 py-2 rounded-lg hover:bg-surface-overlay/60 transition-colors"
+                >
                   <Users className="w-3.5 h-3.5 text-warning mt-1 flex-shrink-0" />
                   <div className="flex-1 min-w-0 space-y-1">
                     {c.evA && (
@@ -376,16 +370,16 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </li>
             )}
           </ul>
-        </Section>
+        </IndicatorCard>
 
-        {/* 6. Syncs com falha */}
-        <Section
-          title="Syncs com falha"
+        {/* Syncs com falha */}
+        <IndicatorCard
+          label="Syncs com falha"
+          value={failedSyncCount}
           icon={<RefreshCw className="w-4 h-4" />}
-          iconColor="#EF4444"
-          count={failedSyncCount}
-          emptyText="Nenhuma sincronização com falha."
+          color="#EF4444"
           cta={failedSyncCount > 0 ? { label: 'Ver no calendário', href: '/calendar?filter=failed-sync' } : undefined}
+          emptyText="Nenhuma sincronização com falha."
         >
           <ul className="space-y-0.5">
             {failedEvents.map((e) => (
@@ -393,7 +387,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                 <EventRow
                   event={e}
                   member={memberById.get(e.member_id)}
-                  onClick={() => router.push(`/calendar?filter=failed-sync`)}
+                  onClick={() => router.push('/calendar?filter=failed-sync')}
                   rightSlot={
                     <span
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-danger/40 text-danger bg-danger/10 max-w-[140px] truncate"
@@ -409,7 +403,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               <li className="text-text-muted text-sm italic">Nenhum evento com sync_status=failed.</li>
             )}
           </ul>
-        </Section>
+        </IndicatorCard>
       </div>
     </div>
   );
