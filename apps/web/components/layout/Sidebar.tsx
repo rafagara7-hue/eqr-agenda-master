@@ -27,6 +27,18 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/settings', icon: Settings,     label: 'Configurações' },
 ];
 
+/**
+ * Resolve se o link de navegação deve ficar destacado como ativo.
+ * Match exato sempre vale. Match de prefixo só pra rotas com sub-páginas
+ * declaradas (hoje: /admin/members/[id]). Evita que /admin/settings ou
+ * /admin/members fiquem destacando também a aba "Geral" (/admin).
+ */
+function isNavActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === '/admin/members' && pathname.startsWith('/admin/members/')) return true;
+  return false;
+}
+
 interface SidebarProps {
   position?: 'left' | 'right' | 'top' | 'bottom';
 }
@@ -85,9 +97,7 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
         {/* Nav items */}
         <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto">
           {visibleItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/calendar' && pathname.startsWith(item.href));
+            const isActive = isNavActive(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}>
@@ -179,9 +189,7 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
 
         <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto w-full px-1">
           {visibleItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/calendar' && pathname.startsWith(item.href));
+            const isActive = isNavActive(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link
