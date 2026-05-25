@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock, CheckCircle2, Users } from 'lucide-react';
+import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock, CheckCircle2, Users, History, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { formatDate } from '@/lib/calendar/dateUtils';
@@ -148,12 +149,15 @@ function EventRow({
 export function AdminOverview({ members, events, conflicts, failedSyncs }: AdminOverviewProps) {
   const router = useRouter();
   const { onlineMemberIds } = usePresenceContext();
+  const [deletingPast, setDeletingPast] = useState(false);
 
+  const nowMs = Date.now();
   const totalEvents = events.length;
   const totalConflicts = conflicts.length;
   const failedSyncCount = failedSyncs.filter((s) => s.status === 'failed').length;
   const tentativeCount = events.filter((e) => e.status === 'tentative').length;
   const confirmedCount = events.filter((e) => e.status === 'confirmed').length;
+  const pastCount = events.filter((e) => new Date(e.end_at).getTime() < nowMs).length;
 
   const activeMembers = members.filter((m) => m.slug !== 'admin');
   const onlineMembers = activeMembers.filter((m) => onlineMemberIds.has(m.id));
@@ -176,6 +180,34 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const confirmedEvents = useMemo(() => events.filter((e) => e.status === 'confirmed').slice(0, 8), [events]);
   const tentativeEvents = useMemo(() => events.filter((e) => e.status === 'tentative').slice(0, 8), [events]);
   const failedEvents = useMemo(() => events.filter((e) => e.sync_status === 'failed').slice(0, 8), [events]);
+  const pastEvents = useMemo(
+    () =>
+      events
+        .filter((e) => new Date(e.end_at).getTime() < nowMs)
+        .sort((a, b) => new Date(b.end_at).getTime() - new Date(a.end_at).getTime())
+        .slice(0, 8),
+    [events, nowMs]
+  );
+
+  async function handleDeletePast() {
+    if (pastCount === 0) return;
+    const ok = window.confirm(
+      `Apagar ${pastCount} evento(s) que já passaram do horário? Esta ação não pode ser desfeita. Eventos no Google Calendar não serão removidos (já são passados).`
+    );
+    if (!ok) return;
+    setDeletingPast(true);
+    try {
+      const res = await fetch('/api/events/delete-past', { method: 'POST' });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; deleted?: number; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao apagar');
+      toast.success(`${data.deleted ?? 0} evento(s) passado(s) apagado(s)`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao apagar');
+    } finally {
+      setDeletingPast(false);
+    }
+  }
 
   const conflictRows = useMemo(() => {
     const seen = new Set<string>();
@@ -318,6 +350,49 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </li>
             )}
           </ul>
+        </IndicatorCard>
+
+        {/* Passados */}
+        <IndicatorCard
+          label="Eventos passados"
+          value={pastCount}
+          icon={<History className="w-4 h-4" />}
+          color="#8C8C8C"
+          cta={pastCount > 0 ? { label: 'Ver os mais recentes abaixo', href: '/calendar' } : undefined}
+          emptyText="Nenhum evento passado pra mostrar."
+        >
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => void handleDeletePast()}
+              disabled={deletingPast || pastCount === 0}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-danger/40 text-danger hover:bg-danger/10 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deletingPast ? 'Apagando…' : `Apagar todos os ${pastCount} passados`}
+            </button>
+            <ul className="space-y-0.5">
+              {pastEvents.map((e) => (
+                <li key={e.id}>
+                  <EventRow
+                    event={e}
+                    member={memberById.get(e.member_id)}
+                    onClick={() => router.push('/calendar')}
+                    rightSlot={
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-text-muted/40 text-text-muted bg-surface-overlay">
+                        Passado
+                      </span>
+                    }
+                  />
+                </li>
+              ))}
+              {pastCount > pastEvents.length && (
+                <li className="text-text-muted text-xs italic px-2 pt-2">
+                  + {pastCount - pastEvents.length} mais antigos
+                </li>
+              )}
+            </ul>
+          </div>
         </IndicatorCard>
 
         {/* Cruzados */}
