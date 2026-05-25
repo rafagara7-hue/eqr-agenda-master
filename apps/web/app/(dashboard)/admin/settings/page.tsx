@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft } from 'lucide-react';
+import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAgendaSettings, type AgendaSettings } from '@/hooks/useAgendaSettings';
+import { useAuth } from '@/hooks/useAuth';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 
 type Theme = 'dark' | 'light';
 type NotifPermission = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -401,6 +406,140 @@ export default function SettingsPage() {
           </select>
         </SettingRow>
       </motion.div>
+
+      {/* Google Calendar (Admin) — gerenciar vínculos dos sócios */}
+      <AdminGoogleSection />
     </div>
+  );
+}
+
+function AdminGoogleSection() {
+  const { isAdmin } = useAuth();
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  const [disconnecting, setDisconnecting] = useState<string | 'all' | null>(null);
+
+  const { data: linkedMembers = [], refetch } = useQuery({
+    queryKey: ['admin-google-linked-members'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('members')
+        .select('id, name, slug, color_hex, avatar_url, google_calendar_accounts(google_email, last_synced_at)')
+        .eq('google_linked', true)
+        .eq('is_active', true)
+        .order('name');
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        slug: string;
+        color_hex: string;
+        avatar_url: string | null;
+        google_calendar_accounts: { google_email: string; last_synced_at: string | null }[] | null;
+      }>;
+    },
+    enabled: isAdmin,
+    staleTime: 30_000,
+  });
+
+  if (!isAdmin) return null;
+
+  async function disconnect(memberId?: string) {
+    const key = memberId ?? 'all';
+    if (memberId) {
+      if (!confirm('Desvincular o Google Calendar deste sócio? O sync com Google para. Eventos atuais permanecem no Google.')) return;
+    } else {
+      if (!confirm('Desvincular o Google Calendar de TODOS os sócios? Cada um precisará reconectar pra voltar a sincronizar.')) return;
+    }
+    setDisconnecting(key);
+    try {
+      const res = await fetch('/api/google/admin-disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(memberId ? { memberId } : {}),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; disconnected?: number; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao desvincular');
+      toast.success(
+        memberId
+          ? 'Sócio desvinculado do Google Calendar'
+          : `${data.disconnected ?? 0} sócio(s) desvinculado(s) do Google Calendar`
+      );
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ['sidebar-members'] }),
+        queryClient.invalidateQueries({ queryKey: ['members-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['member-panel'] }),
+      ]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
+    } finally {
+      setDisconnecting(null);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.22 }}
+      className="bg-surface-elevated border border-surface-border rounded-xl px-5"
+    >
+      <div className="py-4 border-b border-surface-border flex items-center justify-between">
+        <h2 className="text-text-secondary text-sm font-medium">Google Calendar dos sócios</h2>
+        {linkedMembers.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void disconnect()}
+            disabled={disconnecting === 'all'}
+            className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {disconnecting === 'all' ? 'Desvinculando…' : 'Desvincular todos'}
+          </button>
+        )}
+      </div>
+
+      {linkedMembers.length === 0 ? (
+        <div className="py-6 flex items-center gap-2 text-text-muted text-sm">
+          <Link2Off className="w-4 h-4" />
+          Nenhum sócio com Google Calendar vinculado.
+        </div>
+      ) : (
+        <ul className="py-2 divide-y divide-surface-border">
+          {linkedMembers.map((m) => {
+            const account = m.google_calendar_accounts?.[0];
+            const isBusy = disconnecting === m.id;
+            return (
+              <li key={m.id} className="flex items-center gap-3 py-3">
+                <MemberAvatar
+                  member={{ name: m.name, colorHex: m.color_hex, avatarUrl: m.avatar_url }}
+                  size="sm"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-text-primary text-sm font-medium truncate">{m.name}</p>
+                  <p className="text-text-muted text-[11px] flex items-center gap-1.5">
+                    <Link2 className="w-3 h-3 text-success" />
+                    {account?.google_email ?? '—'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void disconnect(m.id)}
+                  disabled={isBusy || disconnecting === 'all'}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/50 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px]"
+                >
+                  {isBusy ? 'Desvinculando…' : 'Desvincular'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="pb-4 pt-1">
+        <p className="text-text-muted text-[11px]">
+          Desvincular revoga o token do Google e remove os dados do app. Eventos já criados no Google permanecem lá; novas alterações não são sincronizadas até reconectar.
+        </p>
+      </div>
+    </motion.div>
   );
 }
