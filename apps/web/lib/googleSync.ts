@@ -82,6 +82,17 @@ async function markFailed(db: ServiceDb, eventId: string, err: unknown) {
     .eq('id', eventId);
 }
 
+/**
+ * Se o erro for de token revogado/expirado, limpa a conta órfã do banco.
+ * Reflete na UI ("Não vinculado") pra forçar reconectar.
+ */
+async function dropAccountIfTokenDead(db: ServiceDb, account: GoogleAccountRecord, err: unknown): Promise<void> {
+  if (!(err instanceof Error)) return;
+  if (!err.message.includes('invalid_grant')) return;
+  await db.from('google_calendar_accounts').delete().eq('id', account.id);
+  await db.from('members').update({ google_linked: false }).eq('id', account.member_id);
+}
+
 async function markSynced(db: ServiceDb, eventId: string, googleEventId: string) {
   await db
     .from('events')
@@ -98,8 +109,9 @@ export async function syncCreateToGoogle(
   db: ServiceDb,
   opts: { eventId: string; memberId: string; data: GoogleEventInput }
 ): Promise<void> {
+  let account: GoogleAccountRecord | null = null;
   try {
-    const account = await getAccount(db, opts.memberId);
+    account = await getAccount(db, opts.memberId);
     if (!account) return; // Member sem Google conectado — no-op
     const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
     const payload: GoogleEventInput = { ...opts.data, attendees };
@@ -107,6 +119,7 @@ export async function syncCreateToGoogle(
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, googleEventId);
   } catch (err) {
+    if (account) await dropAccountIfTokenDead(db, account, err);
     await markFailed(db, opts.eventId, err);
   }
 }
@@ -115,8 +128,9 @@ export async function syncUpdateToGoogle(
   db: ServiceDb,
   opts: { eventId: string; memberId: string; googleEventId: string | null; data: GoogleEventInput }
 ): Promise<void> {
+  let account: GoogleAccountRecord | null = null;
   try {
-    const account = await getAccount(db, opts.memberId);
+    account = await getAccount(db, opts.memberId);
     if (!account) return;
 
     const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
@@ -134,6 +148,7 @@ export async function syncUpdateToGoogle(
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, opts.googleEventId);
   } catch (err) {
+    if (account) await dropAccountIfTokenDead(db, account, err);
     await markFailed(db, opts.eventId, err);
   }
 }
