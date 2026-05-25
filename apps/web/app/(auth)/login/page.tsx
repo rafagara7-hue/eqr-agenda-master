@@ -53,9 +53,16 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  /** Aceita 'aluisio' OU 'aluisio@eqr.com.br'. Se faltar o @, completa com @eqr.com.br. */
+  function resolveEmail(input: string): string {
+    const trimmed = input.trim();
+    if (trimmed.includes('@')) return trimmed;
+    return `${trimmed}@eqr.com.br`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await signInAndRedirect(email, password);
+    await signInAndRedirect(resolveEmail(email), password);
   }
 
   return (
@@ -84,15 +91,19 @@ export default function LoginPage() {
         <div className="bg-surface-elevated border border-surface-border rounded-xl p-6 shadow-modal">
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-text-secondary">
-                E-mail corporativo
+              <label htmlFor="username" className="text-sm font-medium text-text-secondary">
+                Usuário
               </label>
               <input
-                id="email"
-                type="email"
+                id="username"
+                type="text"
+                inputMode="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@eqr.com.br"
+                placeholder="aluisio"
                 required
                 className="w-full px-3 py-2.5 rounded-lg bg-surface-overlay border border-surface-border
                            text-text-primary placeholder-text-muted text-sm
