@@ -3,6 +3,7 @@
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
 import { MemberProfilePanel } from './MemberProfilePanel';
+import { GoogleConnectBanner } from '@/components/shared/GoogleConnectBanner';
 import { PresenceProvider } from '@/contexts/PresenceContext';
 import { AgendaSettingsProvider, useAgendaSettings } from '@/hooks/useAgendaSettings';
 
@@ -26,6 +27,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-surface-base flex flex-col">
       <Sidebar position={pos} />
       <main className={`flex-1 flex flex-col min-h-screen ${mainClass}`}>
+        <GoogleConnectBanner />
         {children}
       </main>
       <CommandPalette />
