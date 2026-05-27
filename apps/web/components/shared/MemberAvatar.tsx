@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { EqrLogo } from './EqrLogo';
 import type { Member } from '@eqr/domain';
 
 interface MemberAvatarProps {
@@ -17,10 +18,12 @@ const sizeMap = {
   lg: 'w-11 h-11 text-base',
 };
 
+// Sentinela: quando avatarUrl é esse valor, renderiza a logo EQR (SVG inline).
+const EQR_LOGO_SENTINEL = 'eqr-logo';
+
 export function MemberAvatar({ member, size = 'md', className }: MemberAvatarProps) {
   const [imgError, setImgError] = useState(false);
 
-  // Reseta o erro se a URL mudar (ex: troca de foto)
   useEffect(() => {
     setImgError(false);
   }, [member.avatarUrl]);
@@ -31,6 +34,11 @@ export function MemberAvatar({ member, size = 'md', className }: MemberAvatarPro
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  // Caso especial: logo EQR como avatar (admin) — SVG inline, sempre renderiza.
+  if (member.avatarUrl === EQR_LOGO_SENTINEL) {
+    return <EqrLogo className={cn('rounded-full flex-shrink-0', sizeMap[size], className)} title={member.name} />;
+  }
 
   const showImage = Boolean(member.avatarUrl) && !imgError;
 

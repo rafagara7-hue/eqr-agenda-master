@@ -1,11 +1,11 @@
 'use client';
 
-import { EQR_LOGO_DATA_URL } from '@/lib/logoData';
+import { EqrLogo } from '@/components/shared/EqrLogo';
 
 /**
  * Plano de fundo decorativo com elementos da marca EQR — discreto e fixo
  * atrás de todo o conteúdo. Brilhos dourados ambientes + marca d'água do
- * monograma EQR em opacidade baixíssima. Renderizado apenas no tema EQR.
+ * monograma EQR (SVG inline) em opacidade baixíssima. Só no tema EQR.
  */
 export function BrandBackground() {
   return (
@@ -19,20 +19,14 @@ export function BrandBackground() {
       <div className="absolute -bottom-52 left-1/4 w-[600px] h-[600px] rounded-full bg-surface-muted/[0.12] blur-3xl" />
 
       {/* Marca d'água do monograma EQR — canto inferior direito, bem sutil */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={EQR_LOGO_DATA_URL}
-        alt=""
-        className="absolute -bottom-12 -right-12 w-72 h-72 opacity-[0.04] rotate-[-6deg] select-none"
-      />
+      <div className="absolute -bottom-12 -right-12 w-72 h-72 opacity-[0.05] rotate-[-6deg]">
+        <EqrLogo className="w-full h-full" />
+      </div>
 
       {/* Segundo monograma, topo esquerdo, ainda mais discreto */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={EQR_LOGO_DATA_URL}
-        alt=""
-        className="absolute top-20 -left-16 w-56 h-56 opacity-[0.025] rotate-[8deg] select-none"
-      />
+      <div className="absolute top-20 -left-16 w-56 h-56 opacity-[0.03] rotate-[8deg]">
+        <EqrLogo className="w-full h-full" />
+      </div>
     </div>
   );
 }

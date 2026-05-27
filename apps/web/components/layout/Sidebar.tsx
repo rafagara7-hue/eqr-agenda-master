@@ -10,7 +10,7 @@ import { usePresenceContext } from '@/contexts/PresenceContext';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { EQR_LOGO_DATA_URL } from '@/lib/logoData';
+import { EqrLogo } from '@/components/shared/EqrLogo';
 
 interface NavItem {
   href: string;
@@ -88,14 +88,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
         )}
       >
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={EQR_LOGO_DATA_URL}
-            alt="EQR"
-            width={isTop ? 40 : 28}
-            height={isTop ? 40 : 28}
-            className={cn('rounded-lg', isTop ? 'w-10 h-10' : 'w-7 h-7')}
-          />
+          <EqrLogo className={cn('rounded-lg', isTop ? 'w-10 h-10' : 'w-7 h-7')} />
           <span
             className={cn(
               'text-text-primary font-semibold hidden sm:block',
@@ -233,8 +226,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           {/* Header: logo + botão fechar */}
           <div className="h-14 flex items-center justify-between px-4 border-b border-surface-border flex-shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={EQR_LOGO_DATA_URL} alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg flex-shrink-0" />
+              <EqrLogo className="w-7 h-7 rounded-lg flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-text-primary text-sm font-semibold leading-none truncate">Agenda Master</p>
                 <p className="text-text-muted text-[10px] mt-0.5 truncate">Central corporativa</p>
