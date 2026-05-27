@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2 } from 'lucide-react';
+import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2, Maximize2, Minimize2, Palette } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAgendaSettings, type AgendaSettings } from '@/hooks/useAgendaSettings';
@@ -156,6 +156,7 @@ export default function SettingsPage() {
   // Estado pendente para workStart / workEnd (aplicado somente ao clicar em "Aplicar")
   const [pendingStart, setPendingStart] = useState<number | null>(null);
   const [pendingEnd,   setPendingEnd]   = useState<number | null>(null);
+  const [posExpanded, setPosExpanded] = useState(false);
   const hasPendingHours = pendingStart !== null || pendingEnd !== null;
 
   function applyHours() {
@@ -215,25 +216,19 @@ export default function SettingsPage() {
           description="Escolha onde a navegação aparece na tela"
         >
           <div className="flex items-center gap-2">
-            {(
-              [
-                { value: 'left', label: 'Esquerda' },
-                { value: 'right', label: 'Direita' },
-                { value: 'top', label: 'Superior' },
+            {(() => {
+              const POS_OPTIONS = [
+                { value: 'left',   label: 'Esquerda' },
+                { value: 'right',  label: 'Direita' },
+                { value: 'top',    label: 'Superior' },
                 { value: 'bottom', label: 'Inferior' },
-              ] as const
-            ).map(({ value, label }) => (
-              <button
-                key={value}
-                title={label}
-                onClick={() => update('sidebarPosition', value)}
-                className={`relative w-14 h-11 rounded-lg border-2 transition-all flex flex-col items-center justify-end gap-0.5 pb-1 ${
-                  settings.sidebarPosition === value
-                    ? 'border-member-blue bg-member-blue/10'
-                    : 'border-surface-border hover:border-surface-muted bg-surface-overlay'
-                }`}
-              >
-                {/* Mini layout preview */}
+              ] as const;
+
+              const visibleOptions = posExpanded
+                ? POS_OPTIONS
+                : POS_OPTIONS.filter((o) => o.value === settings.sidebarPosition);
+
+              const renderPreview = (value: typeof POS_OPTIONS[number]['value']) => (
                 <div className="absolute inset-1 flex overflow-hidden rounded-sm">
                   {value === 'left' && (
                     <>
@@ -260,8 +255,43 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
-              </button>
-            ))}
+              );
+
+              return (
+                <>
+                  {visibleOptions.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      title={label}
+                      onClick={() => {
+                        update('sidebarPosition', value);
+                        if (posExpanded) setPosExpanded(false);
+                      }}
+                      className={`relative w-14 h-11 rounded-lg border-2 transition-all flex flex-col items-center justify-end gap-0.5 pb-1 ${
+                        settings.sidebarPosition === value
+                          ? 'border-member-blue bg-member-blue/10'
+                          : 'border-surface-border hover:border-surface-muted bg-surface-overlay'
+                      }`}
+                    >
+                      {renderPreview(value)}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPosExpanded((v) => !v)}
+                    aria-label={posExpanded ? 'Recolher opções' : 'Ampliar opções'}
+                    title={posExpanded ? 'Recolher' : 'Ampliar — ver todas as posições'}
+                    className="w-11 h-11 rounded-lg border-2 border-surface-border hover:border-member-blue bg-surface-overlay hover:bg-member-blue/10 transition-all flex items-center justify-center text-text-secondary hover:text-text-primary"
+                  >
+                    {posExpanded ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </SettingRow>
         <div className="pb-2 pt-1">
@@ -270,6 +300,52 @@ export default function SettingsPage() {
             {settings.sidebarPosition === 'right' && 'Barra lateral à direita'}
             {settings.sidebarPosition === 'top' && 'Barra de navegação no topo'}
             {settings.sidebarPosition === 'bottom' && 'Barra de navegação na parte inferior'}
+          </p>
+        </div>
+
+        <SettingRow
+          icon={<Palette className="w-4 h-4" />}
+          label="Estilo do layout"
+          description="Identidade visual EQR (dourado + azul-noite) ou tema neutro original"
+        >
+          <div className="flex items-center gap-2">
+            {([
+              { value: 'eqr',      label: 'EQR' },
+              { value: 'original', label: 'Original' },
+            ] as const).map(({ value, label }) => {
+              const isActive = settings.layoutTheme === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => update('layoutTheme', value)}
+                  title={label}
+                  className={`relative w-[88px] h-11 rounded-lg border-2 transition-all flex items-center justify-center text-xs font-medium overflow-hidden ${
+                    isActive
+                      ? 'border-member-blue'
+                      : 'border-surface-border hover:border-surface-muted'
+                  }`}
+                >
+                  {/* Preview de cores do tema */}
+                  <div
+                    className="absolute inset-0"
+                    style={
+                      value === 'eqr'
+                        ? { background: 'linear-gradient(135deg, #0D1B2A 0%, #1F3550 60%, #C3A25E 100%)' }
+                        : { background: 'linear-gradient(135deg, #0F172A 0%, #334155 60%, #3B82F6 100%)' }
+                    }
+                  />
+                  <span className="relative z-10 text-white drop-shadow-md">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </SettingRow>
+        <div className="pb-2 pt-1">
+          <p className="text-text-muted text-xs">
+            {settings.layoutTheme === 'eqr'
+              ? 'Tema EQR — azul-noite com acento dourado, identidade da empresa'
+              : 'Tema Original — paleta neutra slate + azul, sem branding'}
           </p>
         </div>
       </motion.div>

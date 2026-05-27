@@ -88,8 +88,8 @@ export function DayView({
             }}
           >
             {/* Label */}
-            <div className="w-14 flex-shrink-0 flex items-start pt-0 pl-2 pr-3">
-              <span className="text-text-muted text-[10px] font-mono -translate-y-2.5">
+            <div className="w-14 flex-shrink-0 flex items-start justify-end pt-0 pl-0.5 pr-2 overflow-hidden">
+              <span className="text-text-muted text-[10px] font-mono -translate-y-2.5 whitespace-nowrap tabular-nums leading-none">
                 {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
               </span>
             </div>

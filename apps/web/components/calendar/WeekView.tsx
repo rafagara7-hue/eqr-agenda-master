@@ -118,14 +118,14 @@ export function WeekView({
           {/* Grade de horas */}
           <div className="flex" style={{ height: `${totalHeight}px` }}>
             {/* Coluna de horas — sticky left within scroll container */}
-            <div className="w-10 sm:w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-10">
+            <div className="w-10 sm:w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-10 overflow-hidden">
               {visibleHours.map((hour) => (
                 <div
                   key={hour}
                   style={{ height: `${HOUR_HEIGHT}px` }}
-                  className="flex items-start pt-0 pl-2 pr-3 border-b border-surface-border/40"
+                  className="flex items-start justify-end pt-0 pl-0.5 pr-1 sm:pr-2 border-b border-surface-border/40"
                 >
-                  <span className="text-text-muted text-[10px] font-mono -translate-y-2.5">
+                  <span className="text-text-muted text-[9px] sm:text-[10px] font-mono -translate-y-2 sm:-translate-y-2.5 whitespace-nowrap tabular-nums leading-none">
                     {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
                   </span>
                 </div>

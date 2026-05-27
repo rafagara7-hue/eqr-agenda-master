@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { CalendarDays, Users, Settings, Shield, LogOut, ChevronRight, BarChart3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CalendarDays, Users, Settings, Shield, LogOut, ChevronRight, BarChart3, X, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useSignOut } from '@/hooks/useAuth';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { EQR_LOGO_DATA_URL } from '@/lib/logoData';
 
 interface NavItem {
   href: string;
@@ -20,19 +21,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/calendar',       icon: CalendarDays, label: 'Calendário' },
-  { href: '/admin',          icon: Shield,       label: 'Geral',          adminOnly: true },
-  { href: '/geral',          icon: BarChart3,    label: 'Geral',          memberOnly: true },
-  { href: '/admin/members',  icon: Users,        label: 'Membros',        adminOnly: true },
-  { href: '/admin/settings', icon: Settings,     label: 'Configurações' },
+  { href: '/calendar',       icon: CalendarDays,   label: 'Calendário' },
+  { href: '/admin',          icon: Shield,         label: 'Geral',          adminOnly: true },
+  { href: '/geral',          icon: BarChart3,      label: 'Geral',          memberOnly: true },
+  { href: '/admin/members',  icon: Users,          label: 'Membros',        adminOnly: true },
+  { href: '/feedback',       icon: MessageSquare,  label: 'Feedback' },
+  { href: '/admin/settings', icon: Settings,       label: 'Configurações' },
 ];
 
-/**
- * Resolve se o link de navegação deve ficar destacado como ativo.
- * Match exato sempre vale. Match de prefixo só pra rotas com sub-páginas
- * declaradas (hoje: /admin/members/[id]). Evita que /admin/settings ou
- * /admin/members fiquem destacando também a aba "Geral" (/admin).
- */
 function isNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (href === '/admin/members' && pathname.startsWith('/admin/members/')) return true;
@@ -41,9 +37,11 @@ function isNavActive(pathname: string, href: string): boolean {
 
 interface SidebarProps {
   position?: 'left' | 'right' | 'top' | 'bottom';
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ position = 'left' }: SidebarProps) {
+export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { member, isAdmin, isLoading } = useAuth();
   const signOut = useSignOut();
@@ -71,31 +69,45 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
     return true;
   });
 
-  // Cor de glow do avatar (cor pessoal do membro). Logo usa sempre o dourado EQR.
   const memberColor = isAdmin ? '#6B7280' : (member?.colorHex ?? '#6B7280');
-  const brandColor = '#C3A25E';
 
-  // ── Horizontal layout (top / bottom) ──────────────────────────────────────
+  // ── Horizontal layout (top / bottom) — barra fixa ──
+  // Quando posição = "top", barra fica maior (mais altura, ícones e textos)
+  // pra ter cara de header principal. "bottom" mantém compacto (barra de tabs).
   if (position === 'top' || position === 'bottom') {
+    const isTop = position === 'top';
     return (
       <aside
         className={cn(
-          'fixed left-0 right-0 h-14 bg-surface-elevated z-20 flex items-center px-2 sm:px-4 gap-2 sm:gap-3',
-          position === 'top' ? 'top-0 border-b' : 'bottom-0 border-t',
+          'fixed left-0 right-0 bg-surface-elevated z-20 flex items-center gap-2 sm:gap-3',
+          isTop
+            ? 'top-0 border-b h-[68px] px-3 sm:px-5'
+            : 'bottom-0 border-t h-14 px-2 sm:px-4',
           'border-surface-border'
         )}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-eqr.png" alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg" />
-          <span className="text-text-primary text-sm font-semibold hidden sm:block">Agenda</span>
+          <img
+            src={EQR_LOGO_DATA_URL}
+            alt="EQR"
+            width={isTop ? 40 : 28}
+            height={isTop ? 40 : 28}
+            className={cn('rounded-lg', isTop ? 'w-10 h-10' : 'w-7 h-7')}
+          />
+          <span
+            className={cn(
+              'text-text-primary font-semibold hidden sm:block',
+              isTop ? 'text-base' : 'text-sm'
+            )}
+          >
+            Agenda
+          </span>
         </div>
 
-        <div className="w-px h-5 bg-surface-border flex-shrink-0 hidden sm:block" />
+        <div className={cn('w-px bg-surface-border flex-shrink-0 hidden sm:block', isTop ? 'h-7' : 'h-5')} />
 
-        {/* Nav items */}
-        <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto">
+        <nav className={cn('flex items-center flex-1 overflow-x-auto', isTop ? 'gap-1' : 'gap-0.5')}>
           {visibleItems.map((item) => {
             const isActive = isNavActive(pathname, item.href);
             const Icon = item.icon;
@@ -103,13 +115,16 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors whitespace-nowrap',
+                    'flex items-center rounded-lg transition-colors whitespace-nowrap',
+                    isTop
+                      ? 'gap-2 px-3.5 py-2.5 text-[15px] font-medium'
+                      : 'gap-1.5 px-2.5 py-1.5 text-sm',
                     isActive
                       ? 'bg-surface-overlay text-text-primary'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
                   )}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <Icon className={cn('flex-shrink-0', isTop ? 'w-[22px] h-[22px]' : 'w-4 h-4')} />
                   <span className="hidden sm:inline">{item.label}</span>
                 </div>
               </Link>
@@ -117,9 +132,8 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
           })}
         </nav>
 
-        {/* Member presence dots — desktop only */}
         {isAdmin && sidebarMembers.length > 0 && (
-          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+          <div className={cn('hidden md:flex items-center flex-shrink-0', isTop ? 'gap-2.5' : 'gap-2')}>
             {sidebarMembers.map((m) => {
               const isOnline = onlineMemberIds.has(m.id);
               return (
@@ -130,13 +144,14 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
                   className="relative"
                 >
                   <span
-                    className="w-2.5 h-2.5 rounded-full block"
+                    className={cn('rounded-full block', isTop ? 'w-3 h-3' : 'w-2.5 h-2.5')}
                     style={{ backgroundColor: m.color_hex }}
                   />
                   <span
                     className={cn(
-                      'absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-surface-elevated',
-                      isOnline ? 'bg-success' : 'bg-surface-muted'
+                      'absolute -bottom-0.5 -right-0.5 rounded-full border border-surface-elevated',
+                      isOnline ? 'bg-success' : 'bg-surface-muted',
+                      isTop ? 'w-2 h-2' : 'w-1.5 h-1.5'
                     )}
                   />
                 </Link>
@@ -145,27 +160,42 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
           </div>
         )}
 
-        {/* User */}
         {member && (
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 border-l border-surface-border pl-2 sm:pl-3">
+          <div
+            className={cn(
+              'flex items-center flex-shrink-0 border-l border-surface-border',
+              isTop ? 'gap-2 sm:gap-2.5 pl-3 sm:pl-4' : 'gap-1.5 sm:gap-2 pl-2 sm:pl-3'
+            )}
+          >
             <Link
               href={{ pathname, query: { profile: member.id } }}
-              className="flex items-center gap-1.5 sm:gap-2 rounded-lg hover:bg-surface-overlay/60 transition-colors"
+              className={cn(
+                'flex items-center rounded-lg hover:bg-surface-overlay/60 transition-colors',
+                isTop ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
+              )}
               title="Ver meu perfil"
             >
               <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
-                <MemberAvatar member={member} size="sm" />
+                <MemberAvatar member={member} size={isTop ? 'md' : 'sm'} />
               </div>
-              <span className="text-text-primary text-xs font-medium hidden md:block truncate max-w-[80px]">
+              <span
+                className={cn(
+                  'text-text-primary font-medium hidden md:block truncate',
+                  isTop ? 'text-sm max-w-[100px]' : 'text-xs max-w-[80px]'
+                )}
+              >
                 {member.name}
               </span>
             </Link>
             <button
               onClick={() => void signOut()}
-              className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
+              className={cn(
+                'rounded-md hover:bg-surface-overlay transition-colors',
+                isTop ? 'p-2' : 'p-1.5'
+              )}
               title="Sair"
             >
-              <LogOut className="w-3.5 h-3.5 text-text-muted" />
+              <LogOut className={cn('text-text-muted', isTop ? 'w-[18px] h-[18px]' : 'w-3.5 h-3.5')} />
             </button>
           </div>
         )}
@@ -173,185 +203,143 @@ export function Sidebar({ position = 'left' }: SidebarProps) {
     );
   }
 
-  // ── Vertical layout (left / right) ────────────────────────────────────────
+  // ── Vertical layout (left / right) — painel deslizante estilo Google Agenda ──
   return (
-    <>
-      {/* Mobile: mini-rail vertical (left / right) */}
-      <aside
-        className={cn(
-          'md:hidden fixed top-0 bottom-0 w-14 bg-surface-elevated z-20 flex flex-col items-center py-2',
-          position === 'left' ? 'left-0 border-r' : 'right-0 border-l',
-          'border-surface-border'
-        )}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-eqr.png" alt="EQR" width={36} height={36} className="w-9 h-9 rounded-lg mb-2 flex-shrink-0" />
-
-        <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto w-full px-1">
-          {visibleItems.map((item) => {
-            const isActive = isNavActive(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                aria-label={item.label}
-                className={cn(
-                  'flex items-center justify-center w-11 h-11 rounded-lg transition-colors',
-                  isActive
-                    ? 'bg-surface-overlay text-text-primary'
-                    : 'text-text-muted hover:bg-surface-overlay/60 hover:text-text-secondary'
-                )}
-              >
-                <Icon className="w-5 h-5" />
-              </Link>
-            );
-          })}
-        </nav>
-
-        {member && (
-          <div className="flex flex-col items-center gap-1 pt-2 border-t border-surface-border w-full px-1">
-            <Link
-              href={{ pathname, query: { profile: member.id } }}
-              className="flex items-center justify-center w-11 h-11 rounded-full"
-              title="Meu perfil"
-              aria-label="Meu perfil"
-            >
-              <div className="rounded-full" style={{ boxShadow: `0 0 0 2px ${memberColor}` }}>
-                <MemberAvatar member={member} size="xs" />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.aside
+          initial={{ x: position === 'left' ? '-105%' : '105%' }}
+          animate={{ x: 0 }}
+          exit={{ x: position === 'left' ? '-105%' : '105%' }}
+          transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.28 }}
+          drag="x"
+          dragConstraints={
+            position === 'left' ? { left: -500, right: 0 } : { left: 0, right: 500 }
+          }
+          dragElastic={0.05}
+          dragSnapToOrigin
+          onDragEnd={(_, info) => {
+            const threshold = 80;
+            if (position === 'left' && info.offset.x < -threshold) onClose?.();
+            if (position === 'right' && info.offset.x > threshold) onClose?.();
+          }}
+          className={cn(
+            'fixed top-0 bottom-0 w-[280px] max-w-[85vw] bg-surface-elevated z-40 flex flex-col shadow-2xl',
+            position === 'left' ? 'left-0 border-r' : 'right-0 border-l',
+            'border-surface-border'
+          )}
+        >
+          {/* Header: logo + botão fechar */}
+          <div className="h-14 flex items-center justify-between px-4 border-b border-surface-border flex-shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={EQR_LOGO_DATA_URL} alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-text-primary text-sm font-semibold leading-none truncate">Agenda Master</p>
+                <p className="text-text-muted text-[10px] mt-0.5 truncate">Central corporativa</p>
               </div>
-            </Link>
+            </div>
             <button
-              onClick={() => void signOut()}
-              className="flex items-center justify-center w-11 h-11 rounded-lg text-text-muted hover:text-text-secondary hover:bg-surface-overlay/60 transition-colors"
-              title="Sair"
-              aria-label="Sair"
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar menu"
+              className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors flex-shrink-0"
             >
-              <LogOut className="w-4 h-4" />
+              <X className="w-4 h-4 text-text-muted" />
             </button>
           </div>
-        )}
-      </aside>
 
-      {/* Desktop: vertical sidebar */}
-      <aside
-        className={cn(
-          'hidden md:flex fixed top-0 bottom-0 w-[240px] bg-surface-elevated z-20 flex-col',
-          position === 'left' ? 'left-0 border-r' : 'right-0 border-l',
-          'border-surface-border'
-        )}
-      >
-        {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b border-surface-border">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-eqr.png" alt="EQR" width={28} height={28} className="w-7 h-7 rounded-lg flex-shrink-0" />
-            <div>
-              <p className="text-text-primary text-sm font-semibold leading-none">Agenda Master</p>
-              <p className="text-text-muted text-[10px] mt-0.5">Central corporativa</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navegação */}
-        <nav className="flex-1 py-3 overflow-y-auto">
-          <div className="px-2 space-y-0.5">
-            {visibleItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/calendar' && pathname.startsWith(item.href));
-              const Icon = item.icon;
-
-              return (
-                <Link key={item.href} href={item.href}>
-                  <motion.div
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors duration-100',
-                      isActive
-                        ? 'bg-surface-overlay text-text-primary'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
-                    )}
-                    whileHover={{ x: position === 'right' ? -2 : 2 }}
-                    transition={{ duration: 0.1 }}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && <ChevronRight className="w-3 h-3 text-text-muted" />}
-                  </motion.div>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Membros */}
-          {isAdmin && sidebarMembers.length > 0 && (
-            <div className="mt-4 px-4">
-              <p className="text-text-muted text-[10px] font-medium uppercase tracking-wider mb-2">
-                Membros
-              </p>
-              <div className="space-y-1">
-                {sidebarMembers.map((m) => {
-                  const isOnline = onlineMemberIds.has(m.id);
-                  return (
-                    <Link
-                      key={m.id}
-                      href={{ pathname, query: { profile: m.id } }}
-                      className="flex items-center gap-2 py-1 rounded-md px-1 -mx-1 hover:bg-surface-overlay/60 transition-colors"
+          {/* Navegação */}
+          <nav className="flex-1 py-3 overflow-y-auto">
+            <div className="px-2 space-y-0.5">
+              {visibleItems.map((item) => {
+                const isActive = isNavActive(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} onClick={onClose}>
+                    <div
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                        isActive
+                          ? 'bg-surface-overlay text-text-primary'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
+                      )}
                     >
-                      <div className="relative flex-shrink-0">
-                        <span
-                          className="w-2 h-2 rounded-full block"
-                          style={{ backgroundColor: m.color_hex }}
-                        />
-                        <span
-                          className={cn(
-                            'absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-surface-elevated',
-                            isOnline ? 'bg-success' : 'bg-surface-muted'
-                          )}
-                        />
-                      </div>
-                      <span className="text-text-secondary text-xs flex-1 truncate">{m.name}</span>
-                      <span className={`text-[10px] ${isOnline ? 'text-success' : 'text-text-muted'}`}>
-                        {isOnline ? 'online' : 'offline'}
-                      </span>
-                    </Link>
-                  );
-                })}
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      {isActive && <ChevronRight className="w-3 h-3 text-text-muted" />}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {isAdmin && sidebarMembers.length > 0 && (
+              <div className="mt-4 px-4">
+                <p className="text-text-muted text-[10px] font-medium uppercase tracking-wider mb-2">
+                  Membros
+                </p>
+                <div className="space-y-1">
+                  {sidebarMembers.map((m) => {
+                    const isOnline = onlineMemberIds.has(m.id);
+                    return (
+                      <Link
+                        key={m.id}
+                        href={{ pathname, query: { profile: m.id } }}
+                        onClick={onClose}
+                        className="flex items-center gap-2 py-1 rounded-md px-1 -mx-1 hover:bg-surface-overlay/60 transition-colors"
+                      >
+                        <div className="relative flex-shrink-0">
+                          <span className="w-2 h-2 rounded-full block" style={{ backgroundColor: m.color_hex }} />
+                          <span
+                            className={cn(
+                              'absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-surface-elevated',
+                              isOnline ? 'bg-success' : 'bg-surface-muted'
+                            )}
+                          />
+                        </div>
+                        <span className="text-text-secondary text-xs flex-1 truncate">{m.name}</span>
+                        <span className={`text-[10px] ${isOnline ? 'text-success' : 'text-text-muted'}`}>
+                          {isOnline ? 'online' : 'offline'}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </nav>
+
+          {/* Rodapé: perfil + sair */}
+          {member && (
+            <div className="border-t border-surface-border p-3 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Link
+                  href={{ pathname, query: { profile: member.id } }}
+                  onClick={onClose}
+                  className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg hover:bg-surface-overlay/60 transition-colors"
+                  title="Ver meu perfil"
+                >
+                  <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
+                    <MemberAvatar member={member} size="sm" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-primary text-xs font-medium truncate">{member.name}</p>
+                    <p className="text-text-muted text-[10px] capitalize">{member.role}</p>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => void signOut()}
+                  className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
+                  title="Sair"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-text-muted" />
+                </button>
               </div>
             </div>
           )}
-        </nav>
-
-        {/* Perfil do usuário */}
-        {member && (
-          <div className="border-t border-surface-border p-3">
-            <div className="flex items-center gap-2.5">
-              <Link
-                href={{ pathname, query: { profile: member.id } }}
-                className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg hover:bg-surface-overlay/60 transition-colors"
-                title="Ver meu perfil"
-              >
-                <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
-                  <MemberAvatar member={member} size="sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary text-xs font-medium truncate">{member.name}</p>
-                  <p className="text-text-muted text-[10px] capitalize">{member.role}</p>
-                </div>
-              </Link>
-              <button
-                onClick={() => void signOut()}
-                className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
-                title="Sair"
-              >
-                <LogOut className="w-3.5 h-3.5 text-text-muted" />
-              </button>
-            </div>
-          </div>
-        )}
-      </aside>
-
-    </>
+        </motion.aside>
+      )}
+    </AnimatePresence>
   );
 }

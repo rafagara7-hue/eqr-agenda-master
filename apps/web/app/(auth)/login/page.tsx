@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { EQR_LOGO_DATA_URL } from '@/lib/logoData';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -80,9 +81,17 @@ export default function LoginPage() {
         className="relative w-full max-w-sm"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="flex flex-col items-center text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-eqr.png" alt="EQR" width={56} height={56} className="w-14 h-14 rounded-xl mb-4 mx-auto" />
+          <img
+            src={EQR_LOGO_DATA_URL}
+            alt="EQR"
+            width={96}
+            height={96}
+            loading="eager"
+            decoding="async"
+            className="w-24 h-24 rounded-2xl mb-5 object-contain shadow-lg ring-1 ring-accent/20"
+          />
           <h1 className="text-2xl font-semibold text-text-primary">Agenda Master</h1>
           <p className="text-text-muted text-sm mt-1">Central corporativa de agendas</p>
         </div>

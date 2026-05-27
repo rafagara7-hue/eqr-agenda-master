@@ -55,6 +55,56 @@
     --accent-bright-rgb: 195 162 94;
   }
 
+  /* Tema "Original" — paleta neutra (slate + azul), look de dashboard genérico,
+     sem identidade EQR. Sobrescreve as variáveis acima quando .theme-original
+     está aplicada no <body> ou <html>. */
+  .theme-original,
+  .theme-original.dark {
+    --surface-base: #0F172A;
+    --surface-base-rgb: 15 23 42;
+    --surface-elevated: #1E293B;
+    --surface-elevated-rgb: 30 41 59;
+    --surface-overlay: #334155;
+    --surface-overlay-rgb: 51 65 85;
+    --surface-border: #475569;
+    --surface-border-rgb: 71 85 105;
+    --surface-muted: #64748B;
+    --surface-muted-rgb: 100 116 139;
+    --text-primary: #F8FAFC;
+    --text-primary-rgb: 248 250 252;
+    --text-secondary: #CBD5E1;
+    --text-secondary-rgb: 203 213 225;
+    --text-muted: #94A3B8;
+    --text-muted-rgb: 148 163 184;
+    --accent: #3B82F6;
+    --accent-rgb: 59 130 246;
+    --accent-bright: #60A5FA;
+    --accent-bright-rgb: 96 165 250;
+  }
+
+  .theme-original.light {
+    --surface-base: #F8FAFC;
+    --surface-base-rgb: 248 250 252;
+    --surface-elevated: #FFFFFF;
+    --surface-elevated-rgb: 255 255 255;
+    --surface-overlay: #F1F5F9;
+    --surface-overlay-rgb: 241 245 249;
+    --surface-border: #E2E8F0;
+    --surface-border-rgb: 226 232 240;
+    --surface-muted: #94A3B8;
+    --surface-muted-rgb: 148 163 184;
+    --text-primary: #0F172A;
+    --text-primary-rgb: 15 23 42;
+    --text-secondary: #334155;
+    --text-secondary-rgb: 51 65 85;
+    --text-muted: #64748B;
+    --text-muted-rgb: 100 116 139;
+    --accent: #2563EB;
+    --accent-rgb: 37 99 235;
+    --accent-bright: #3B82F6;
+    --accent-bright-rgb: 59 130 246;
+  }
+
   * {
     @apply border-surface-border;
     box-sizing: border-box;
