@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { Member } from '@eqr/domain';
 
@@ -17,6 +18,13 @@ const sizeMap = {
 };
 
 export function MemberAvatar({ member, size = 'md', className }: MemberAvatarProps) {
+  const [imgError, setImgError] = useState(false);
+
+  // Reseta o erro se a URL mudar (ex: troca de foto)
+  useEffect(() => {
+    setImgError(false);
+  }, [member.avatarUrl]);
+
   const initials = member.name
     .split(' ')
     .map((n) => n[0])
@@ -24,19 +32,26 @@ export function MemberAvatar({ member, size = 'md', className }: MemberAvatarPro
     .slice(0, 2)
     .toUpperCase();
 
+  const showImage = Boolean(member.avatarUrl) && !imgError;
+
   return (
     <div
       className={cn(
-        'rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0',
+        'rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0 overflow-hidden',
         sizeMap[size],
         className
       )}
       style={{ backgroundColor: member.colorHex }}
       title={member.name}
     >
-      {member.avatarUrl ? (
+      {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={member.avatarUrl} alt={member.name} className="w-full h-full rounded-full object-cover" />
+        <img
+          src={member.avatarUrl as string}
+          alt={member.name}
+          className="w-full h-full rounded-full object-cover"
+          onError={() => setImgError(true)}
+        />
       ) : (
         initials
       )}
