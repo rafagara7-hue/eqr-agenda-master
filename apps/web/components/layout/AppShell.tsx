@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
+import { BrandBackground } from './BrandBackground';
 import { CommandPalette } from './CommandPalette';
 import { MemberProfilePanel } from './MemberProfilePanel';
 import { GoogleConnectBanner } from '@/components/shared/GoogleConnectBanner';
@@ -107,7 +108,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     : 'pb-14';
 
   return (
-    <div className="min-h-screen bg-surface-base flex flex-col">
+    <div className="min-h-screen flex flex-col">
+      {/* Background decorativo da marca EQR — só no tema EQR; body já provê o bg-surface-base */}
+      {settings.layoutTheme === 'eqr' && <BrandBackground />}
+
       <Sidebar
         position={pos}
         isOpen={isVertical ? sidebarOpen : true}
@@ -157,7 +161,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      <main className={`flex-1 flex flex-col min-h-screen ${mainClass}`}>
+      <main className={`relative z-10 flex-1 flex flex-col min-h-screen ${mainClass}`}>
         <GoogleConnectBanner />
         {children}
       </main>
