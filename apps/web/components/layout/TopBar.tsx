@@ -55,7 +55,10 @@ export function TopBar({
   showMobileFilters = false,
 }: TopBarProps) {
   return (
-    <header className="h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10">
+    <header className="relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10">
+      {/* Hairline dourado sob o cabeçalho — detalhe EQR */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+
       {/* Atalhos "1 sem" / "2 sem" — só desktop */}
       <div className="hidden sm:flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5 flex-shrink-0">
         {[
@@ -71,7 +74,7 @@ export function TopBar({
               className={cn(
                 'px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-surface-base text-text-primary shadow-sm'
+                  ? 'bg-accent/15 text-accent shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               )}
             >
@@ -81,12 +84,12 @@ export function TopBar({
         })}
       </div>
 
-      {/* Label da data atual — mobile sem ano, desktop com ano */}
+      {/* Label da data atual — off-white EQR em destaque */}
       <motion.h2
         key={getDateLabel(currentDate, view, true)}
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-text-primary font-medium text-xs sm:text-sm capitalize flex-1 truncate min-w-0"
+        className="text-text-primary font-semibold text-sm sm:text-base capitalize flex-1 truncate min-w-0 tracking-tight"
       >
         <span className="sm:hidden">{getDateLabel(currentDate, view, false)}</span>
         <span className="hidden sm:inline">{getDateLabel(currentDate, view, true)}</span>
@@ -104,7 +107,7 @@ export function TopBar({
         </button>
       )}
 
-      {/* Seletor de view */}
+      {/* Seletor de view — ativo em dourado EQR */}
       <div className="flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5 flex-shrink-0">
         {(Object.keys(VIEW_LABELS) as CalendarView[]).map((v) => (
           <button
@@ -113,7 +116,7 @@ export function TopBar({
             className={cn(
               'px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 min-h-[36px]',
               view === v
-                ? 'bg-surface-base text-text-primary shadow-sm'
+                ? 'bg-accent/15 text-accent shadow-sm ring-1 ring-accent/25'
                 : 'text-text-secondary hover:text-text-primary'
             )}
           >

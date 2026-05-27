@@ -102,9 +102,9 @@ export function WeekView({
                   </p>
                   <div
                     className={cn(
-                      'mx-auto mt-1 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium',
+                      'mx-auto mt-1 w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold',
                       today
-                        ? 'bg-member-blue text-white'
+                        ? 'bg-accent text-brand shadow-glow-accent'
                         : 'text-text-secondary hover:bg-surface-overlay'
                     )}
                   >

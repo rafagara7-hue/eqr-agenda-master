@@ -95,9 +95,9 @@ export function MonthView({ currentDate, events, memberColors, conflictEventIds,
                   <div className="flex justify-end mb-1">
                     <span
                       className={cn(
-                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
+                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold',
                         today
-                          ? 'bg-member-blue text-white'
+                          ? 'bg-accent text-brand shadow-glow-accent'
                           : 'text-text-secondary'
                       )}
                     >

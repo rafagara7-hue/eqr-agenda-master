@@ -6,27 +6,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fragment+Mono&display=swap');
 
 @layer base {
-  /* Dark: azul-noite EQR como surface principal, creme como texto, dourado discreto como acento */
+  /* Dark: azul-noite EQR como surface principal, creme como texto, dourado como acento marcante */
   :root,
   .dark {
     --surface-base: #0A141F;
     --surface-base-rgb: 10 20 31;
     --surface-elevated: #0D1B2A;
     --surface-elevated-rgb: 13 27 42;
-    --surface-overlay: #142539;
-    --surface-overlay-rgb: 20 37 57;
-    --surface-border: #1F3550;
-    --surface-border-rgb: 31 53 80;
-    --surface-muted: #2C4866;
-    --surface-muted-rgb: 44 72 102;
-    --text-primary: #EFE8DB;
-    --text-primary-rgb: 239 232 219;
-    --text-secondary: #C4C5C7;
-    --text-secondary-rgb: 196 197 199;
-    --text-muted: #8C8C8C;
-    --text-muted-rgb: 140 140 140;
-    --accent: #C3A25E;
-    --accent-rgb: 195 162 94;
+    --surface-overlay: #16273B;
+    --surface-overlay-rgb: 22 39 59;
+    /* Borda com leve calor dourado em vez do azul puro — dá refinamento */
+    --surface-border: #2A3A4D;
+    --surface-border-rgb: 42 58 77;
+    --surface-muted: #3A5475;
+    --surface-muted-rgb: 58 84 117;
+    /* Off-white EQR mais luminoso e presente */
+    --text-primary: #F4EEE2;
+    --text-primary-rgb: 244 238 226;
+    --text-secondary: #CDC9BE;
+    --text-secondary-rgb: 205 201 190;
+    --text-muted: #94937F;
+    --text-muted-rgb: 148 147 127;
+    /* Dourado EQR mais vivo */
+    --accent: #C9A85C;
+    --accent-rgb: 201 168 92;
     --accent-bright: #FCD86A;
     --accent-bright-rgb: 252 216 106;
   }

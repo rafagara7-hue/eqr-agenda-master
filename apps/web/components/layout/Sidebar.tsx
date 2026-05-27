@@ -120,7 +120,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                       ? 'gap-2 px-3.5 py-2.5 text-[15px] font-medium'
                       : 'gap-1.5 px-2.5 py-1.5 text-sm',
                     isActive
-                      ? 'bg-surface-overlay text-text-primary'
+                      ? 'bg-accent/15 text-accent ring-1 ring-accent/25'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
                   )}
                 >
@@ -259,15 +259,17 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                   <Link key={item.href} href={item.href} onClick={onClose}>
                     <div
                       className={cn(
-                        'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                        'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors relative',
                         isActive
-                          ? 'bg-surface-overlay text-text-primary'
+                          ? 'bg-accent/15 text-accent font-medium'
                           : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
                       )}
                     >
+                      {/* Barra dourada à esquerda no item ativo — detalhe EQR */}
+                      {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />}
                       <Icon className="w-4 h-4 flex-shrink-0" />
                       <span className="flex-1">{item.label}</span>
-                      {isActive && <ChevronRight className="w-3 h-3 text-text-muted" />}
+                      {isActive && <ChevronRight className="w-3 h-3 text-accent" />}
                     </div>
                   </Link>
                 );

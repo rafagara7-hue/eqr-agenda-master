@@ -211,7 +211,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
             aria-pressed={activeMemberIds.length === 0}
             className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
               activeMemberIds.length === 0
-                ? 'bg-surface-muted border-surface-muted text-text-primary scale-105'
+                ? 'bg-accent/15 border-accent/40 text-accent scale-105'
                 : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
             }`}
           >
@@ -252,7 +252,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           aria-pressed={!activeFilter}
           className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
             !activeFilter
-              ? 'bg-surface-muted border-surface-muted text-text-primary scale-105'
+              ? 'bg-accent/15 border-accent/40 text-accent scale-105'
               : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
           }`}
         >
@@ -453,7 +453,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
             {isLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-base/50">
                 <div className="flex flex-col items-center gap-2">
-                  <svg className="animate-spin h-6 w-6 text-member-blue" viewBox="0 0 24 24" fill="none">
+                  <svg className="animate-spin h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
