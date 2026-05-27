@@ -4,6 +4,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
 import { NotificationBell } from './NotificationBell';
+import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { cn } from '@/lib/utils';
 
 type CalendarView = 'day' | 'week' | 'month';
@@ -54,8 +55,24 @@ export function TopBar({
   onOpenMobileFilters,
   showMobileFilters = false,
 }: TopBarProps) {
+  const { settings } = useAgendaSettings();
+  const pos = settings.sidebarPosition;
+  const isVertical = pos === 'left' || pos === 'right';
+  // Quando a sidebar é vertical, o sino vive no cluster flutuante do AppShell.
+  const showBell = !isVertical;
+  // Reserva espaço pros controles flutuantes (hambúrguer + cluster de perfil) do AppShell.
+  // Cluster (sino+avatar) fica no lado oposto à sidebar; hambúrguer no mesmo lado (só desktop).
+  const edgePadding = !isVertical
+    ? ''
+    : pos === 'left'
+    ? 'pr-24 md:pl-14'
+    : 'pl-24 md:pr-14';
+
   return (
-    <header className="relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10">
+    <header className={cn(
+      'relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10',
+      edgePadding
+    )}>
       {/* Hairline dourado sob o cabeçalho — detalhe EQR */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
@@ -126,7 +143,7 @@ export function TopBar({
         ))}
       </div>
 
-      <NotificationBell />
+      {showBell && <NotificationBell />}
     </header>
   );
 }

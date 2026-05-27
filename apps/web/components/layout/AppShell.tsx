@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,9 +9,12 @@ import { Sidebar } from './Sidebar';
 import { BrandBackground } from './BrandBackground';
 import { CommandPalette } from './CommandPalette';
 import { MemberProfilePanel } from './MemberProfilePanel';
+import { NotificationBell } from './NotificationBell';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { GoogleConnectBanner } from '@/components/shared/GoogleConnectBanner';
 import { PresenceProvider } from '@/contexts/PresenceContext';
 import { AgendaSettingsProvider, useAgendaSettings } from '@/hooks/useAgendaSettings';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const EDGE_HIT_AREA = 24;     // px da borda em que o swipe é "ativado"
@@ -20,7 +24,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { settings } = useAgendaSettings();
   const pos = settings.sidebarPosition;
   const pathname = usePathname();
+  const { member, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const profileGlow = isAdmin ? '#C9A85C' : (member?.colorHex ?? '#6B7280');
 
   // Aplica tema de layout (EQR vs Original) no body
   useEffect(() => {
@@ -159,6 +166,30 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         >
           <Menu className="w-5 h-5" />
         </button>
+      )}
+
+      {/* Cluster de perfil + notificações — canto oposto ao hambúrguer.
+          Garante que o avatar fique sempre visível mesmo com a sidebar escondida. */}
+      {isVertical && member && (
+        <div
+          className={cn(
+            'fixed top-2 z-30 flex items-center gap-1.5',
+            pos === 'left' ? 'right-2.5' : 'left-2.5'
+          )}
+        >
+          <div className="rounded-lg bg-surface-elevated/95 border border-surface-border shadow-md backdrop-blur">
+            <NotificationBell />
+          </div>
+          <Link
+            href={{ pathname, query: { profile: member.id } }}
+            title="Meu perfil"
+            aria-label="Meu perfil"
+            className="rounded-full bg-surface-elevated/95 border border-surface-border shadow-md backdrop-blur p-0.5 flex items-center justify-center transition-transform hover:scale-105"
+            style={{ boxShadow: `0 0 0 2px ${profileGlow}` }}
+          >
+            <MemberAvatar member={member} size="sm" />
+          </Link>
+        </div>
       )}
 
       <main className={`relative z-10 flex-1 flex flex-col min-h-screen ${mainClass}`}>
