@@ -69,7 +69,8 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
     return true;
   });
 
-  const memberColor = isAdmin ? '#6B7280' : (member?.colorHex ?? '#6B7280');
+  // Admin usa anel dourado EQR (destaca a logo contra o fundo escuro); membros usam a cor pessoal.
+  const memberColor = isAdmin ? '#C9A85C' : (member?.colorHex ?? '#6B7280');
 
   // ── Horizontal layout (top / bottom) — barra fixa ──
   // Quando posição = "top", barra fica maior (mais altura, ícones e textos)
