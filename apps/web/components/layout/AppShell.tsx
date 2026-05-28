@@ -27,7 +27,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { member, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const profileGlow = isAdmin ? '#C9A85C' : (member?.colorHex ?? '#6B7280');
+  // Admin não tem anel — a logo EQR já se sustenta sozinha visualmente.
+  const profileGlow = member?.colorHex ?? '#6B7280';
 
   // Aplica tema de layout (EQR / Original / Pro) no body
   useEffect(() => {
@@ -183,7 +184,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             title="Meu perfil"
             aria-label="Meu perfil"
             className="rounded-full bg-surface-elevated/95 border border-surface-border shadow-md backdrop-blur p-0.5 flex items-center justify-center transition-transform hover:scale-105"
-            style={{ boxShadow: `0 0 0 2px ${profileGlow}` }}
+            style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${profileGlow}` }}
           >
             <MemberAvatar member={member} size="sm" />
           </Link>

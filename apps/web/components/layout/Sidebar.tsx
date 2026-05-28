@@ -169,7 +169,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
               )}
               title="Ver meu perfil"
             >
-              <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
+              <div className="rounded-full flex-shrink-0" style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
                 <MemberAvatar member={member} size={isTop ? 'md' : 'sm'} />
               </div>
               <span
@@ -315,7 +315,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                   className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg hover:bg-surface-overlay/60 transition-colors"
                   title="Ver meu perfil"
                 >
-                  <div className="rounded-full flex-shrink-0" style={{ boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
+                  <div className="rounded-full flex-shrink-0" style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
                     <MemberAvatar member={member} size="sm" />
                   </div>
                   <div className="flex-1 min-w-0">
