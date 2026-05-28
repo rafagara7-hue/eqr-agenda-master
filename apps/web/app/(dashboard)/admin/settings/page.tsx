@@ -484,6 +484,9 @@ export default function SettingsPage() {
 
       {/* Google Calendar (Admin) — gerenciar vínculos dos sócios */}
       <AdminGoogleSection />
+
+      {/* Google Calendar (Sócio) — desvincular o próprio Google */}
+      <MemberGoogleSection />
     </div>
   );
 }
@@ -613,6 +616,95 @@ function AdminGoogleSection() {
       <div className="pb-4 pt-1">
         <p className="text-text-muted text-[11px]">
           Desvincular revoga o token do Google e remove os dados do app. Eventos já criados no Google permanecem lá; novas alterações não são sincronizadas até reconectar.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * Versão pessoal do bloco de Google Calendar — visível só para sócios não-admin.
+ * Permite desvincular APENAS a própria conta. Usa /api/google/disconnect (não o admin-disconnect).
+ */
+function MemberGoogleSection() {
+  const { member, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // Só sócios não-admin veem este bloco
+  if (isAdmin || !member) return null;
+
+  async function handleDisconnect() {
+    if (!confirm('Desvincular seu Google Calendar? O sync para. Eventos atuais permanecem no Google; novas alterações não são sincronizadas até você reconectar.')) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch('/api/google/disconnect', { method: 'POST' });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao desvincular');
+      toast.success('Google Calendar desvinculado');
+      await queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
+      // Recarrega pra atualizar member.googleLinked em todo lugar
+      setTimeout(() => window.location.reload(), 400);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao desvincular');
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.22 }}
+      className="bg-surface-elevated border border-surface-border rounded-xl px-5"
+    >
+      <div className="py-4 border-b border-surface-border">
+        <SectionTitle>Google Calendar</SectionTitle>
+      </div>
+
+      <div className="py-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {member.googleLinked ? (
+            <Link2 className="w-4 h-4 text-success flex-shrink-0" />
+          ) : (
+            <Link2Off className="w-4 h-4 text-text-muted flex-shrink-0" />
+          )}
+          <div className="min-w-0">
+            <p className="text-text-primary text-sm font-medium">
+              {member.googleLinked ? 'Vinculado' : 'Não vinculado'}
+            </p>
+            <p className="text-text-muted text-[11px]">
+              {member.googleLinked
+                ? 'Suas reuniões aparecem no seu Google Calendar'
+                : 'Conecte seu Google para sincronizar suas reuniões'}
+            </p>
+          </div>
+        </div>
+
+        {member.googleLinked ? (
+          <button
+            type="button"
+            onClick={() => void handleDisconnect()}
+            disabled={disconnecting}
+            className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 min-h-[36px]"
+          >
+            {disconnecting ? 'Desvinculando…' : 'Desvincular'}
+          </button>
+        ) : (
+          <a
+            href="/api/google/connect"
+            className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors flex-shrink-0 min-h-[36px] flex items-center"
+            style={{ color: '#0D1B2A' }}
+          >
+            Conectar
+          </a>
+        )}
+      </div>
+
+      <div className="pb-4 pt-1">
+        <p className="text-text-muted text-[11px]">
+          Desvincular revoga o token do Google e remove os dados do app. Apenas você pode desvincular seu próprio Google.
         </p>
       </div>
     </motion.div>
