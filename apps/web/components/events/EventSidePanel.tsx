@@ -105,8 +105,8 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
               'flex flex-col shadow-modal'
             )}
           >
-            {/* Header — barra fixa no topo do painel com botões em destaque */}
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-surface-border bg-surface-elevated flex-shrink-0">
+            {/* Header — barra fixa no topo do painel com botões coloridos */}
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b-2 border-accent/30 bg-surface-base flex-shrink-0 shadow-md">
               <h2 className="text-text-primary font-semibold text-base truncate">
                 {isNewEvent ? t('event.new') : isEditing ? t('event.edit') : t('event.details')}
               </h2>
@@ -117,10 +117,10 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     type="button"
                     onClick={() => toggleFavorite.mutate({ eventId: event.id, isFavorite })}
                     className={cn(
-                      'p-2 rounded-lg border transition-all duration-150 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                      'p-2 rounded-lg border-2 transition-all duration-150 min-w-[36px] min-h-[36px] flex items-center justify-center',
                       isFavorite
-                        ? 'border-favorite/50 bg-favorite/10 text-favorite hover:bg-favorite/20'
-                        : 'border-surface-border bg-surface-overlay text-text-secondary hover:border-favorite/40 hover:text-favorite'
+                        ? 'border-favorite bg-favorite/20 text-favorite hover:bg-favorite/30'
+                        : 'border-favorite/40 bg-favorite/5 text-favorite hover:bg-favorite/15'
                     )}
                     title={isFavorite ? t('event.unfavorite') : t('event.favorite')}
                     aria-label={isFavorite ? t('event.unfavorite') : t('event.favorite')}
@@ -133,7 +133,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-secondary hover:border-member-blue/50 hover:text-member-blue hover:bg-member-blue/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      className="p-2 rounded-lg border-2 border-member-blue/40 bg-member-blue/10 text-member-blue hover:bg-member-blue/20 hover:border-member-blue/70 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.edit')}
                       aria-label={t('common.edit')}
                     >
@@ -142,7 +142,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     <button
                       type="button"
                       onClick={() => void handleDelete()}
-                      className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-secondary hover:border-danger/50 hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      className="p-2 rounded-lg border-2 border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:border-danger/70 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.delete')}
                       aria-label={t('common.delete')}
                     >
@@ -154,7 +154,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-primary hover:bg-danger/15 hover:border-danger/50 hover:text-danger transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  className="p-2 rounded-lg border-2 border-text-primary/40 bg-text-primary/10 text-text-primary hover:bg-danger/20 hover:border-danger/70 hover:text-danger transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title={t('common.close')}
                   aria-label={t('common.close')}
                 >
