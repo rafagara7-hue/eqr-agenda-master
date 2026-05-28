@@ -49,15 +49,14 @@ export function TopBar({
   const { t } = useTranslation();
   const pos = settings.sidebarPosition;
   const isVertical = pos === 'left' || pos === 'right';
-  // Quando a sidebar é vertical, o sino vive no cluster flutuante do AppShell.
-  const showBell = !isVertical;
-  // Reserva espaço pros controles flutuantes (hambúrguer + cluster de perfil) do AppShell.
-  // Cluster (sino+avatar) fica no lado oposto à sidebar; hambúrguer no mesmo lado (só desktop).
+  // O sino sempre aparece no TopBar do calendário (cluster flutuante foi removido).
+  const showBell = true;
+  // Reserva espaço pro botão hambúrguer (só desktop) quando a sidebar é vertical.
   const edgePadding = !isVertical
     ? ''
     : pos === 'left'
-    ? 'pr-24 md:pl-14'
-    : 'pl-24 md:pr-14';
+    ? 'md:pl-14'
+    : 'md:pr-14';
 
   return (
     <header className={cn(
