@@ -105,57 +105,60 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
               'flex flex-col shadow-modal'
             )}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border bg-surface-elevated/40 sticky top-0 z-10">
-              <h2 className="text-text-primary font-semibold text-sm">
+            {/* Header — barra fixa no topo do painel com botões em destaque */}
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-surface-border bg-surface-elevated flex-shrink-0">
+              <h2 className="text-text-primary font-semibold text-base truncate">
                 {isNewEvent ? t('event.new') : isEditing ? t('event.edit') : t('event.details')}
               </h2>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 {!isNewEvent && canFavorite && !isEditing && event && (
                   <button
+                    type="button"
                     onClick={() => toggleFavorite.mutate({ eventId: event.id, isFavorite })}
                     className={cn(
-                      'p-1.5 rounded-md transition-all duration-150',
+                      'p-2 rounded-lg border transition-all duration-150 min-w-[36px] min-h-[36px] flex items-center justify-center',
                       isFavorite
-                        ? 'text-favorite hover:bg-favorite/10'
-                        : 'text-text-muted hover:text-favorite hover:bg-surface-elevated'
+                        ? 'border-favorite/50 bg-favorite/10 text-favorite hover:bg-favorite/20'
+                        : 'border-surface-border bg-surface-overlay text-text-secondary hover:border-favorite/40 hover:text-favorite'
                     )}
                     title={isFavorite ? t('event.unfavorite') : t('event.favorite')}
                     aria-label={isFavorite ? t('event.unfavorite') : t('event.favorite')}
                   >
-                    <Star className="w-3.5 h-3.5" fill={isFavorite ? '#C9A84C' : 'none'} />
+                    <Star className="w-4 h-4" fill={isFavorite ? '#C9A84C' : 'none'} />
                   </button>
                 )}
                 {!isNewEvent && canEdit && !isEditing && (
                   <>
                     <button
+                      type="button"
                       onClick={() => setIsEditing(true)}
-                      className="p-1.5 rounded-md hover:bg-surface-elevated transition-colors text-text-muted hover:text-text-secondary"
+                      className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-secondary hover:border-member-blue/50 hover:text-member-blue hover:bg-member-blue/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.edit')}
                       aria-label={t('common.edit')}
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => void handleDelete()}
-                      className="p-1.5 rounded-md hover:bg-danger/10 transition-colors text-text-muted hover:text-danger"
+                      className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-secondary hover:border-danger/50 hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.delete')}
                       aria-label={t('common.delete')}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </>
                 )}
-                {/* Botão X fechar — destacado, sempre visível */}
+                {/* Botão X fechar — sempre visível, em destaque */}
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="ml-1 p-2 rounded-lg border border-surface-border bg-surface-overlay hover:bg-danger/15 hover:border-danger/40 hover:text-danger transition-colors text-text-secondary"
+                  className="p-2 rounded-lg border border-surface-border bg-surface-overlay text-text-primary hover:bg-danger/15 hover:border-danger/50 hover:text-danger transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title={t('common.close')}
                   aria-label={t('common.close')}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
