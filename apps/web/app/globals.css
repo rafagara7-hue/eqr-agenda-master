@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Identidade visual EQR — Inter (texto) + Fragment Mono (números, datas, horários) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fragment+Mono&display=swap');
+/* Identidade visual EQR — Inter (texto) + Fragment Mono (números) + Cinzel (logo monograma) */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=Fragment+Mono&display=swap');
 
 @layer base {
   /* Dark: azul-noite EQR como surface principal, creme como texto, dourado como acento marcante */

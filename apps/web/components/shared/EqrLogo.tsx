@@ -1,6 +1,7 @@
 /**
- * Logo EQR — SVG inline com a versão cream (fundo off-white EQR + monograma dourado).
- * Renderiza como elementos DOM, imune a bloqueio de imagem/cache.
+ * Logo EQR — monograma "EQR" dourado em fonte serifada clássica (Cinzel),
+ * SEM fundo (transparente), com pequeno ornamento dourado abaixo das letras.
+ * Renderiza como elementos DOM (SVG inline), imune a bloqueio de imagem/cache.
  */
 export function EqrLogo({ className, title = 'EQR' }: { className?: string; title?: string }) {
   return (
@@ -12,35 +13,30 @@ export function EqrLogo({ className, title = 'EQR' }: { className?: string; titl
       xmlns="http://www.w3.org/2000/svg"
       preserveAspectRatio="xMidYMid meet"
     >
-      {/* Fundo cream/off-white EQR */}
-      <rect width="100" height="100" rx="14" fill="#EFE8DB" />
-
-      {/* Monograma EQR em dourado, serifa elegante condensada */}
+      {/* Monograma EQR — Cinzel (Roman classical serif) em dourado */}
       <text
         x="50"
-        y="50"
+        y="44"
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="'Playfair Display', 'Cormorant Garamond', Georgia, 'Times New Roman', serif"
-        fontSize="42"
-        fontWeight="500"
-        letterSpacing="-1"
+        fontFamily="'Cinzel', 'Playfair Display', 'Cormorant Garamond', Georgia, 'Times New Roman', serif"
+        fontSize="36"
+        fontWeight="600"
+        letterSpacing="-0.5"
         fill="#C3A25E"
       >
         EQR
       </text>
 
-      {/* Ornamento dourado — pequeno swoosh estilizado abaixo do monograma */}
+      {/* Ornamento dourado abaixo — swoosh + pingo, inspirado na sua imagem */}
       <path
-        d="M42 76 Q48 80 54 77 Q58 74 55 71 Q52 69 50 72"
+        d="M40 70 Q50 78 60 73"
         stroke="#C3A25E"
-        strokeWidth="2.2"
+        strokeWidth="2.5"
         fill="none"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
-      {/* Pingo do ornamento */}
-      <circle cx="56.5" cy="79" r="1.8" fill="#C3A25E" />
+      <circle cx="61.5" cy="74" r="1.8" fill="#C3A25E" />
     </svg>
   );
 }
