@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2, Maximize2, Minimize2, Palette } from 'lucide-react';
+import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2, Maximize2, Minimize2, Palette, Languages } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAgendaSettings, type AgendaSettings } from '@/hooks/useAgendaSettings';
@@ -345,6 +345,43 @@ export default function SettingsPage() {
             {settings.layoutTheme === 'eqr' && 'Tema EQR — azul-noite com acento dourado, identidade da empresa'}
             {settings.layoutTheme === 'original' && 'Tema Original — paleta neutra slate + azul, sem branding'}
             {settings.layoutTheme === 'pro' && 'Tema Pro — monocromático preto + branco, visual minimalista'}
+          </p>
+        </div>
+
+        <SettingRow
+          icon={<Languages className="w-4 h-4" />}
+          label={settings.language === 'en-US' ? 'Language' : 'Idioma'}
+          description={settings.language === 'en-US' ? 'Interface language' : 'Idioma da interface'}
+        >
+          <div className="flex items-center gap-1 bg-surface-overlay rounded-lg p-0.5">
+            {([
+              { value: 'pt-BR', label: 'PT-BR', flag: '🇧🇷' },
+              { value: 'en-US', label: 'EN-US', flag: '🇺🇸' },
+            ] as const).map(({ value, label, flag }) => {
+              const isActive = settings.language === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => update('language', value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                    isActive
+                      ? 'bg-surface-elevated text-text-primary shadow-sm'
+                      : 'text-text-muted hover:text-text-secondary'
+                  }`}
+                >
+                  <span aria-hidden="true">{flag}</span>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </SettingRow>
+        <div className="pb-2 pt-1">
+          <p className="text-text-muted text-xs">
+            {settings.language === 'pt-BR'
+              ? 'Português (Brasil) — padrão'
+              : 'English (United States) — interface labels and messages'}
           </p>
         </div>
       </motion.div>

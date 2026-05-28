@@ -11,22 +11,23 @@ import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { EqrLogo } from '@/components/shared/EqrLogo';
+import { useTranslation } from '@/lib/i18n';
 
 interface NavItem {
   href: string;
   icon: React.ElementType;
-  label: string;
+  labelKey: string;
   adminOnly?: boolean;
   memberOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/calendar',       icon: CalendarDays,   label: 'Calendário' },
-  { href: '/admin',          icon: Shield,         label: 'Geral',          adminOnly: true },
-  { href: '/geral',          icon: BarChart3,      label: 'Geral',          memberOnly: true },
-  { href: '/admin/members',  icon: Users,          label: 'Membros',        adminOnly: true },
-  { href: '/feedback',       icon: MessageSquare,  label: 'Feedback' },
-  { href: '/admin/settings', icon: Settings,       label: 'Configurações' },
+  { href: '/calendar',       icon: CalendarDays,   labelKey: 'nav.calendar' },
+  { href: '/admin',          icon: Shield,         labelKey: 'nav.general',   adminOnly: true },
+  { href: '/geral',          icon: BarChart3,      labelKey: 'nav.general',   memberOnly: true },
+  { href: '/admin/members',  icon: Users,          labelKey: 'nav.members',   adminOnly: true },
+  { href: '/feedback',       icon: MessageSquare,  labelKey: 'nav.feedback' },
+  { href: '/admin/settings', icon: Settings,       labelKey: 'nav.settings' },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
@@ -47,6 +48,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
   const signOut = useSignOut();
   const { onlineMemberIds } = usePresenceContext();
   const supabase = getSupabaseBrowserClient();
+  const { t } = useTranslation();
 
   const { data: sidebarMembers = [] } = useQuery({
     queryKey: ['sidebar-members'],
@@ -119,7 +121,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                   )}
                 >
                   <Icon className={cn('flex-shrink-0', isTop ? 'w-[22px] h-[22px]' : 'w-4 h-4')} />
-                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="hidden sm:inline">{t(item.labelKey)}</span>
                 </div>
               </Link>
             );
@@ -261,7 +263,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                       {/* Barra dourada à esquerda no item ativo — detalhe EQR */}
                       {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />}
                       <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="flex-1">{item.label}</span>
+                      <span className="flex-1">{t(item.labelKey)}</span>
                       {isActive && <ChevronRight className="w-3 h-3 text-accent" />}
                     </div>
                   </Link>

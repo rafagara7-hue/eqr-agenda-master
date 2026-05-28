@@ -9,6 +9,7 @@ export interface AgendaSettings {
   defaultView: 'day' | 'week' | 'month';
   sidebarPosition: 'left' | 'right' | 'top' | 'bottom';
   layoutTheme: 'eqr' | 'original' | 'pro';
+  language: 'pt-BR' | 'en-US';
 }
 
 const STORAGE_KEY = 'eqr-agenda-settings';
@@ -20,6 +21,7 @@ export const AGENDA_DEFAULTS: AgendaSettings = {
   defaultView: 'week',
   sidebarPosition: 'left',
   layoutTheme: 'eqr',
+  language: 'pt-BR',
 };
 
 interface AgendaSettingsContextType {
