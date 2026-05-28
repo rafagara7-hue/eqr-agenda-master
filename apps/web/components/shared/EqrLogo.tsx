@@ -1,9 +1,33 @@
+'use client';
+
+import { useState } from 'react';
+
 /**
- * Logo EQR — monograma "EQR" dourado em fonte serifada clássica (Cinzel),
- * SEM fundo (transparente), com pequeno ornamento dourado abaixo das letras.
- * Renderiza como elementos DOM (SVG inline), imune a bloqueio de imagem/cache.
+ * Logo EQR oficial — hospedada na CDN da Framer (CDN do site eqr.com.br).
+ * Se a CDN ficar fora do ar, cai num SVG inline equivalente como fallback,
+ * garantindo que algo sempre apareça.
  */
+const EQR_LOGO_URL =
+  'https://framerusercontent.com/images/l4E2MMrryjUAjpj8g7kIgqtGUSw.webp?width=395&height=400';
+
 export function EqrLogo({ className, title = 'EQR' }: { className?: string; title?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (!imgError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={EQR_LOGO_URL}
+        alt={title}
+        className={className}
+        loading="eager"
+        decoding="async"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  // Fallback SVG — só roda se a CDN falhar
   return (
     <svg
       viewBox="0 0 100 100"
@@ -13,13 +37,12 @@ export function EqrLogo({ className, title = 'EQR' }: { className?: string; titl
       xmlns="http://www.w3.org/2000/svg"
       preserveAspectRatio="xMidYMid meet"
     >
-      {/* Monograma EQR — Cinzel (Roman classical serif) em dourado */}
       <text
         x="50"
         y="44"
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="'Cinzel', 'Playfair Display', 'Cormorant Garamond', Georgia, 'Times New Roman', serif"
+        fontFamily="'Cinzel', 'Playfair Display', Georgia, serif"
         fontSize="36"
         fontWeight="600"
         letterSpacing="-0.5"
@@ -27,15 +50,7 @@ export function EqrLogo({ className, title = 'EQR' }: { className?: string; titl
       >
         EQR
       </text>
-
-      {/* Ornamento dourado abaixo — swoosh + pingo, inspirado na sua imagem */}
-      <path
-        d="M40 70 Q50 78 60 73"
-        stroke="#C3A25E"
-        strokeWidth="2.5"
-        fill="none"
-        strokeLinecap="round"
-      />
+      <path d="M40 70 Q50 78 60 73" stroke="#C3A25E" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       <circle cx="61.5" cy="74" r="1.8" fill="#C3A25E" />
     </svg>
   );
