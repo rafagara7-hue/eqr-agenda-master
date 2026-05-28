@@ -106,9 +106,9 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border bg-surface-elevated/40 sticky top-0 z-10">
               <h2 className="text-text-primary font-semibold text-sm">
-                {isNewEvent ? 'Novo evento' : isEditing ? 'Editar evento' : 'Detalhes do evento'}
+                {isNewEvent ? t('event.new') : isEditing ? t('event.edit') : t('event.details')}
               </h2>
 
               <div className="flex items-center gap-1">
@@ -132,20 +132,28 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     <button
                       onClick={() => setIsEditing(true)}
                       className="p-1.5 rounded-md hover:bg-surface-elevated transition-colors text-text-muted hover:text-text-secondary"
+                      title={t('common.edit')}
+                      aria-label={t('common.edit')}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => void handleDelete()}
                       className="p-1.5 rounded-md hover:bg-danger/10 transition-colors text-text-muted hover:text-danger"
+                      title={t('common.delete')}
+                      aria-label={t('common.delete')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </>
                 )}
+                {/* Botão X fechar — destacado, sempre visível */}
                 <button
+                  type="button"
                   onClick={handleClose}
-                  className="p-1.5 rounded-md hover:bg-surface-elevated transition-colors text-text-muted hover:text-text-primary"
+                  className="ml-1 p-2 rounded-lg border border-surface-border bg-surface-overlay hover:bg-danger/15 hover:border-danger/40 hover:text-danger transition-colors text-text-secondary"
+                  title={t('common.close')}
+                  aria-label={t('common.close')}
                 >
                   <X className="w-4 h-4" />
                 </button>
