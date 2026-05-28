@@ -64,7 +64,15 @@ export function AgendaSettingsProvider({ children }: { children: React.ReactNode
 
 export function useAgendaSettings() {
   const ctx = useContext(AgendaSettingsContext);
-  if (!ctx) throw new Error('useAgendaSettings must be used within AgendaSettingsProvider');
+  // Fallback gracioso: se renderizado fora do provider (ex: SSR de rotas auth
+  // antes do hidrato), retorna defaults imutáveis em vez de quebrar o build.
+  if (!ctx) {
+    return {
+      settings: AGENDA_DEFAULTS,
+      update: () => {},
+      reset: () => {},
+    };
+  }
   return ctx;
 }
 
