@@ -90,7 +90,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-20 lg:hidden"
+            className="fixed inset-0 bg-black/40 z-35 lg:hidden"
             onClick={handleClose}
           />
 
@@ -100,7 +100,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className={cn(
-              'fixed right-0 top-0 bottom-0 w-full sm:w-[380px] z-30',
+              'fixed right-0 top-0 bottom-0 w-full sm:w-[380px] z-40',
               'bg-surface-overlay border-l border-surface-border',
               'flex flex-col shadow-modal'
             )}
