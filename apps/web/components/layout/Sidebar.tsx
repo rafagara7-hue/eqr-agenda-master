@@ -88,7 +88,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
         )}
       >
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          <EqrLogo blend className={cn('rounded-lg', isTop ? 'w-10 h-10' : 'w-7 h-7')} />
+          <EqrLogo blend className={cn('rounded-full ring-2 ring-accent', isTop ? 'w-10 h-10' : 'w-7 h-7')} />
           <span
             className={cn(
               'text-text-primary font-semibold hidden sm:block',
@@ -226,7 +226,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           {/* Header: logo + botão fechar */}
           <div className="h-14 flex items-center justify-between px-4 border-b border-surface-border flex-shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <EqrLogo blend className="w-7 h-7 rounded-lg flex-shrink-0" />
+              <EqrLogo blend className="w-7 h-7 rounded-full ring-2 ring-accent flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-text-primary text-sm font-semibold leading-none truncate">Agenda Master</p>
                 <p className="text-text-muted text-[10px] mt-0.5 truncate">Central corporativa</p>
