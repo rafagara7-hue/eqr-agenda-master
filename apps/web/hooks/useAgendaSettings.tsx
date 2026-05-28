@@ -8,7 +8,7 @@ export interface AgendaSettings {
   defaultDuration: number;
   defaultView: 'day' | 'week' | 'month';
   sidebarPosition: 'left' | 'right' | 'top' | 'bottom';
-  layoutTheme: 'eqr' | 'original';
+  layoutTheme: 'eqr' | 'original' | 'pro';
 }
 
 const STORAGE_KEY = 'eqr-agenda-settings';

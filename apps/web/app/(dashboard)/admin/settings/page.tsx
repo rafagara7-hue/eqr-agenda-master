@@ -306,35 +306,34 @@ export default function SettingsPage() {
         <SettingRow
           icon={<Palette className="w-4 h-4" />}
           label="Estilo do layout"
-          description="Identidade visual EQR (dourado + azul-noite) ou tema neutro original"
+          description="Identidade visual EQR, tema neutro original ou Pro monocromático"
         >
           <div className="flex items-center gap-2">
             {([
               { value: 'eqr',      label: 'EQR' },
               { value: 'original', label: 'Original' },
+              { value: 'pro',      label: 'Pro' },
             ] as const).map(({ value, label }) => {
               const isActive = settings.layoutTheme === value;
+              const previewStyle =
+                value === 'eqr'
+                  ? { background: 'linear-gradient(135deg, #0D1B2A 0%, #1F3550 60%, #C3A25E 100%)' }
+                  : value === 'original'
+                  ? { background: 'linear-gradient(135deg, #0F172A 0%, #334155 60%, #3B82F6 100%)' }
+                  : { background: 'linear-gradient(135deg, #000000 0%, #1C1C1C 50%, #FFFFFF 100%)' };
               return (
                 <button
                   key={value}
                   type="button"
                   onClick={() => update('layoutTheme', value)}
                   title={label}
-                  className={`relative w-[88px] h-11 rounded-lg border-2 transition-all flex items-center justify-center text-xs font-medium overflow-hidden ${
+                  className={`relative w-[78px] h-11 rounded-lg border-2 transition-all flex items-center justify-center text-xs font-medium overflow-hidden ${
                     isActive
                       ? 'border-member-blue'
                       : 'border-surface-border hover:border-surface-muted'
                   }`}
                 >
-                  {/* Preview de cores do tema */}
-                  <div
-                    className="absolute inset-0"
-                    style={
-                      value === 'eqr'
-                        ? { background: 'linear-gradient(135deg, #0D1B2A 0%, #1F3550 60%, #C3A25E 100%)' }
-                        : { background: 'linear-gradient(135deg, #0F172A 0%, #334155 60%, #3B82F6 100%)' }
-                    }
-                  />
+                  <div className="absolute inset-0" style={previewStyle} />
                   <span className="relative z-10 text-white drop-shadow-md">{label}</span>
                 </button>
               );
@@ -343,9 +342,9 @@ export default function SettingsPage() {
         </SettingRow>
         <div className="pb-2 pt-1">
           <p className="text-text-muted text-xs">
-            {settings.layoutTheme === 'eqr'
-              ? 'Tema EQR — azul-noite com acento dourado, identidade da empresa'
-              : 'Tema Original — paleta neutra slate + azul, sem branding'}
+            {settings.layoutTheme === 'eqr' && 'Tema EQR — azul-noite com acento dourado, identidade da empresa'}
+            {settings.layoutTheme === 'original' && 'Tema Original — paleta neutra slate + azul, sem branding'}
+            {settings.layoutTheme === 'pro' && 'Tema Pro — monocromático preto + branco, visual minimalista'}
           </p>
         </div>
       </motion.div>

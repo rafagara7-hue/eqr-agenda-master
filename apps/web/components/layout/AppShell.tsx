@@ -29,13 +29,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   const profileGlow = isAdmin ? '#C9A85C' : (member?.colorHex ?? '#6B7280');
 
-  // Aplica tema de layout (EQR vs Original) no body
+  // Aplica tema de layout (EQR / Original / Pro) no body
   useEffect(() => {
-    if (settings.layoutTheme === 'original') {
-      document.body.classList.add('theme-original');
-    } else {
-      document.body.classList.remove('theme-original');
-    }
+    document.body.classList.remove('theme-original', 'theme-pro');
+    if (settings.layoutTheme === 'original') document.body.classList.add('theme-original');
+    if (settings.layoutTheme === 'pro') document.body.classList.add('theme-pro');
   }, [settings.layoutTheme]);
 
   // Fecha ao navegar
