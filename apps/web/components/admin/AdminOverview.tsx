@@ -88,7 +88,7 @@ function IndicatorCard({
           )}
         </div>
         {cta && (
-          <p className="text-text-muted text-[11px] mt-2 sm:mt-3 group-hover:text-text-secondary transition-colors">
+          <p className="text-text-muted text-[11px] mt-2 sm:mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             {cta.label} →
           </p>
         )}
