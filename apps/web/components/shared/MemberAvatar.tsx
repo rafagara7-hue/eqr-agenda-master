@@ -35,9 +35,15 @@ export function MemberAvatar({ member, size = 'md', className }: MemberAvatarPro
     .slice(0, 2)
     .toUpperCase();
 
-  // Caso especial: logo EQR como avatar (admin). Aplica fade radial nas bordas.
+  // Caso especial: logo EQR como avatar (admin). Aplica fade radial + corte circular.
   if (member.avatarUrl === EQR_LOGO_SENTINEL) {
-    return <EqrLogo blend className={cn('flex-shrink-0', sizeMap[size], className)} title={member.name} />;
+    return (
+      <EqrLogo
+        blend
+        className={cn('rounded-full overflow-hidden flex-shrink-0', sizeMap[size], className)}
+        title={member.name}
+      />
+    );
   }
 
   const showImage = Boolean(member.avatarUrl) && !imgError;
