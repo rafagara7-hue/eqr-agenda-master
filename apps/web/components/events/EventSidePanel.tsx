@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Edit2, Trash2, MapPin, Clock, User2, Calendar, Users, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { EventForm } from './EventForm';
 import { SyncStatusBadge } from '@/components/calendar/SyncStatusBadge';
@@ -69,6 +70,12 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
 
   const isNewEvent = !event;
 
+  // Portal pra escapar do stacking context do <main> (que tem z-10).
+  // Sem isso, o painel z-40 fica preso dentro de main e a Sidebar (z-20 no root)
+  // pinta por cima do header do painel.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   function handleClose() {
     setIsEditing(false);
     onClose();
@@ -81,7 +88,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
     handleClose();
   }
 
-  return (
+  const panelTree = (
     <AnimatePresence>
       {open && (
         <>
@@ -186,6 +193,10 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
       )}
     </AnimatePresence>
   );
+
+  // SSR: nada renderiza até o componente montar no client (createPortal precisa de DOM)
+  if (!mounted) return null;
+  return createPortal(panelTree, document.body);
 }
 
 interface MemberInfo {
