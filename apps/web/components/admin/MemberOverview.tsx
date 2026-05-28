@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { CalendarDays, CheckCircle2, Clock, RefreshCw, ArrowRight, CalendarCheck, Star } from 'lucide-react';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { useFavoritedEvents } from '@/hooks/useFavorites';
+import { useTranslation } from '@/lib/i18n';
 
 interface MemberOverviewProps {
   member: {
@@ -61,6 +62,7 @@ function StatCard({
 export function MemberOverview({ member, events }: MemberOverviewProps) {
   const router = useRouter();
   const { data: favoritedEvents = [] } = useFavoritedEvents();
+  const { t } = useTranslation();
 
   const { totalEvents, confirmedCount, tentativeCount, todayCount, failedSyncCount, nextEvent } =
     useMemo(() => {
@@ -85,34 +87,34 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-text-primary text-xl font-semibold">Geral</h1>
-        <p className="text-text-muted text-sm mt-1">Resumo da sua agenda</p>
+        <h1 className="text-text-primary text-xl font-semibold">{t('member.overview.title')}</h1>
+        <p className="text-text-muted text-sm mt-1">{t('member.overview.subtitle')}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
-          label="Total de eventos"
+          label={t('member.indicator.total')}
           value={totalEvents}
           icon={<CalendarDays className="w-4 h-4" />}
           color="#3B82F6"
           onClick={() => router.push('/calendar')}
         />
         <StatCard
-          label="Confirmados"
+          label={t('member.indicator.confirmed')}
           value={confirmedCount}
           icon={<CheckCircle2 className="w-4 h-4" />}
           color="#22C55E"
         />
         <StatCard
-          label="Provisórios"
+          label={t('member.indicator.tentative')}
           value={tentativeCount}
           icon={<Clock className="w-4 h-4" />}
           color="#F59E0B"
           onClick={tentativeCount > 0 ? () => router.push('/calendar?filter=tentative') : undefined}
         />
         <StatCard
-          label="Eventos hoje"
+          label={t('member.indicator.today')}
           value={todayCount}
           icon={<CalendarCheck className="w-4 h-4" />}
           color="#8B5CF6"
@@ -127,7 +129,7 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
         className="bg-surface-elevated border border-surface-border rounded-xl p-5"
       >
         <p className="text-text-muted text-xs font-medium uppercase tracking-wider mb-3">
-          Próximo evento
+          {t('member.nextEvent')}
         </p>
 
         {nextEvent ? (
@@ -148,19 +150,19 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
                     : 'bg-success/10 text-success border-success/30'
                 }`}
               >
-                {nextEvent.status === 'tentative' ? 'Provisório' : 'Confirmado'}
+                {nextEvent.status === 'tentative' ? t('event.status.tentative') : t('event.status.confirmed')}
               </span>
             </div>
             <button
               onClick={() => router.push('/calendar')}
               className="p-1.5 rounded-lg hover:bg-surface-overlay transition-colors text-text-muted hover:text-text-secondary flex-shrink-0 mt-0.5"
-              title="Ver no calendário"
+              title={t('member.viewInCalendar')}
             >
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <p className="text-text-muted text-sm">Nenhum evento próximo agendado</p>
+          <p className="text-text-muted text-sm">{t('member.noNextEvent')}</p>
         )}
       </motion.div>
 
@@ -174,12 +176,12 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
         <div className="flex items-center gap-2 mb-3">
           <Star className="w-3.5 h-3.5 text-favorite" fill="#C9A84C" />
           <p className="text-text-muted text-xs font-medium uppercase tracking-wider">
-            Reuniões destacadas
+            {t('member.highlightedMeetings')}
           </p>
         </div>
 
         {favoritedEvents.length === 0 ? (
-          <p className="text-text-muted text-sm">Nenhuma reunião destacada ainda.</p>
+          <p className="text-text-muted text-sm">{t('member.noHighlighted')}</p>
         ) : (
           <ul className="space-y-2">
             {favoritedEvents.map((ev) => (
@@ -215,10 +217,10 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
             <RefreshCw className="w-4 h-4 text-danger flex-shrink-0" />
             <div>
               <p className="text-text-primary text-sm font-medium">
-                {failedSyncCount} {failedSyncCount === 1 ? 'evento com falha' : 'eventos com falha'} de sincronização
+                {failedSyncCount} {failedSyncCount === 1 ? t('member.failedSyncOne') : t('member.failedSyncMany')} {t('member.failedSyncSuffix')}
               </p>
               <p className="text-text-muted text-xs mt-0.5">
-                Não sincronizados com o Google Calendar
+                {t('member.failedSyncDesc')}
               </p>
             </div>
           </div>
@@ -226,7 +228,7 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
             onClick={() => router.push('/calendar?filter=failed-sync')}
             className="flex items-center gap-1 text-danger text-xs font-medium hover:underline flex-shrink-0"
           >
-            Ver <ArrowRight className="w-3 h-3" />
+            {t('member.see')} <ArrowRight className="w-3 h-3" />
           </button>
         </motion.div>
       )}

@@ -10,6 +10,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { formatPhone } from '@/lib/phone';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/lib/i18n';
 
 function PanelContent() {
   const searchParams = useSearchParams();
@@ -19,6 +20,7 @@ function PanelContent() {
   const supabase = getSupabaseBrowserClient();
   const { onlineMemberIds } = usePresenceContext();
   const { isAdmin, member: currentMember } = useAuth();
+  const { t } = useTranslation();
 
   const { data: member } = useQuery({
     queryKey: ['member-panel', profileId],
@@ -71,7 +73,7 @@ function PanelContent() {
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border shrink-0">
-              <p className="text-text-primary text-sm font-semibold">Perfil do membro</p>
+              <p className="text-text-primary text-sm font-semibold">{t('profilePanel.title')}</p>
               <button
                 onClick={close}
                 className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
@@ -105,16 +107,16 @@ function PanelContent() {
                       {member.role === 'admin' ? (
                         <>
                           <Shield className="w-3 h-3 text-member-blue flex-shrink-0" />
-                          <span className="text-member-blue text-xs">Administrador</span>
+                          <span className="text-member-blue text-xs">{t('common.administrator')}</span>
                         </>
                       ) : (
                         <>
                           <User className="w-3 h-3 text-text-muted flex-shrink-0" />
-                          <span className="text-text-muted text-xs">Membro</span>
+                          <span className="text-text-muted text-xs">{t('common.member')}</span>
                         </>
                       )}
                       <span className={`text-xs ${isOnline ? 'text-success' : 'text-text-muted'}`}>
-                        · {isOnline ? 'online' : 'offline'}
+                        · {isOnline ? t('common.online') : t('common.offline')}
                       </span>
                     </div>
                   </div>
@@ -123,11 +125,11 @@ function PanelContent() {
                 {/* Detalhes */}
                 <div className="space-y-0 rounded-xl border border-surface-border overflow-hidden">
                   <div className="flex justify-between items-center text-sm px-4 py-3 border-b border-surface-border">
-                    <span className="text-text-muted">Cor</span>
+                    <span className="text-text-muted">{t('profilePanel.color')}</span>
                     <span
                       className="w-4 h-4 rounded-full border border-surface-border"
                       style={{ backgroundColor: member.color_hex }}
-                      aria-label="Cor do membro"
+                      aria-label={t('profilePanel.color')}
                     />
                   </div>
                   {member.phone && (
@@ -136,17 +138,17 @@ function PanelContent() {
                       className="flex justify-between items-center text-sm px-4 py-3 border-b border-surface-border hover:bg-surface-elevated transition-colors"
                     >
                       <span className="text-text-muted flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5" /> Telefone
+                        <Phone className="w-3.5 h-3.5" /> {t('members.phone')}
                       </span>
                       <span className="text-text-secondary text-xs">{formatPhone(member.phone)}</span>
                     </a>
                   )}
                   <div className="flex justify-between items-center text-sm px-4 py-3">
-                    <span className="text-text-muted">Google Calendar</span>
+                    <span className="text-text-muted">{t('profilePanel.googleCalendar')}</span>
                     <span className={`flex items-center gap-1 text-xs font-medium ${member.google_linked ? 'text-success' : 'text-text-muted'}`}>
                       {member.google_linked
-                        ? <><Link2 className="w-3.5 h-3.5" /> Vinculado</>
-                        : <><Link2Off className="w-3.5 h-3.5" /> Não vinculado</>
+                        ? <><Link2 className="w-3.5 h-3.5" /> {t('common.linked')}</>
+                        : <><Link2Off className="w-3.5 h-3.5" /> {t('common.notLinked')}</>
                       }
                     </span>
                   </div>
@@ -157,7 +159,7 @@ function PanelContent() {
                   onClick={() => router.push(`/calendar?member=${member.id}`)}
                   className="w-full flex items-center justify-between px-4 py-3 bg-surface-overlay border border-surface-border rounded-xl text-sm text-text-secondary hover:border-surface-muted hover:text-text-primary transition-all group"
                 >
-                  <span>Ver eventos no calendário</span>
+                  <span>{t('profilePanel.viewEvents')}</span>
                   <span className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </button>
 
@@ -166,7 +168,7 @@ function PanelContent() {
                     onClick={() => { close(); router.push(`/admin/members/${member.id}`); }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-surface-overlay border border-surface-border rounded-xl text-sm text-text-secondary hover:border-surface-muted hover:text-text-primary transition-all group"
                   >
-                    <span>Ver perfil</span>
+                    <span>{t('profilePanel.viewFullProfile')}</span>
                     <span className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                   </button>
                 )}

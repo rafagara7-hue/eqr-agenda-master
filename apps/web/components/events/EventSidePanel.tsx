@@ -13,6 +13,7 @@ import { useFavorites, useToggleFavorite } from '@/hooks/useFavorites';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 import type { CalendarEvent } from '@eqr/domain';
 
 interface EventSidePanelProps {
@@ -36,6 +37,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
   ));
   const canFavorite = !!member;
   const supabase = getSupabaseBrowserClient();
+  const { t } = useTranslation();
 
   const { data: memberInfo } = useQuery({
     queryKey: ['member-info', event?.memberId],
@@ -74,7 +76,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
 
   async function handleDelete() {
     if (!event) return;
-    if (!confirm(`Remover "${event.title}"?`)) return;
+    if (!confirm(`${t('event.delete')} "${event.title}"?`)) return;
     await deleteEvent.mutateAsync(event.id);
     handleClose();
   }
@@ -119,8 +121,8 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                         ? 'text-favorite hover:bg-favorite/10'
                         : 'text-text-muted hover:text-favorite hover:bg-surface-elevated'
                     )}
-                    title={isFavorite ? 'Remover destaque' : 'Destacar reunião'}
-                    aria-label={isFavorite ? 'Remover destaque' : 'Destacar reunião'}
+                    title={isFavorite ? t('event.unfavorite') : t('event.favorite')}
+                    aria-label={isFavorite ? t('event.unfavorite') : t('event.favorite')}
                   >
                     <Star className="w-3.5 h-3.5" fill={isFavorite ? '#C9A84C' : 'none'} />
                   </button>
@@ -191,6 +193,7 @@ function EventDetail({
   allParticipants: Array<{ id: string; name: string; color_hex: string; avatar_url: string | null }>;
 }) {
   const isJoint = (event.participantIds?.length ?? 1) > 1;
+  const { t } = useTranslation();
 
   return (
     <div className="p-5 space-y-5">
@@ -213,7 +216,7 @@ function EventDetail({
         <div className="flex items-start gap-3">
           <Users className="w-4 h-4 text-text-muted flex-shrink-0 mt-1" />
           <div className="flex-1 space-y-1.5">
-            <p className="text-text-muted text-xs uppercase tracking-wider">Reunião em conjunto</p>
+            <p className="text-text-muted text-xs uppercase tracking-wider">{t('event.jointMeeting')}</p>
             <div className="flex flex-wrap gap-1.5">
               {allParticipants.map((p) => (
                 <div
@@ -269,7 +272,7 @@ function EventDetail({
       {/* Descrição */}
       {event.description && (
         <div className="space-y-2">
-          <p className="text-text-secondary text-sm font-semibold">Descrição</p>
+          <p className="text-text-secondary text-sm font-semibold">{t('event.descriptionLabel')}</p>
           <p className="text-text-secondary text-sm whitespace-pre-line">{event.description}</p>
         </div>
       )}
@@ -277,19 +280,19 @@ function EventDetail({
       {/* Metadados */}
       <div className="border-t border-surface-border pt-4 space-y-1.5">
         <div className="flex justify-between text-xs">
-          <span className="text-text-muted">Criado em</span>
+          <span className="text-text-muted">{t('event.createdAt')}</span>
           <span className="text-text-secondary">{formatDate(event.createdAt, 'dd/MM/yyyy HH:mm')}</span>
         </div>
         {event.lastSyncedAt && (
           <div className="flex justify-between text-xs">
-            <span className="text-text-muted">Último sync</span>
+            <span className="text-text-muted">{t('event.lastSync')}</span>
             <span className="text-text-secondary">{formatDate(event.lastSyncedAt, 'dd/MM/yyyy HH:mm')}</span>
           </div>
         )}
         {event.googleEventId && (
           <div className="flex justify-between text-xs">
-            <span className="text-text-muted">Google Calendar</span>
-            <span className="text-success text-xs">Vinculado</span>
+            <span className="text-text-muted">{t('profilePanel.googleCalendar')}</span>
+            <span className="text-success text-xs">{t('common.linked')}</span>
           </div>
         )}
       </div>

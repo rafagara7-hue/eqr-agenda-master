@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Command } from 'cmdk';
 import { CalendarDays, Plus, Search, SkipForward } from 'lucide-react';
 import { useCommandPalette } from '@/hooks/useCommandPalette';
+import { useTranslation } from '@/lib/i18n';
 
 export function CommandPalette() {
   const { open, setOpen, search, setSearch } = useCommandPalette();
+  const { t } = useTranslation();
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -46,7 +48,7 @@ export function CommandPalette() {
                 <Command.Input
                   value={search}
                   onValueChange={setSearch}
-                  placeholder="Buscar ou criar..."
+                  placeholder={t('cmd.placeholder')}
                   className="flex-1 bg-transparent text-text-primary text-sm placeholder-text-muted outline-none"
                   autoFocus
                 />
@@ -57,25 +59,25 @@ export function CommandPalette() {
 
               <Command.List className="max-h-72 overflow-y-auto py-2">
                 <Command.Empty className="py-6 text-center text-text-muted text-sm">
-                  Nenhum resultado encontrado.
+                  {t('cmd.empty')}
                 </Command.Empty>
 
-                <Command.Group heading="Ações rápidas" className="px-2">
+                <Command.Group heading={t('cmd.quickActions')} className="px-2">
                   <CommandItem
                     icon={<Plus className="w-3.5 h-3.5" />}
-                    label="Criar novo evento"
+                    label={t('cmd.createEvent')}
                     shortcut="N"
                     onSelect={() => setOpen(false)}
                   />
                   <CommandItem
                     icon={<CalendarDays className="w-3.5 h-3.5" />}
-                    label="Ir para hoje"
+                    label={t('cmd.goToday')}
                     shortcut="T"
                     onSelect={() => setOpen(false)}
                   />
                   <CommandItem
                     icon={<SkipForward className="w-3.5 h-3.5" />}
-                    label="Ver próxima semana"
+                    label={t('cmd.nextWeek')}
                     onSelect={() => setOpen(false)}
                   />
                 </Command.Group>

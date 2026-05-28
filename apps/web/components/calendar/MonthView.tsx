@@ -9,10 +9,10 @@ import {
 import { EventCard } from './EventCard';
 import { getMemberColor } from '@/lib/calendar/colorMap';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 import type { CalendarEvent } from '@eqr/domain';
 
-const WEEK_HEADERS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const WEEK_HEADERS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const WEEKDAY_KEYS_SHORT = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 interface MonthViewProps {
   currentDate: Date;
@@ -30,6 +30,7 @@ interface MonthViewProps {
 const MOBILE_BREAKPOINT = 640;
 
 export function MonthView({ currentDate, events, memberColors, conflictEventIds, favoriteEventIds, onEventClick, onDayClick, onDayCreate, onDeleteEvent }: MonthViewProps) {
+  const { t } = useTranslation();
   const calendarDays = useMemo(() => {
     const firstDay = startOfMonth(currentDate);
     const lastDay = endOfMonth(currentDate);
@@ -56,10 +57,10 @@ export function MonthView({ currentDate, events, memberColors, conflictEventIds,
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Cabeçalho dos dias da semana */}
       <div className="grid grid-cols-7 border-b border-surface-border">
-        {WEEK_HEADERS_SHORT.map((short, i) => (
-          <div key={short} className="py-2 text-center text-[10px] font-medium text-text-muted uppercase tracking-wider truncate">
-            <span className="sm:hidden">{short}</span>
-            <span className="hidden sm:inline">{WEEK_HEADERS_FULL[i]}</span>
+        {WEEKDAY_KEYS_SHORT.map((key) => (
+          <div key={key} className="py-2 text-center text-[10px] font-medium text-text-muted uppercase tracking-wider truncate">
+            <span className="sm:hidden">{t('calendar.weekday.' + key + '.short')}</span>
+            <span className="hidden sm:inline">{t('calendar.weekday.' + key + '.full')}</span>
           </div>
         ))}
       </div>

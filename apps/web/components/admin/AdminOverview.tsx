@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { formatDate } from '@/lib/calendar/dateUtils';
+import { useTranslation } from '@/lib/i18n';
 
 interface AdminOverviewProps {
   members: Array<{ id: string; name: string; slug: string; color_hex: string; avatar_url: string | null }>;
@@ -149,6 +150,7 @@ function EventRow({
 export function AdminOverview({ members, events, conflicts, failedSyncs }: AdminOverviewProps) {
   const router = useRouter();
   const { onlineMemberIds } = usePresenceContext();
+  const { t } = useTranslation();
   const [deletingPast, setDeletingPast] = useState(false);
 
   const nowMs = Date.now();
@@ -191,19 +193,17 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
   async function handleDeletePast() {
     if (pastCount === 0) return;
-    const ok = window.confirm(
-      `Apagar ${pastCount} evento(s) que já passaram do horário? Esta ação não pode ser desfeita. Eventos no Google Calendar não serão removidos (já são passados).`
-    );
+    const ok = window.confirm(t('admin.deletePast.confirm'));
     if (!ok) return;
     setDeletingPast(true);
     try {
       const res = await fetch('/api/events/delete-past', { method: 'POST' });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; deleted?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao apagar');
-      toast.success(`${data.deleted ?? 0} evento(s) passado(s) apagado(s)`);
+      if (!res.ok || !data.ok) throw new Error(data.error ?? t('admin.deletePast.error'));
+      toast.success(`${data.deleted ?? 0} ${t('admin.deletePast.success')}`);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao apagar');
+      toast.error(err instanceof Error ? err.message : t('admin.deletePast.error'));
     } finally {
       setDeletingPast(false);
     }
@@ -227,19 +227,19 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-text-primary text-xl font-semibold">Geral</h1>
-        <p className="text-text-muted text-sm mt-1">Central de controle de todas as agendas EQR</p>
+        <h1 className="text-text-primary text-xl font-semibold">{t('admin.overview.title')}</h1>
+        <p className="text-text-muted text-sm mt-1">{t('admin.overview.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
         {/* Total */}
         <IndicatorCard
-          label="Total de eventos"
+          label={t('admin.indicator.total')}
           value={totalEvents}
           icon={<CalendarDays className="w-4 h-4" />}
           color="#3B82F6"
-          cta={{ label: 'Aperte para ver os eventos', href: '/calendar' }}
-          emptyText="Nenhum evento cadastrado ainda."
+          cta={{ label: t('admin.cta.viewEvents'), href: '/calendar' }}
+          emptyText={t('admin.empty.events')}
         >
           <ul className="space-y-0.5">
             {upcomingEvents.map((e) => (
@@ -253,7 +253,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
             ))}
             {totalEvents > upcomingEvents.length && (
               <li className="text-text-muted text-xs italic px-2 pt-2">
-                + {totalEvents - upcomingEvents.length} no calendário
+                + {totalEvents - upcomingEvents.length} {t('admin.indicator.inCalendar')}
               </li>
             )}
           </ul>
@@ -261,12 +261,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Online */}
         <IndicatorCard
-          label="Membros online"
+          label={t('admin.indicator.online')}
           value={onlineCount}
           icon={<Circle className="w-3.5 h-3.5 fill-current" />}
           color="#22C55E"
-          cta={{ label: 'Ver perfis dos membros', href: '/admin/members' }}
-          emptyText="Nenhum membro online no momento."
+          cta={{ label: t('admin.cta.viewMemberProfiles'), href: '/admin/members' }}
+          emptyText={t('admin.empty.online')}
         >
           <div className="space-y-1.5">
             {onlineMembers.map((m) => (
@@ -287,7 +287,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
             ))}
             {offlineMembers.length > 0 && (
               <p className="text-text-muted text-[11px] mt-2 pt-2 border-t border-surface-border">
-                Offline: {offlineMembers.map((m) => m.name).join(' · ')}
+                {t('admin.indicator.offline')} {offlineMembers.map((m) => m.name).join(' · ')}
               </p>
             )}
           </div>
@@ -295,12 +295,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Confirmados */}
         <IndicatorCard
-          label="Confirmados"
+          label={t('admin.indicator.confirmed')}
           value={confirmedCount}
           icon={<CheckCircle2 className="w-4 h-4" />}
           color="#22C55E"
-          cta={{ label: 'Ver eventos confirmados', href: '/calendar?filter=confirmed' }}
-          emptyText="Nenhum evento confirmado."
+          cta={{ label: t('admin.cta.viewConfirmed'), href: '/calendar?filter=confirmed' }}
+          emptyText={t('admin.empty.confirmed')}
         >
           <ul className="space-y-0.5">
             {confirmedEvents.map((e) => (
@@ -314,7 +314,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
             ))}
             {confirmedCount > confirmedEvents.length && (
               <li className="text-text-muted text-xs italic px-2 pt-2">
-                + {confirmedCount - confirmedEvents.length} no calendário
+                + {confirmedCount - confirmedEvents.length} {t('admin.indicator.inCalendar')}
               </li>
             )}
           </ul>
@@ -322,12 +322,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Provisórios */}
         <IndicatorCard
-          label="Provisórios"
+          label={t('admin.indicator.tentative')}
           value={tentativeCount}
           icon={<Clock className="w-4 h-4" />}
           color="#F59E0B"
-          cta={{ label: 'Ver eventos provisórios', href: '/calendar?filter=tentative' }}
-          emptyText="Nenhum evento provisório."
+          cta={{ label: t('admin.cta.viewTentative'), href: '/calendar?filter=tentative' }}
+          emptyText={t('admin.empty.tentative')}
         >
           <ul className="space-y-0.5">
             {tentativeEvents.map((e) => (
@@ -338,7 +338,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                   onClick={() => router.push('/calendar?filter=tentative')}
                   rightSlot={
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-warning/40 text-warning bg-warning/10">
-                      Provisório
+                      {t('event.status.tentative')}
                     </span>
                   }
                 />
@@ -346,7 +346,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
             ))}
             {tentativeCount > tentativeEvents.length && (
               <li className="text-text-muted text-xs italic px-2 pt-2">
-                + {tentativeCount - tentativeEvents.length} no calendário
+                + {tentativeCount - tentativeEvents.length} {t('admin.indicator.inCalendar')}
               </li>
             )}
           </ul>
@@ -354,12 +354,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Passados */}
         <IndicatorCard
-          label="Eventos passados"
+          label={t('admin.indicator.past')}
           value={pastCount}
           icon={<History className="w-4 h-4" />}
           color="#8C8C8C"
-          cta={pastCount > 0 ? { label: 'Ver os mais recentes abaixo', href: '/calendar' } : undefined}
-          emptyText="Nenhum evento passado pra mostrar."
+          cta={pastCount > 0 ? { label: t('admin.cta.viewPast'), href: '/calendar' } : undefined}
+          emptyText={t('admin.empty.past')}
         >
           <div className="space-y-2">
             <button
@@ -369,7 +369,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-danger/40 text-danger hover:bg-danger/10 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {deletingPast ? 'Apagando…' : `Apagar todos os ${pastCount} passados`}
+              {deletingPast ? t('common.deleting') : t('admin.deletePast.button')}
             </button>
             <ul className="space-y-0.5">
               {pastEvents.map((e) => (
@@ -380,7 +380,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                     onClick={() => router.push('/calendar')}
                     rightSlot={
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-text-muted/40 text-text-muted bg-surface-overlay">
-                        Passado
+                        {t('admin.indicator.past')}
                       </span>
                     }
                   />
@@ -388,7 +388,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               ))}
               {pastCount > pastEvents.length && (
                 <li className="text-text-muted text-xs italic px-2 pt-2">
-                  + {pastCount - pastEvents.length} mais antigos
+                  + {pastCount - pastEvents.length} {t('admin.indicator.older')}
                 </li>
               )}
             </ul>
@@ -397,12 +397,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Cruzados */}
         <IndicatorCard
-          label="Eventos cruzados"
+          label={t('admin.indicator.conflicts')}
           value={totalConflicts}
           icon={<AlertTriangle className="w-4 h-4" />}
           color="#F97316"
-          cta={{ label: 'Ver conflitos no calendário', href: '/calendar?filter=conflicts' }}
-          emptyText="Nenhum conflito de agenda."
+          cta={{ label: t('admin.cta.viewConflicts'), href: '/calendar?filter=conflicts' }}
+          emptyText={t('admin.empty.conflicts')}
         >
           <ul className="space-y-2">
             {conflictRows.map((c) => {
@@ -432,7 +432,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                     )}
                     {member && (
                       <p className="text-text-muted text-[11px]">
-                        Membro afetado: <span className="text-text-secondary">{member.name}</span>
+                        {t('common.member')}: <span className="text-text-secondary">{member.name}</span>
                       </p>
                     )}
                   </div>
@@ -441,7 +441,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
             })}
             {totalConflicts > conflictRows.length && (
               <li className="text-text-muted text-xs italic px-2 pt-2">
-                + {totalConflicts - conflictRows.length} no calendário
+                + {totalConflicts - conflictRows.length} {t('admin.indicator.inCalendar')}
               </li>
             )}
           </ul>
@@ -449,12 +449,12 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
 
         {/* Syncs com falha */}
         <IndicatorCard
-          label="Syncs com falha"
+          label={t('admin.indicator.failedSync')}
           value={failedSyncCount}
           icon={<RefreshCw className="w-4 h-4" />}
           color="#EF4444"
-          cta={failedSyncCount > 0 ? { label: 'Ver no calendário', href: '/calendar?filter=failed-sync' } : undefined}
-          emptyText="Nenhuma sincronização com falha."
+          cta={failedSyncCount > 0 ? { label: t('admin.cta.viewFailedSync'), href: '/calendar?filter=failed-sync' } : undefined}
+          emptyText={t('admin.empty.failedSync')}
         >
           <ul className="space-y-0.5">
             {failedEvents.map((e) => (
@@ -466,7 +466,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                   rightSlot={
                     <span
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-danger/40 text-danger bg-danger/10 max-w-[140px] truncate"
-                      title={e.sync_error ?? 'Falha de sincronização'}
+                      title={e.sync_error ?? t('event.googleSyncFailed')}
                     >
                       {e.sync_error ? e.sync_error.split(':').pop()?.trim() ?? 'falha' : 'falha'}
                     </span>
@@ -475,7 +475,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
               </li>
             ))}
             {failedEvents.length === 0 && (
-              <li className="text-text-muted text-sm italic">Nenhum evento com sync_status=failed.</li>
+              <li className="text-text-muted text-sm italic">{t('admin.empty.failedSync')}</li>
             )}
           </ul>
         </IndicatorCard>

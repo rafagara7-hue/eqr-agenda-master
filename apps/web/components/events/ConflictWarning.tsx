@@ -1,5 +1,8 @@
+'use client';
+
 import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useTranslation } from '@/lib/i18n';
 
 interface ConflictingEvent {
   id: string;
@@ -13,6 +16,7 @@ interface ConflictWarningProps {
 }
 
 export function ConflictWarning({ conflicts }: ConflictWarningProps) {
+  const { t } = useTranslation();
   if (conflicts.length === 0) return null;
 
   return (
@@ -24,7 +28,7 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
       <AlertTriangle className="w-4 h-4 text-sync-conflict flex-shrink-0 mt-0.5" />
       <div>
         <p className="text-sync-conflict text-xs font-medium">
-          {conflicts.length === 1 ? 'Conflito detectado' : `${conflicts.length} conflitos detectados`}
+          {conflicts.length === 1 ? t('conflict.detected.one') : `${conflicts.length} ${t('conflict.detected.many')}`}
         </p>
         <div className="mt-1 space-y-0.5">
           {conflicts.map((c) => (
@@ -34,7 +38,7 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
           ))}
         </div>
         <p className="text-text-muted text-xs mt-1.5">
-          O evento será salvo, mas o conflito ficará registrado para revisão.
+          {t('conflict.savedAnyway')}
         </p>
       </div>
     </motion.div>

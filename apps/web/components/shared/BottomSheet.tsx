@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 interface BottomSheetProps {
   open: boolean;
@@ -20,6 +21,7 @@ interface BottomSheetProps {
 
 export function BottomSheet({ open, onClose, title, children, maxHeight = 'auto' }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setMounted(true);
@@ -87,7 +89,7 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 'auto'
                 type="button"
                 onClick={onClose}
                 className="p-2 -mr-2 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-overlay transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label="Fechar"
+                aria-label={t('bottomSheet.close')}
               >
                 <X className="w-4 h-4" />
               </button>

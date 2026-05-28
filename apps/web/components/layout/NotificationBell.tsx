@@ -7,11 +7,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { t } = useTranslation();
 
   useEffect(() => {
     setMounted(true);
@@ -30,13 +32,13 @@ export function NotificationBell() {
             className="fixed right-4 top-14 mt-1 w-80 bg-surface-overlay border border-surface-border rounded-xl shadow-modal z-[1001]"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border">
-              <span className="text-text-primary text-sm font-medium">Notificações</span>
+              <span className="text-text-primary text-sm font-medium">{t('notifications.title')}</span>
               {unreadCount > 0 && (
                 <button
                   onClick={() => void markAllRead()}
                   className="text-text-muted text-xs hover:text-text-secondary transition-colors"
                 >
-                  Marcar todas como lidas
+                  {t('notifications.markAllRead')}
                 </button>
               )}
             </div>
@@ -44,7 +46,7 @@ export function NotificationBell() {
             <div className="max-h-[360px] overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="py-8 text-center text-text-muted text-sm">
-                  Nenhuma notificação
+                  {t('notifications.empty')}
                 </div>
               ) : (
                 notifications.slice(0, 20).map((n) => (

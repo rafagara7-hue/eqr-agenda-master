@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link2, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/lib/i18n';
 
 /**
  * Banner persistente no topo do conteúdo quando o member ainda não conectou
@@ -16,6 +17,7 @@ const DISMISS_HOURS = 12;
 
 export function GoogleConnectBanner() {
   const { member, isLoading } = useAuth();
+  const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(true); // começa "true" pra evitar flash até hidratar
 
   useEffect(() => {
@@ -53,10 +55,10 @@ export function GoogleConnectBanner() {
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-text-primary text-xs sm:text-sm font-medium leading-tight">
-              Conecte seu Google Calendar
+              {t('banner.connectGoogle.title')}
             </p>
             <p className="text-text-muted text-[11px] sm:text-xs leading-tight mt-0.5 hidden sm:block">
-              Suas reuniões viram eventos no Google automaticamente, com lembrete antes de cada uma.
+              {t('banner.connectGoogle.body')}
             </p>
           </div>
           <a
@@ -64,14 +66,14 @@ export function GoogleConnectBanner() {
             className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors whitespace-nowrap min-h-[36px] flex items-center"
             style={{ color: '#0D1B2A' }}
           >
-            Conectar agora
+            {t('banner.connectGoogle.cta')}
           </a>
           <button
             type="button"
             onClick={handleDismiss}
-            aria-label="Dispensar por algumas horas"
+            aria-label={t('banner.connectGoogle.dismiss')}
             className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-overlay transition-colors flex-shrink-0"
-            title="Dispensar (volta em 12h)"
+            title={t('banner.connectGoogle.dismissHint')}
           >
             <X className="w-3.5 h-3.5" />
           </button>

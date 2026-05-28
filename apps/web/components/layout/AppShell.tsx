@@ -15,6 +15,7 @@ import { GoogleConnectBanner } from '@/components/shared/GoogleConnectBanner';
 import { PresenceProvider } from '@/contexts/PresenceContext';
 import { AgendaSettingsProvider, useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const EDGE_HIT_AREA = 24;     // px da borda em que o swipe é "ativado"
@@ -25,6 +26,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const pos = settings.sidebarPosition;
   const pathname = usePathname();
   const { member, isAdmin } = useAuth();
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Admin não tem anel — a logo EQR já se sustenta sozinha visualmente.
@@ -156,7 +158,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
-          aria-label="Abrir menu"
+          aria-label={t('nav.openMenu')}
           className={cn(
             'hidden md:flex fixed top-2.5 z-30 p-2 rounded-lg bg-surface-elevated/95 border border-surface-border shadow-md backdrop-blur',
             'text-text-secondary hover:text-text-primary hover:bg-surface-overlay transition-colors',
@@ -181,8 +183,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           </div>
           <Link
             href={{ pathname, query: { profile: member.id } }}
-            title="Meu perfil"
-            aria-label="Meu perfil"
+            title={t('nav.profile')}
+            aria-label={t('nav.profile')}
             className="rounded-full bg-surface-elevated/95 border border-surface-border shadow-md backdrop-blur p-0.5 flex items-center justify-center transition-transform hover:scale-105"
             style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${profileGlow}` }}
           >

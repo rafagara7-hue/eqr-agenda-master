@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Check, UserPlus, X } from 'lucide-react';
 import type { MemberOption } from './MemberSelector';
+import { useTranslation } from '@/lib/i18n';
 
 interface ParticipantsSelectorProps {
   value: string[];
@@ -16,6 +17,7 @@ interface ParticipantsSelectorProps {
 
 export function ParticipantsSelector({ value, onChange, members, hostId, disabled = false }: ParticipantsSelectorProps) {
   const [expanded, setExpanded] = useState(value.length > 0);
+  const { t } = useTranslation();
 
   function toggle(id: string) {
     if (id === hostId) return;
@@ -49,7 +51,7 @@ export function ParticipantsSelector({ value, onChange, members, hostId, disable
         )}
       >
         <UserPlus className="w-4 h-4" />
-        Adicionar parceiros
+        {t('event.addPartners')}
       </button>
     );
   }
@@ -58,16 +60,16 @@ export function ParticipantsSelector({ value, onChange, members, hostId, disable
     <div className="space-y-1.5 rounded-lg border border-surface-border bg-surface-overlay/30 p-3">
       <div className="flex items-center justify-between">
         <div>
-          <label className="text-sm font-medium text-text-secondary">Parceiros nesta reunião</label>
+          <label className="text-sm font-medium text-text-secondary">{t('participants.partnersInMeeting')}</label>
           <p className="text-text-muted text-xs">
-            Marque outros membros. Conflitos não serão sinalizados entre vocês neste evento.
+            {t('participants.markOthers')}
           </p>
         </div>
         <button
           type="button"
           onClick={handleClose}
           className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-          title="Remover todos e ocultar"
+          title={t('participants.removeAllHide')}
         >
           <X className="w-3.5 h-3.5" />
         </button>

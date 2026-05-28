@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { EqrLogo } from '@/components/shared/EqrLogo';
+import { useTranslation } from '@/lib/i18n';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
+  const { t } = useTranslation();
 
   async function signInAndRedirect(emailToUse: string, passwordToUse: string) {
     setError(null);
@@ -31,7 +33,7 @@ export default function LoginPage() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setError('Sessão não foi criada após o login. Tente novamente.');
+      setError(t('login.sessionError'));
       setIsLoading(false);
       return;
     }
@@ -43,7 +45,7 @@ export default function LoginPage() {
       .maybeSingle();
 
     if (memberError) {
-      setError(`Erro ao buscar membro: ${memberError.message}`);
+      setError(`${t('login.memberError')} ${memberError.message}`);
       setIsLoading(false);
       return;
     }
@@ -83,8 +85,8 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center text-center mb-8">
           <EqrLogo className="w-24 h-24 rounded-2xl mb-5 shadow-lg ring-1 ring-accent/20" />
-          <h1 className="text-2xl font-semibold text-text-primary">Agenda Master</h1>
-          <p className="text-text-muted text-sm mt-1">Central corporativa de agendas</p>
+          <h1 className="text-2xl font-semibold text-text-primary">{t('login.title')}</h1>
+          <p className="text-text-muted text-sm mt-1">{t('login.subtitle')}</p>
         </div>
 
         {/* Card */}
@@ -92,7 +94,7 @@ export default function LoginPage() {
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="username" className="text-sm font-medium text-text-secondary">
-                Usuário
+                {t('login.username')}
               </label>
               <input
                 id="username"
@@ -114,7 +116,7 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <label htmlFor="password" className="text-sm font-medium text-text-secondary">
-                Senha
+                {t('login.password')}
               </label>
               <input
                 id="password"
@@ -154,17 +156,17 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Entrando...
+                  {t('login.submitting')}
                 </span>
               ) : (
-                'Entrar'
+                t('login.submit')
               )}
             </button>
           </form>
 
           {/* Acesso rápido — remover antes do deploy */}
           <div className="mt-4 pt-4 border-t border-surface-border">
-            <p className="text-text-muted text-[11px] text-center mb-2 uppercase tracking-wider">Acesso rápido (dev)</p>
+            <p className="text-text-muted text-[11px] text-center mb-2 uppercase tracking-wider">{t('login.quickAccess')}</p>
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 { label: 'Admin', email: 'admin@eqr.com.br', password: 'EqrAdmin@2026!' },
@@ -194,7 +196,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-text-muted text-xs mt-6">
-          EQR Agenda Master · Acesso restrito à equipe
+          {t('login.footer')}
         </p>
       </motion.div>
     </div>

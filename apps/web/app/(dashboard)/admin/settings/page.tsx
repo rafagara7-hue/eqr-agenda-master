@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAgendaSettings, type AgendaSettings } from '@/hooks/useAgendaSettings';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 
@@ -45,9 +46,10 @@ function SettingRow({
 }
 
 function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
+  const { t } = useTranslation();
   const options: { value: Theme; label: string; Icon: React.ElementType }[] = [
-    { value: 'dark', label: 'Escuro', Icon: Moon },
-    { value: 'light', label: 'Claro', Icon: Sun },
+    { value: 'dark', label: t('settings.theme.dark'), Icon: Moon },
+    { value: 'light', label: t('settings.theme.light'), Icon: Sun },
   ];
 
   return (
@@ -71,31 +73,32 @@ function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) =
 }
 
 function NotifStatus({ permission }: { permission: NotifPermission }) {
+  const { t } = useTranslation();
   if (permission === 'granted')
     return (
       <span className="flex items-center gap-1 text-success text-xs">
         <CheckCircle2 className="w-3.5 h-3.5" />
-        Permitido
+        {t('settings.notifications.granted')}
       </span>
     );
   if (permission === 'denied')
     return (
       <span className="flex items-center gap-1 text-danger text-xs">
         <XCircle className="w-3.5 h-3.5" />
-        Bloqueado pelo navegador
+        {t('settings.notifications.denied')}
       </span>
     );
   if (permission === 'default')
     return (
       <span className="flex items-center gap-1 text-warning text-xs">
         <AlertTriangle className="w-3.5 h-3.5" />
-        Permissão não concedida
+        {t('settings.notifications.pending')}
       </span>
     );
   return (
     <span className="flex items-center gap-1 text-text-muted text-xs">
       <XCircle className="w-3.5 h-3.5" />
-      Não suportado
+      {t('settings.notifications.unsupported')}
     </span>
   );
 }
@@ -157,6 +160,7 @@ export default function SettingsPage() {
   const [pendingStart, setPendingStart] = useState<number | null>(null);
   const [pendingEnd,   setPendingEnd]   = useState<number | null>(null);
   const [posExpanded, setPosExpanded] = useState(false);
+  const { t } = useTranslation();
   const hasPendingHours = pendingStart !== null || pendingEnd !== null;
 
   function applyHours() {
@@ -178,8 +182,8 @@ export default function SettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-text-primary text-xl font-semibold">Configurações</h1>
-        <p className="text-text-muted text-sm mt-1">Preferências pessoais da sua conta</p>
+        <h1 className="text-text-primary text-xl font-semibold">{t('settings.title')}</h1>
+        <p className="text-text-muted text-sm mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* Aparência */}
@@ -189,12 +193,12 @@ export default function SettingsPage() {
         className="bg-surface-elevated border border-surface-border rounded-xl px-5"
       >
         <div className="py-4 border-b border-surface-border">
-          <SectionTitle>Aparência</SectionTitle>
+          <SectionTitle>{t('settings.section.appearance')}</SectionTitle>
         </div>
         <SettingRow
           icon={theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          label="Tema"
-          description="Altera as cores de toda a interface"
+          label={t('settings.theme.label')}
+          description={t('settings.theme.description')}
         >
           <ThemeToggle theme={theme} onChange={applyTheme} />
         </SettingRow>
@@ -208,20 +212,20 @@ export default function SettingsPage() {
         className="bg-surface-elevated border border-surface-border rounded-xl px-5"
       >
         <div className="py-4 border-b border-surface-border">
-          <SectionTitle>Preferências</SectionTitle>
+          <SectionTitle>{t('settings.section.preferences')}</SectionTitle>
         </div>
         <SettingRow
           icon={<PanelLeft className="w-4 h-4" />}
-          label="Posição da barra lateral"
-          description="Escolha onde a navegação aparece na tela"
+          label={t('settings.sidebar.label')}
+          description={t('settings.sidebar.description')}
         >
           <div className="flex items-center gap-2">
             {(() => {
               const POS_OPTIONS = [
-                { value: 'left',   label: 'Esquerda' },
-                { value: 'right',  label: 'Direita' },
-                { value: 'top',    label: 'Superior' },
-                { value: 'bottom', label: 'Inferior' },
+                { value: 'left',   label: t('settings.sidebar.left') },
+                { value: 'right',  label: t('settings.sidebar.right') },
+                { value: 'top',    label: t('settings.sidebar.top') },
+                { value: 'bottom', label: t('settings.sidebar.bottom') },
               ] as const;
 
               const visibleOptions = posExpanded
@@ -279,8 +283,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setPosExpanded((v) => !v)}
-                    aria-label={posExpanded ? 'Recolher opções' : 'Ampliar opções'}
-                    title={posExpanded ? 'Recolher' : 'Ampliar — ver todas as posições'}
+                    aria-label={posExpanded ? t('settings.sidebar.collapse') : t('settings.sidebar.expand')}
+                    title={posExpanded ? t('settings.sidebar.collapse') : t('settings.sidebar.expand')}
                     className="w-11 h-11 rounded-lg border-2 border-surface-border hover:border-member-blue bg-surface-overlay hover:bg-member-blue/10 transition-all flex items-center justify-center text-text-secondary hover:text-text-primary"
                   >
                     {posExpanded ? (
@@ -296,17 +300,17 @@ export default function SettingsPage() {
         </SettingRow>
         <div className="pb-2 pt-1">
           <p className="text-text-muted text-xs">
-            {settings.sidebarPosition === 'left' && 'Barra lateral à esquerda — padrão'}
-            {settings.sidebarPosition === 'right' && 'Barra lateral à direita'}
-            {settings.sidebarPosition === 'top' && 'Barra de navegação no topo'}
-            {settings.sidebarPosition === 'bottom' && 'Barra de navegação na parte inferior'}
+            {settings.sidebarPosition === 'left' && t('settings.sidebar.hint.left')}
+            {settings.sidebarPosition === 'right' && t('settings.sidebar.hint.right')}
+            {settings.sidebarPosition === 'top' && t('settings.sidebar.hint.top')}
+            {settings.sidebarPosition === 'bottom' && t('settings.sidebar.hint.bottom')}
           </p>
         </div>
 
         <SettingRow
           icon={<Palette className="w-4 h-4" />}
-          label="Estilo do layout"
-          description="Identidade visual EQR, tema neutro original ou Pro monocromático"
+          label={t('settings.layoutTheme.label')}
+          description={t('settings.layoutTheme.description')}
         >
           <div className="flex items-center gap-2">
             {([
@@ -342,16 +346,16 @@ export default function SettingsPage() {
         </SettingRow>
         <div className="pb-2 pt-1">
           <p className="text-text-muted text-xs">
-            {settings.layoutTheme === 'eqr' && 'Tema EQR — azul-noite com acento dourado, identidade da empresa'}
-            {settings.layoutTheme === 'original' && 'Tema Original — paleta neutra slate + azul, sem branding'}
-            {settings.layoutTheme === 'pro' && 'Tema Pro — monocromático preto + branco, visual minimalista'}
+            {settings.layoutTheme === 'eqr' && t('settings.layoutTheme.eqr')}
+            {settings.layoutTheme === 'original' && t('settings.layoutTheme.original')}
+            {settings.layoutTheme === 'pro' && t('settings.layoutTheme.pro')}
           </p>
         </div>
 
         <SettingRow
           icon={<Languages className="w-4 h-4" />}
-          label={settings.language === 'en-US' ? 'Language' : 'Idioma'}
-          description={settings.language === 'en-US' ? 'Interface language' : 'Idioma da interface'}
+          label={t('settings.language.label')}
+          description={t('settings.language.description')}
         >
           <div className="flex items-center gap-1 bg-surface-overlay rounded-lg p-0.5">
             {([
@@ -379,9 +383,7 @@ export default function SettingsPage() {
         </SettingRow>
         <div className="pb-2 pt-1">
           <p className="text-text-muted text-xs">
-            {settings.language === 'pt-BR'
-              ? 'Português (Brasil) — padrão'
-              : 'English (United States) — interface labels and messages'}
+            {settings.language === 'pt-BR' ? t('settings.language.hint.pt') : t('settings.language.hint.en')}
           </p>
         </div>
       </motion.div>
@@ -394,16 +396,12 @@ export default function SettingsPage() {
         className="bg-surface-elevated border border-surface-border rounded-xl px-5"
       >
         <div className="py-4 border-b border-surface-border">
-          <SectionTitle>Notificações</SectionTitle>
+          <SectionTitle>{t('settings.section.notifications')}</SectionTitle>
         </div>
         <SettingRow
           icon={notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          label="Notificações na área de trabalho"
-          description={
-            notifPermission === 'denied'
-              ? 'Acesse as configurações do navegador para desbloquear notificações.'
-              : 'Receba alertas de conflitos, sincronizações e lembretes.'
-          }
+          label={t('settings.notifLabel')}
+          description={notifPermission === 'denied' ? t('settings.notifDescDenied') : t('settings.notifDescAllow')}
         >
           <div className="flex flex-col items-end gap-1.5">
             <button
@@ -432,29 +430,29 @@ export default function SettingsPage() {
         className="bg-surface-elevated border border-surface-border rounded-xl px-5"
       >
         <div className="py-4 border-b border-surface-border flex items-center justify-between">
-          <h2 className="text-text-secondary text-sm font-medium">Agenda</h2>
+          <h2 className="text-text-secondary text-sm font-medium">{t('settings.section.agenda')}</h2>
           <div className="flex items-center gap-2">
             {hasPendingHours && (
               <button
                 onClick={applyHours}
                 className="px-3 py-1 rounded-lg text-xs font-medium bg-member-blue text-white hover:bg-member-blue/90 transition-colors"
               >
-                Aplicar
+                {t('settings.apply')}
               </button>
             )}
             <button
               onClick={handleReset}
               className="text-text-muted text-xs hover:text-text-secondary transition-colors"
             >
-              Restaurar padrões
+              {t('settings.restoreDefaults')}
             </button>
           </div>
         </div>
 
         <SettingRow
           icon={<Clock className="w-4 h-4" />}
-          label="Horário de início"
-          description="Primeira hora exibida ao abrir o calendário"
+          label={t('settings.workHours.startLabel')}
+          description={t('settings.workHours.startDesc')}
         >
           <select
             value={pendingStart ?? settings.workStart}
@@ -469,8 +467,8 @@ export default function SettingsPage() {
 
         <SettingRow
           icon={<Clock className="w-4 h-4" />}
-          label="Horário de encerramento"
-          description="Última hora do horário útil"
+          label={t('settings.workHours.endLabel')}
+          description={t('settings.workHours.endDesc')}
         >
           <select
             value={pendingEnd ?? settings.workEnd}
@@ -485,8 +483,8 @@ export default function SettingsPage() {
 
         <SettingRow
           icon={<Timer className="w-4 h-4" />}
-          label="Duração padrão"
-          description="Duração pré-preenchida ao criar um novo evento"
+          label={t('settings.defaultDuration.label')}
+          description={t('settings.defaultDuration.preFilled')}
         >
           <select
             value={settings.defaultDuration}
@@ -496,25 +494,25 @@ export default function SettingsPage() {
             <option value={15}>15 min</option>
             <option value={30}>30 min</option>
             <option value={45}>45 min</option>
-            <option value={60}>1 hora</option>
-            <option value={90}>1h 30min</option>
-            <option value={120}>2 horas</option>
+            <option value={60}>{t('settings.duration.1h')}</option>
+            <option value={90}>{t('settings.duration.1h30')}</option>
+            <option value={120}>{t('settings.duration.2h')}</option>
           </select>
         </SettingRow>
 
         <SettingRow
           icon={<CalendarDays className="w-4 h-4" />}
-          label="Visualização padrão"
-          description="View ao abrir o calendário"
+          label={t('settings.defaultView.label')}
+          description={t('settings.defaultView.desc')}
         >
           <select
             value={settings.defaultView}
             onChange={(e) => update('defaultView', e.target.value as AgendaSettings['defaultView'])}
             className={selectClass}
           >
-            <option value="day">Dia</option>
-            <option value="week">Semana</option>
-            <option value="month">Mês</option>
+            <option value="day">{t('calendar.view.day')}</option>
+            <option value="week">{t('calendar.view.week')}</option>
+            <option value="month">{t('calendar.view.month')}</option>
           </select>
         </SettingRow>
       </motion.div>
@@ -532,6 +530,7 @@ function AdminGoogleSection() {
   const { isAdmin } = useAuth();
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [disconnecting, setDisconnecting] = useState<string | 'all' | null>(null);
 
   const { data: linkedMembers = [], refetch } = useQuery({
@@ -561,9 +560,9 @@ function AdminGoogleSection() {
   async function disconnect(memberId?: string) {
     const key = memberId ?? 'all';
     if (memberId) {
-      if (!confirm('Desvincular o Google Calendar deste sócio? O sync com Google para. Eventos atuais permanecem no Google.')) return;
+      if (!confirm(t('settings.google.disconnectConfirmMember'))) return;
     } else {
-      if (!confirm('Desvincular o Google Calendar de TODOS os sócios? Cada um precisará reconectar pra voltar a sincronizar.')) return;
+      if (!confirm(t('settings.google.disconnectConfirmAll'))) return;
     }
     setDisconnecting(key);
     try {
@@ -573,11 +572,11 @@ function AdminGoogleSection() {
         body: JSON.stringify(memberId ? { memberId } : {}),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; disconnected?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao desvincular');
+      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.google.disconnectError'));
       toast.success(
         memberId
-          ? 'Sócio desvinculado do Google Calendar'
-          : `${data.disconnected ?? 0} sócio(s) desvinculado(s) do Google Calendar`
+          ? t('settings.google.disconnected')
+          : `${data.disconnected ?? 0} ${t('settings.google.disconnected')}`
       );
       await Promise.all([
         refetch(),
@@ -586,7 +585,7 @@ function AdminGoogleSection() {
         queryClient.invalidateQueries({ queryKey: ['member-panel'] }),
       ]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
+      toast.error(err instanceof Error ? err.message : t('settings.google.disconnectError'));
     } finally {
       setDisconnecting(null);
     }
@@ -600,7 +599,7 @@ function AdminGoogleSection() {
       className="bg-surface-elevated border border-surface-border rounded-xl px-5"
     >
       <div className="py-4 border-b border-surface-border flex items-center justify-between">
-        <h2 className="text-text-secondary text-sm font-medium">Google Calendar dos sócios</h2>
+        <h2 className="text-text-secondary text-sm font-medium">{t('settings.section.googleCalendarAdmin')}</h2>
         {linkedMembers.length > 0 && (
           <button
             type="button"
@@ -608,7 +607,7 @@ function AdminGoogleSection() {
             disabled={disconnecting === 'all'}
             className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {disconnecting === 'all' ? 'Desvinculando…' : 'Desvincular todos'}
+            {disconnecting === 'all' ? t('common.disconnecting') : t('common.disconnectAll')}
           </button>
         )}
       </div>
@@ -616,7 +615,7 @@ function AdminGoogleSection() {
       {linkedMembers.length === 0 ? (
         <div className="py-6 flex items-center gap-2 text-text-muted text-sm">
           <Link2Off className="w-4 h-4" />
-          Nenhum sócio com Google Calendar vinculado.
+          {t('settings.google.noneLinked')}
         </div>
       ) : (
         <ul className="py-2 divide-y divide-surface-border">
@@ -642,7 +641,7 @@ function AdminGoogleSection() {
                   disabled={isBusy || disconnecting === 'all'}
                   className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/50 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px]"
                 >
-                  {isBusy ? 'Desvinculando…' : 'Desvincular'}
+                  {isBusy ? t('common.disconnecting') : t('common.disconnect')}
                 </button>
               </li>
             );
@@ -652,7 +651,7 @@ function AdminGoogleSection() {
 
       <div className="pb-4 pt-1">
         <p className="text-text-muted text-[11px]">
-          Desvincular revoga o token do Google e remove os dados do app. Eventos já criados no Google permanecem lá; novas alterações não são sincronizadas até reconectar.
+          {t('settings.google.disconnectInfoAdmin')}
         </p>
       </div>
     </motion.div>
@@ -666,24 +665,25 @@ function AdminGoogleSection() {
 function MemberGoogleSection() {
   const { member, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [disconnecting, setDisconnecting] = useState(false);
 
   // Só sócios não-admin veem este bloco
   if (isAdmin || !member) return null;
 
   async function handleDisconnect() {
-    if (!confirm('Desvincular seu Google Calendar? O sync para. Eventos atuais permanecem no Google; novas alterações não são sincronizadas até você reconectar.')) return;
+    if (!confirm(t('settings.google.disconnectConfirmSelf'))) return;
     setDisconnecting(true);
     try {
       const res = await fetch('/api/google/disconnect', { method: 'POST' });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Erro ao desvincular');
-      toast.success('Google Calendar desvinculado');
+      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.google.disconnectError'));
+      toast.success(t('settings.google.disconnected'));
       await queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
       // Recarrega pra atualizar member.googleLinked em todo lugar
       setTimeout(() => window.location.reload(), 400);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao desvincular');
+      toast.error(e instanceof Error ? e.message : t('settings.google.disconnectError'));
     } finally {
       setDisconnecting(false);
     }
@@ -697,7 +697,7 @@ function MemberGoogleSection() {
       className="bg-surface-elevated border border-surface-border rounded-xl px-5"
     >
       <div className="py-4 border-b border-surface-border">
-        <SectionTitle>Google Calendar</SectionTitle>
+        <SectionTitle>{t('settings.section.googleCalendar')}</SectionTitle>
       </div>
 
       <div className="py-4 flex items-center justify-between gap-3">
@@ -709,12 +709,10 @@ function MemberGoogleSection() {
           )}
           <div className="min-w-0">
             <p className="text-text-primary text-sm font-medium">
-              {member.googleLinked ? 'Vinculado' : 'Não vinculado'}
+              {member.googleLinked ? t('settings.google.connected') : t('settings.google.notConnected')}
             </p>
             <p className="text-text-muted text-[11px]">
-              {member.googleLinked
-                ? 'Suas reuniões aparecem no seu Google Calendar'
-                : 'Conecte seu Google para sincronizar suas reuniões'}
+              {member.googleLinked ? t('settings.google.descConnected') : t('settings.google.descNotConnected')}
             </p>
           </div>
         </div>
@@ -726,7 +724,7 @@ function MemberGoogleSection() {
             disabled={disconnecting}
             className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 min-h-[36px]"
           >
-            {disconnecting ? 'Desvinculando…' : 'Desvincular'}
+            {disconnecting ? t('common.disconnecting') : t('common.disconnect')}
           </button>
         ) : (
           <a
@@ -734,14 +732,14 @@ function MemberGoogleSection() {
             className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors flex-shrink-0 min-h-[36px] flex items-center"
             style={{ color: '#0D1B2A' }}
           >
-            Conectar
+            {t('common.connect')}
           </a>
         )}
       </div>
 
       <div className="pb-4 pt-1">
         <p className="text-text-muted text-[11px]">
-          Desvincular revoga o token do Google e remove os dados do app. Apenas você pode desvincular seu próprio Google.
+          {t('settings.google.disconnectInfoSelf')}
         </p>
       </div>
     </motion.div>

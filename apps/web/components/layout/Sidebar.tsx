@@ -169,7 +169,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                 'flex items-center rounded-lg hover:bg-surface-overlay/60 transition-colors',
                 isTop ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
               )}
-              title="Ver meu perfil"
+              title={t('nav.profile')}
             >
               <div className="rounded-full flex-shrink-0" style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
                 <MemberAvatar member={member} size={isTop ? 'md' : 'sm'} />
@@ -189,7 +189,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                 'rounded-md hover:bg-surface-overlay transition-colors',
                 isTop ? 'p-2' : 'p-1.5'
               )}
-              title="Sair"
+              title={t('nav.signOut')}
             >
               <LogOut className={cn('text-text-muted', isTop ? 'w-[18px] h-[18px]' : 'w-3.5 h-3.5')} />
             </button>
@@ -230,14 +230,14 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
             <div className="flex items-center gap-2.5 min-w-0">
               <EqrLogo blend className="w-7 h-7 rounded-full ring-2 ring-accent flex-shrink-0" />
               <div className="min-w-0">
-                <p className="text-text-primary text-sm font-semibold leading-none truncate">Agenda Master</p>
-                <p className="text-text-muted text-[10px] mt-0.5 truncate">Central corporativa</p>
+                <p className="text-text-primary text-sm font-semibold leading-none truncate">{t('login.title')}</p>
+                <p className="text-text-muted text-[10px] mt-0.5 truncate">{t('login.subtitle')}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fechar menu"
+              aria-label={t('nav.closeMenu')}
               className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4 text-text-muted" />
@@ -274,7 +274,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
             {isAdmin && sidebarMembers.length > 0 && (
               <div className="mt-4 px-4">
                 <p className="text-text-muted text-[10px] font-medium uppercase tracking-wider mb-2">
-                  Membros
+                  {t('nav.members')}
                 </p>
                 <div className="space-y-1">
                   {sidebarMembers.map((m) => {
@@ -297,7 +297,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                         </div>
                         <span className="text-text-secondary text-xs flex-1 truncate">{m.name}</span>
                         <span className={`text-[10px] ${isOnline ? 'text-success' : 'text-text-muted'}`}>
-                          {isOnline ? 'online' : 'offline'}
+                          {isOnline ? t('common.online') : t('common.offline')}
                         </span>
                       </Link>
                     );
@@ -315,7 +315,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                   href={{ pathname, query: { profile: member.id } }}
                   onClick={onClose}
                   className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg hover:bg-surface-overlay/60 transition-colors"
-                  title="Ver meu perfil"
+                  title={t('nav.profile')}
                 >
                   <div className="rounded-full flex-shrink-0" style={isAdmin ? undefined : { boxShadow: `0 0 0 2px ${memberColor}, 0 0 8px ${memberColor}80` }}>
                     <MemberAvatar member={member} size="sm" />
@@ -328,7 +328,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                 <button
                   onClick={() => void signOut()}
                   className="p-1.5 rounded-md hover:bg-surface-overlay transition-colors"
-                  title="Sair"
+                  title={t('nav.signOut')}
                 >
                   <LogOut className="w-3.5 h-3.5 text-text-muted" />
                 </button>

@@ -14,6 +14,7 @@ import { readAgendaSettingsSync } from '@/hooks/useAgendaSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 import type { CalendarEvent } from '@eqr/domain';
 
 const reminderEntrySchema = z.object({
@@ -80,6 +81,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
   const updateEvent = useUpdateEvent();
   const [conflicts, setConflicts] = useState<ConflictingEvent[]>([]);
   const supabase = getSupabaseBrowserClient();
+  const { t } = useTranslation();
 
   const { data: dbMembers = [] } = useQuery<MemberOption[]>({
     queryKey: ['members-list'],
@@ -265,10 +267,10 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
 
       {/* Título */}
       <div className="space-y-1.5">
-        <label className={labelClass}>Título</label>
+        <label className={labelClass}>{t('event.title')}</label>
         <input
           {...register('title')}
-          placeholder="Ex: Reunião de alinhamento"
+          placeholder={t('event.titlePlaceholder')}
           className={cn(inputClass, errors.title && 'border-danger focus:border-danger')}
         />
         {errors.title && <p className={errorClass}>{errors.title.message}</p>}
@@ -277,7 +279,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
       {/* Data/hora — empilhado em mobile, lado a lado em desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className={labelClass}>Início</label>
+          <label className={labelClass}>{t('event.start')}</label>
           <input
             {...register('startAt', {
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,7 +309,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         </div>
 
         <div className="space-y-1.5">
-          <label className={labelClass}>Término</label>
+          <label className={labelClass}>{t('event.end')}</label>
           <input
             {...register('endAt', {
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,20 +325,20 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
 
       {/* Local */}
       <div className="space-y-1.5">
-        <label className={labelClass}>Local (opcional)</label>
+        <label className={labelClass}>{t('event.location')} ({t('common.optional')})</label>
         <input
           {...register('location')}
-          placeholder="Sala de reunião, Google Meet..."
+          placeholder={t('event.locationPlaceholder')}
           className={inputClass}
         />
       </div>
 
       {/* Descrição */}
       <div className="space-y-1.5">
-        <label className={labelClass}>Descrição (opcional)</label>
+        <label className={labelClass}>{t('event.description')} ({t('common.optional')})</label>
         <textarea
           {...register('description')}
-          placeholder="Pauta, link de acesso..."
+          placeholder=""
           rows={3}
           className={cn(inputClass, 'resize-none')}
         />
@@ -344,30 +346,30 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
 
       {/* Status */}
       <div className="space-y-1.5">
-        <label className={labelClass}>Status</label>
+        <label className={labelClass}>{t('event.status')}</label>
         <select {...register('status')} className={cn(inputClass, 'cursor-pointer')}>
-          <option value="confirmed">Confirmado</option>
-          <option value="tentative">Provisório</option>
+          <option value="confirmed">{t('event.status.confirmed')}</option>
+          <option value="tentative">{t('event.status.tentative')}</option>
         </select>
       </div>
 
       {/* Lembretes: como e quando avisar antes do evento */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className={labelClass}>Lembretes</label>
+          <label className={labelClass}>{t('event.reminders')}</label>
           {reminders.length < 5 && (
             <button
               type="button"
               onClick={addReminder}
               className="text-xs font-medium text-member-blue hover:underline"
             >
-              + Adicionar lembrete
+              + {t('event.addReminder')}
             </button>
           )}
         </div>
         {reminders.length === 0 ? (
           <p className="text-text-muted text-xs italic">
-            Nenhum lembrete. Você não vai receber notificação antes do evento.
+            {t('event.noReminders')}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -394,7 +396,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
                 <button
                   type="button"
                   onClick={() => removeReminder(i)}
-                  aria-label="Remover lembrete"
+                  aria-label={t('event.removeReminder')}
                   className="p-2 rounded-md text-text-muted hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
                 >
                   ✕
@@ -404,7 +406,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
           </ul>
         )}
         <p className="text-text-muted text-[11px]">
-          Notificação aparece como pop-up. E-mail é enviado pelo Google Calendar pros membros que estão sincronizados.
+          {t('event.reminderHint')}
         </p>
       </div>
 
@@ -418,14 +420,14 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
           onClick={onCancel}
           className="flex-1 py-2.5 rounded-lg border border-surface-border text-text-secondary text-sm font-medium hover:bg-surface-overlay transition-colors"
         >
-          Cancelar
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
           className="flex-1 py-2.5 rounded-lg bg-member-blue hover:bg-member-blue-dark text-white text-sm font-medium transition-colors disabled:opacity-50"
         >
-          {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Criar evento'}
+          {isSubmitting ? t('common.saving') : isEditing ? t('event.saveChanges') : t('event.create')}
         </button>
       </div>
     </form>

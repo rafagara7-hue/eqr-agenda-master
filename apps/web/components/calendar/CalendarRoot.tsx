@@ -19,6 +19,7 @@ import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { BottomSheet } from '@/components/shared/BottomSheet';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useTranslation } from '@/lib/i18n';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -46,26 +47,27 @@ interface CalendarRootProps {
   initialFilter?: string;
 }
 
-const FILTER_LABELS: Record<string, string> = {
-  confirmed: 'Eventos confirmados',
-  tentative: 'Eventos provisórios',
-  conflicts: 'Eventos cruzados',
-  'failed-sync': 'Syncs com falha',
+const FILTER_LABEL_KEYS: Record<string, string> = {
+  confirmed: 'calendar.filter.confirmed',
+  tentative: 'calendar.filter.tentative',
+  conflicts: 'calendar.filter.conflicts',
+  'failed-sync': 'calendar.filter.failedSync',
 };
 
 // Filtros de status que ficam expostos como chips clicáveis no calendário
 type StatusFilterKey = 'confirmed' | 'tentative' | 'conflicts';
 
-const STATUS_FILTERS: Array<{ key: StatusFilterKey; label: string; dotColor: string }> = [
-  { key: 'confirmed', label: 'Confirmados', dotColor: '#22C55E' },
-  { key: 'tentative', label: 'Provisórios', dotColor: '#F59E0B' },
-  { key: 'conflicts', label: 'Cruzados', dotColor: '#F97316' },
+const STATUS_FILTERS: Array<{ key: StatusFilterKey; labelKey: string; dotColor: string }> = [
+  { key: 'confirmed', labelKey: 'calendar.status.confirmed', dotColor: '#22C55E' },
+  { key: 'tentative', labelKey: 'calendar.status.tentative', dotColor: '#F59E0B' },
+  { key: 'conflicts', labelKey: 'calendar.status.conflicts', dotColor: '#F97316' },
 ];
 
 export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [view, setView] = useState<CalendarView>('week');
   const { settings } = useAgendaSettings();
+  const { t } = useTranslation();
   const viewInitialized = useRef(false);
 
   useEffect(() => {
@@ -215,7 +217,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
             }`}
           >
-            Todos
+            {t('common.all')}
           </button>
           {memberOptions.map((m) => {
             const isActive = activeMemberIds.includes(m.id);
@@ -225,7 +227,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 key={m.id}
                 onClick={() => toggleMember(m.id)}
                 aria-pressed={isActive}
-                aria-label={`Filtrar por ${m.name}`}
+                aria-label={`${t('calendar.filterByMember')} ${m.name}`}
                 title={m.name}
                 className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
                   isActive
@@ -273,7 +275,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
             >
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor, opacity: isActive ? 0.9 : 1 }} />
-              {f.label}
+              {t(f.labelKey)}
             </button>
           );
         })}
@@ -282,7 +284,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
       {/* Toggle de faixa de horário — apenas DESKTOP. Mobile usa BottomSheet. */}
       {view !== 'month' && (
         <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base shrink-0">
-          <span className="text-text-muted text-xs shrink-0">Horário:</span>
+          <span className="text-text-muted text-xs shrink-0">{t('calendar.filters.hourLabel')}</span>
           <div className="flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5">
             <button
               onClick={() => setShowFilteredHours(true)}
@@ -302,7 +304,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              Dia completo
+              {t('calendar.filters.fullDay')}
             </button>
           </div>
         </div>
@@ -312,12 +314,12 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
       <BottomSheet
         open={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
-        title="Filtros e exibição"
+        title={t('calendar.filters.title')}
       >
         <div className="space-y-6 pb-2">
           {view !== 'month' && (
             <section>
-              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Recorte de horário</p>
+              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">{t('calendar.filters.hourRange')}</p>
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
@@ -339,14 +341,14 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                       : 'bg-surface-overlay border-surface-border text-text-secondary'
                   }`}
                 >
-                  Dia completo (00h – 24h)
+                  {t('calendar.filters.fullDayRange')}
                 </button>
               </div>
             </section>
           )}
 
           <section>
-            <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Tipo de evento</p>
+            <p className="text-text-muted text-xs uppercase tracking-wider mb-2">{t('calendar.filters.eventType')}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -357,7 +359,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                     : 'border-surface-border text-text-muted'
                 }`}
               >
-                Todos
+                {t('common.all')}
               </button>
               {STATUS_FILTERS.map((f) => {
                 const isActive = activeFilter === f.key;
@@ -374,7 +376,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                     style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
                   >
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? 'white' : f.dotColor }} />
-                    {f.label}
+                    {t(f.labelKey)}
                   </button>
                 );
               })}
@@ -383,7 +385,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
           {isAdmin && memberOptions.length > 0 && (
             <section>
-              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Filtrar por membro</p>
+              <p className="text-text-muted text-xs uppercase tracking-wider mb-2">{t('calendar.filters.filterByMember')}</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -425,12 +427,12 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
       </BottomSheet>
 
       {/* Barra de filtro especial (horários cruzados / sync com falha) */}
-      {activeFilter && FILTER_LABELS[activeFilter] && (
+      {activeFilter && FILTER_LABEL_KEYS[activeFilter] && (
         <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-warning/30 bg-warning/5 shrink-0">
           <span className="text-warning text-xs font-medium">
-            Mostrando: {FILTER_LABELS[activeFilter]}
+            {t('calendar.filter.showing')} {t(FILTER_LABEL_KEYS[activeFilter])}
           </span>
-          <span className="text-text-muted text-xs">({eventsToShow.length} eventos)</span>
+          <span className="text-text-muted text-xs">({t('calendar.filter.eventsCount', { count: eventsToShow.length })})</span>
           <button
             onClick={() => setActiveFilter(undefined)}
             className="ml-auto p-0.5 rounded hover:bg-warning/20 transition-colors text-warning"
@@ -457,7 +459,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span className="text-text-muted text-xs">Carregando eventos...</span>
+                  <span className="text-text-muted text-xs">{t('common.loadingEvents')}</span>
                 </div>
               </div>
             )}

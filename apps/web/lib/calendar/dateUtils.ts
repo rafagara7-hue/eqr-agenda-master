@@ -69,13 +69,22 @@ export function navigateDate(
   return direction === 'next' ? addMonths(date, 1) : subMonths(date, 1);
 }
 
-// Nomes dos dias da semana, controlados explicitamente para evitar divergência
-// entre locale do date-fns e o que a UI mostra (não depende de `EEE`/`EEEE`).
-// Index = day.getDay() (0=domingo … 6=sábado).
-const WEEKDAY_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'] as const;
-const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
+// Nomes dos dias da semana — tabela bilíngue. Index = day.getDay().
+const WEEKDAYS: Record<'pt-BR' | 'en-US', { full: readonly string[]; short: readonly string[] }> = {
+  'pt-BR': {
+    full: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+    short: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+  },
+  'en-US': {
+    full: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    short: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  },
+};
 
-export function getWeekdayLabel(date: Date, mode: 'full' | 'short' = 'full'): string {
-  const arr = mode === 'short' ? WEEKDAY_SHORT : WEEKDAY_FULL;
-  return arr[date.getDay()] ?? '';
+export function getWeekdayLabel(
+  date: Date,
+  mode: 'full' | 'short' = 'full',
+  lang: 'pt-BR' | 'en-US' = 'pt-BR',
+): string {
+  return WEEKDAYS[lang]?.[mode]?.[date.getDay()] ?? '';
 }

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getWeekDays, formatDate, isSameDay, isToday, getWeekdayLabel } from '@/lib/calendar/dateUtils';
+import { useTranslation } from '@/lib/i18n';
 import { EventCard } from './EventCard';
 import { getMemberColor } from '@/lib/calendar/colorMap';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ export function WeekView({
 }: WeekViewProps) {
   const days = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { language } = useTranslation();
 
   const visibleStart = filteredHours ? workStart : 0;
   const visibleEnd   = filteredHours ? workEnd   : 24;
@@ -97,8 +99,8 @@ export function WeekView({
                   className="flex-1 min-w-0 py-2 text-center border-l border-surface-border/40"
                 >
                   <p className="text-text-muted text-[10px] uppercase tracking-wider truncate">
-                    <span className="sm:hidden">{getWeekdayLabel(day, 'short')}</span>
-                    <span className="hidden sm:inline">{getWeekdayLabel(day, 'full')}</span>
+                    <span className="sm:hidden">{getWeekdayLabel(day, 'short', language)}</span>
+                    <span className="hidden sm:inline">{getWeekdayLabel(day, 'full', language)}</span>
                   </p>
                   <div
                     className={cn(

@@ -6,6 +6,7 @@ import { Shield, User, ChevronRight, Link2Off, Link2, Phone } from 'lucide-react
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { formatPhone } from '@/lib/phone';
+import { useTranslation } from '@/lib/i18n';
 
 interface MemberRow {
   id: string;
@@ -32,6 +33,7 @@ interface MembersListPageProps {
 export function MembersListPage({ members, events = [], conflicts = [], currentMemberId, isAdmin }: MembersListPageProps) {
   const router = useRouter();
   const { onlineMemberIds } = usePresenceContext();
+  const { t } = useTranslation();
 
   const active = members.filter((m) => m.slug !== 'admin');
   const adminMember = members.find((m) => m.slug === 'admin');
@@ -39,9 +41,9 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-text-primary text-xl font-semibold">Membros</h1>
+        <h1 className="text-text-primary text-xl font-semibold">{t('members.title')}</h1>
         <p className="text-text-muted text-sm mt-1">
-          {isAdmin ? 'Clique em um membro para visualizar o perfil.' : 'Clique no seu perfil para personalizá-lo.'}
+          {isAdmin ? t('members.subtitleAdmin') : t('members.subtitleSelf')}
         </p>
       </div>
 
@@ -66,7 +68,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
               {/* Badge próprio */}
               {isOwn && (
                 <span className="absolute top-3 right-3 text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-muted text-text-muted">
-                  Você
+                  {t('members.you')}
                 </span>
               )}
 
@@ -86,9 +88,9 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                   <p className="text-text-primary font-semibold text-base truncate">{m.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <User className="w-3 h-3 text-text-muted" />
-                    <span className="text-text-muted text-xs capitalize">{m.role}</span>
+                    <span className="text-text-muted text-xs capitalize">{m.role === 'admin' ? t('role.admin') : t('role.member')}</span>
                     <span className={`text-[10px] font-medium ${isOnline ? 'text-success' : 'text-text-muted'}`}>
-                      · {isOnline ? 'online' : 'offline'}
+                      · {isOnline ? t('common.online') : t('common.offline')}
                     </span>
                   </div>
                 </div>
@@ -106,7 +108,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                 )}
                 <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${m.google_linked ? 'text-success' : 'text-text-muted'}`}>
                   {m.google_linked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
-                  {m.google_linked ? 'Google vinculado' : 'Sem Google'}
+                  {m.google_linked ? t('members.googleLinked') : t('members.googleNotLinked')}
                 </span>
               </div>
 
@@ -120,7 +122,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                     <div className="hidden sm:grid grid-cols-3 gap-2">
                       <div className="text-center">
                         <p className="text-text-primary text-lg font-semibold">{memberEvents.length}</p>
-                        <p className="text-text-muted text-[10px]">eventos</p>
+                        <p className="text-text-muted text-[10px]">{t('members.statsEvents')}</p>
                       </div>
                       <div className="text-center">
                         <p
@@ -129,20 +131,20 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                         >
                           {memberConflicts.length}
                         </p>
-                        <p className="text-text-muted text-[10px]">cruzamentos</p>
+                        <p className="text-text-muted text-[10px]">{t('members.statsCrossings')}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-success text-lg font-semibold">{syncedCount}</p>
-                        <p className="text-text-muted text-[10px]">sincronizados</p>
+                        <p className="text-text-muted text-[10px]">{t('members.statsSynced')}</p>
                       </div>
                     </div>
                     <ul className="sm:hidden space-y-1.5">
                       <li className="flex items-center justify-between text-sm">
-                        <span className="text-text-muted">Eventos</span>
+                        <span className="text-text-muted">{t('members.statsEventsLabel')}</span>
                         <span className="text-text-primary font-semibold">{memberEvents.length}</span>
                       </li>
                       <li className="flex items-center justify-between text-sm">
-                        <span className="text-text-muted">Cruzamentos</span>
+                        <span className="text-text-muted">{t('members.statsCrossingsLabel')}</span>
                         <span
                           className="font-semibold"
                           style={{ color: memberConflicts.length > 0 ? '#F97316' : undefined }}
@@ -151,7 +153,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                         </span>
                       </li>
                       <li className="flex items-center justify-between text-sm">
-                        <span className="text-text-muted">Sincronizados</span>
+                        <span className="text-text-muted">{t('members.statsSyncedLabel')}</span>
                         <span className="text-success font-semibold">{syncedCount}</span>
                       </li>
                     </ul>
@@ -166,7 +168,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
       {/* Admin separado */}
       {isAdmin && adminMember && (
         <div>
-          <h2 className="text-text-secondary text-sm font-medium mb-3">Administrador</h2>
+          <h2 className="text-text-secondary text-sm font-medium mb-3">{t('members.adminSection')}</h2>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -181,7 +183,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
               <p className="text-text-primary font-medium text-sm">{adminMember.name}</p>
               <div className="flex items-center gap-1 mt-0.5">
                 <Shield className="w-3 h-3 text-member-blue" />
-                <span className="text-member-blue text-xs">Admin</span>
+                <span className="text-member-blue text-xs">{t('members.adminBadge')}</span>
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />

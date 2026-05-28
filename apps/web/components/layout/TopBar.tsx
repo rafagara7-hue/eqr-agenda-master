@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { formatDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
 import { NotificationBell } from './NotificationBell';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 type CalendarView = 'day' | 'week' | 'month';
@@ -18,18 +19,7 @@ interface TopBarProps {
   showMobileFilters?: boolean;
 }
 
-const VIEW_LABELS: Record<CalendarView, string> = {
-  day: 'Dia',
-  week: 'Semana',
-  month: 'Mês',
-};
-
-// Abbreviated labels for narrow screens
-const VIEW_LABELS_SHORT: Record<CalendarView, string> = {
-  day: 'Dia',
-  week: 'Sem',
-  month: 'Mês',
-};
+// Os labels vêm do dicionário i18n via useTranslation()
 
 function getDateLabel(date: Date, view: CalendarView, withYear: boolean): string {
   if (view === 'day') {
@@ -56,6 +46,7 @@ export function TopBar({
   showMobileFilters = false,
 }: TopBarProps) {
   const { settings } = useAgendaSettings();
+  const { t } = useTranslation();
   const pos = settings.sidebarPosition;
   const isVertical = pos === 'left' || pos === 'right';
   // Quando a sidebar é vertical, o sino vive no cluster flutuante do AppShell.
@@ -79,8 +70,8 @@ export function TopBar({
       {/* Atalhos "1 sem" / "2 sem" — só desktop */}
       <div className="hidden sm:flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5 flex-shrink-0">
         {[
-          { label: '1 sem', date: () => addWeeks(new Date(), 1) },
-          { label: '2 sem', date: () => addWeeks(new Date(), 2) },
+          { label: t('calendar.shortcut.1week'), date: () => addWeeks(new Date(), 1) },
+          { label: t('calendar.shortcut.2week'), date: () => addWeeks(new Date(), 2) },
         ].map(({ label, date: getDate }) => {
           const target = getDate();
           const isActive = getDateLabel(currentDate, view, true) === getDateLabel(target, view, true);
@@ -118,7 +109,7 @@ export function TopBar({
           type="button"
           onClick={onOpenMobileFilters}
           className="sm:hidden p-2 rounded-md hover:bg-surface-overlay transition-colors text-text-secondary hover:text-text-primary min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="Abrir filtros"
+          aria-label={t('calendar.openFilters')}
         >
           <SlidersHorizontal className="w-4 h-4" />
         </button>
@@ -126,7 +117,7 @@ export function TopBar({
 
       {/* Seletor de view — ativo em dourado EQR */}
       <div className="flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5 flex-shrink-0">
-        {(Object.keys(VIEW_LABELS) as CalendarView[]).map((v) => (
+        {(['day', 'week', 'month'] as CalendarView[]).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}
@@ -137,8 +128,8 @@ export function TopBar({
                 : 'text-text-secondary hover:text-text-primary'
             )}
           >
-            <span className="hidden sm:inline">{VIEW_LABELS[v]}</span>
-            <span className="sm:hidden">{VIEW_LABELS_SHORT[v]}</span>
+            <span className="hidden sm:inline">{t('calendar.view.' + v)}</span>
+            <span className="sm:hidden">{t('calendar.view.short.' + v)}</span>
           </button>
         ))}
       </div>
