@@ -35,9 +35,22 @@ export function MemberAvatar({ member, size = 'md', className }: MemberAvatarPro
     .slice(0, 2)
     .toUpperCase();
 
-  // Caso especial: logo EQR como avatar (admin) — SVG inline, sempre renderiza.
+  // Caso especial: logo EQR como avatar (admin).
+  // Aplica uma máscara radial pra fade nas bordas (disfarça o quadrado cream
+  // contra o fundo escuro do calendário) e reduz 5% da opacidade pra suavizar.
   if (member.avatarUrl === EQR_LOGO_SENTINEL) {
-    return <EqrLogo className={cn('rounded-full flex-shrink-0', sizeMap[size], className)} title={member.name} />;
+    return (
+      <div
+        className={cn('rounded-full flex-shrink-0 overflow-hidden opacity-95', sizeMap[size], className)}
+        style={{
+          maskImage: 'radial-gradient(circle at center, black 55%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(circle at center, black 55%, transparent 100%)',
+        }}
+        title={member.name}
+      >
+        <EqrLogo className="w-full h-full" title={member.name} />
+      </div>
+    );
   }
 
   const showImage = Boolean(member.avatarUrl) && !imgError;
