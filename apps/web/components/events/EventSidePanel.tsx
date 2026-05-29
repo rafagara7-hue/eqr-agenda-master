@@ -81,6 +81,20 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
     onClose();
   }
 
+  // ESC fecha o painel (e cancela o modo edição se estiver editando).
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   async function handleDelete() {
     if (!event) return;
     if (!confirm(`${t('event.delete')} "${event.title}"?`)) return;
