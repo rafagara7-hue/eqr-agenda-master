@@ -113,7 +113,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
             )}
           >
             {/* Header — barra fixa no topo do painel com botões coloridos */}
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b-2 border-accent/30 bg-surface-base flex-shrink-0 shadow-md">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-surface-border flex-shrink-0">
               <h2 className="text-text-primary font-semibold text-base truncate">
                 {isNewEvent ? t('event.new') : isEditing ? t('event.edit') : t('event.details')}
               </h2>
