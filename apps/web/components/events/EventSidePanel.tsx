@@ -124,10 +124,10 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     type="button"
                     onClick={() => toggleFavorite.mutate({ eventId: event.id, isFavorite })}
                     className={cn(
-                      'p-2 rounded-lg border-2 transition-all duration-150 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                      'p-2 rounded-lg border-2 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center',
                       isFavorite
-                        ? 'border-favorite bg-favorite/20 text-favorite hover:bg-favorite/30'
-                        : 'border-favorite/40 bg-favorite/5 text-favorite hover:bg-favorite/15'
+                        ? 'border-favorite text-favorite bg-favorite/15 hover:bg-favorite/25'
+                        : 'border-surface-border text-text-secondary hover:border-favorite hover:text-favorite hover:bg-favorite/10'
                     )}
                     title={isFavorite ? t('event.unfavorite') : t('event.favorite')}
                     aria-label={isFavorite ? t('event.unfavorite') : t('event.favorite')}
@@ -140,7 +140,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="p-2 rounded-lg border-2 border-member-blue/40 bg-member-blue/10 text-member-blue hover:bg-member-blue/20 hover:border-member-blue/70 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      className="p-2 rounded-lg border-2 border-surface-border text-text-secondary hover:border-member-blue hover:text-member-blue hover:bg-member-blue/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.edit')}
                       aria-label={t('common.edit')}
                     >
@@ -149,7 +149,7 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     <button
                       type="button"
                       onClick={() => void handleDelete()}
-                      className="p-2 rounded-lg border-2 border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:border-danger/70 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      className="p-2 rounded-lg border-2 border-surface-border text-text-secondary hover:border-danger hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                       title={t('common.delete')}
                       aria-label={t('common.delete')}
                     >
@@ -157,15 +157,15 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     </button>
                   </>
                 )}
-                {/* Botão X fechar — sempre visível, em destaque */}
+                {/* Botão X fechar — sempre visível */}
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="p-2 rounded-lg border-2 border-text-primary/40 bg-text-primary/10 text-text-primary hover:bg-danger/20 hover:border-danger/70 hover:text-danger transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  className="p-2 rounded-lg border-2 border-surface-border text-text-secondary hover:border-danger hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title={t('common.close')}
                   aria-label={t('common.close')}
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
