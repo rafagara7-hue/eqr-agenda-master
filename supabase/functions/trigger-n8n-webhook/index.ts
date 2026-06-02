@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
   if (eventData?.['member_id']) {
     const { data } = await supabase
       .from('calendar_provider_accounts')
-      .select('id, provider, calendar_id, account_email, sync_enabled, token_expires_at')
+      .select('id, provider, calendar_id, provider_email, sync_enabled, token_expires_at')
       .eq('member_id', eventData['member_id'])
       .eq('provider', 'microsoft')
       .eq('is_primary', true)

@@ -538,7 +538,7 @@ function AdminCalendarSection() {
     queryFn: async () => {
       const { data } = await supabase
         .from('members')
-        .select('id, name, slug, color_hex, avatar_url, calendar_provider_accounts!inner(account_email, last_synced_at, provider)')
+        .select('id, name, slug, color_hex, avatar_url, calendar_provider_accounts!inner(provider_email, provider)')
         .eq('calendar_linked', true)
         .eq('is_active', true)
         .eq('calendar_provider_accounts.provider', 'microsoft')
@@ -549,7 +549,7 @@ function AdminCalendarSection() {
         slug: string;
         color_hex: string;
         avatar_url: string | null;
-        calendar_provider_accounts: { account_email: string; last_synced_at: string | null; provider: string }[] | null;
+        calendar_provider_accounts: { provider_email: string; provider: string }[] | null;
       }>;
     },
     enabled: isAdmin,
@@ -633,7 +633,7 @@ function AdminCalendarSection() {
                   <p className="text-text-primary text-sm font-medium truncate">{m.name}</p>
                   <p className="text-text-muted text-[11px] flex items-center gap-1.5">
                     <Link2 className="w-3 h-3 text-success" />
-                    {account?.account_email ?? '—'}
+                    {account?.provider_email ?? '—'}
                   </p>
                 </div>
                 <button
