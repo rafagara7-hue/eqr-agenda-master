@@ -16,5 +16,5 @@ export interface IEventRepository {
   create(input: CreateEventInput): Promise<CalendarEvent>;
   update(input: UpdateEventInput): Promise<CalendarEvent>;
   delete(id: string): Promise<void>;
-  updateSyncStatus(id: string, syncStatus: string, googleEventId?: string, syncError?: string): Promise<void>;
+  updateSyncStatus(id: string, syncStatus: string, externalEventId?: string, syncError?: string): Promise<void>;
 }

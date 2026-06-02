@@ -30,7 +30,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
     .single();
   const member = rawMember as {
     id: string; name: string; slug: string; color_hex: string;
-    avatar_url: string | null; role: string; google_linked: boolean;
+    avatar_url: string | null; role: string; calendar_linked: boolean;
     phone: string | null; created_at: string;
   } | null;
 
@@ -45,7 +45,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
         color_hex: member.color_hex,
         avatar_url: member.avatar_url,
         role: member.role,
-        google_linked: member.google_linked,
+        calendar_linked: member.calendar_linked,
         phone: member.phone,
         created_at: member.created_at,
       }}

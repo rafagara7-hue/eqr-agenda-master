@@ -105,9 +105,9 @@ export class EventService {
     return this.events.findById(id);
   }
 
-  async applyInboundSync(googleEventId: string, memberId: string, data: CreateEventInput): Promise<CalendarEvent> {
+  async applyInboundSync(externalEventId: string, memberId: string, data: CreateEventInput): Promise<CalendarEvent> {
     const existing = await this.events.findAll({ memberId, syncStatus: 'synced' });
-    const match = existing.find((e) => e.googleEventId === googleEventId);
+    const match = existing.find((e) => e.externalEventId === externalEventId);
 
     if (match) {
       const { event } = await this.update({ id: match.id, ...data });

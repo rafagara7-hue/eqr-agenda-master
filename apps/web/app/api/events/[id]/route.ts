@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
-import { syncUpdateToGoogle, syncDeleteFromGoogle } from '@/lib/googleSync';
+import { syncUpdateToMicrosoft, syncDeleteFromMicrosoft } from '@/lib/microsoftSync';
 
 const reminderSchema = z.object({
   method: z.enum(['popup', 'email']),
@@ -145,10 +145,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       endAt: parsed.data.endAt ? new Date(parsed.data.endAt) : undefined,
     });
 
-    await syncUpdateToGoogle(serviceDb, {
+    await syncUpdateToMicrosoft(serviceDb, {
       eventId: event.id,
       memberId: event.memberId,
-      googleEventId: event.googleEventId,
+      externalEventId: event.externalEventId,
       data: {
         title: event.title,
         description: event.description,
@@ -180,16 +180,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const member = await getAuthorizedMember(supabase, id, 'delete');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Fetch event details + participants before deletion (needed for notification + Google sync)
+  // Fetch event details + participants before deletion (needed for notification + Calendar sync)
   const { data: rawEventSnapshot } = await supabase
     .from('events')
-    .select('title, member_id, google_event_id, event_participants(member_id)')
+    .select('title, member_id, external_event_id, external_provider, event_participants(member_id)')
     .eq('id', id)
     .single();
   const eventSnapshot = rawEventSnapshot as {
     title: string;
     member_id: string;
-    google_event_id: string | null;
+    external_event_id: string | null;
+    external_provider: 'google' | 'microsoft' | null;
     event_participants: { member_id: string }[];
   } | null;
 
@@ -213,9 +214,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         actorRole: member.role,
       });
 
-      await syncDeleteFromGoogle(serviceDb, {
+      await syncDeleteFromMicrosoft(serviceDb, {
         memberId: eventSnapshot.member_id,
-        googleEventId: eventSnapshot.google_event_id,
+        externalEventId: eventSnapshot.external_event_id,
       });
     }
 

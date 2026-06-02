@@ -9,7 +9,7 @@ Central corporativa inteligente de gerenciamento de agendas da EQR.
 | Frontend | Next.js 14, React, TailwindCSS, Framer Motion, shadcn/ui |
 | Backend | Supabase (PostgreSQL + Auth + Realtime + Edge Functions) |
 | Automação | N8N (self-hosted, queue mode) |
-| Integração | Google Calendar API |
+| Integração | Microsoft Outlook Calendar (Microsoft Graph API) |
 | Monorepo | Turborepo |
 
 ## Membros e Cores

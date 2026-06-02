@@ -3,7 +3,7 @@ import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabas
 
 /**
  * Apaga em lote todos os eventos cujo end_at < now.
- * Apenas admin. Não propaga a remoção para o Google Calendar (eventos passados
+ * Apenas admin. Não propaga a remoção para o Outlook Calendar (eventos passados
  * são irrelevantes lá; manter performance).
  */
 export async function POST(_req: NextRequest) {

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
-import { syncCreateToGoogle } from '@/lib/googleSync';
+import { syncCreateToMicrosoft } from '@/lib/microsoftSync';
 
 const reminderSchema = z.object({
   method: z.enum(['popup', 'email']),
@@ -162,11 +162,11 @@ export async function POST(req: NextRequest) {
       actorRole: member.role,
     });
 
-    // Awaitamos o sync com o Google: em serverless da Vercel, fire-and-forget
+    // Awaitamos o sync com o Microsoft Graph: em serverless da Vercel, fire-and-forget
     // (void) é cortado quando o handler retorna. Esperar 1-2s garante que o
     // sync_status seja gravado (synced ou failed). Falhas internamente são
-    // tratadas por syncCreateToGoogle e nunca propagam — segura pra await.
-    await syncCreateToGoogle(serviceDb, {
+    // tratadas por syncCreateToMicrosoft e nunca propagam — segura pra await.
+    await syncCreateToMicrosoft(serviceDb, {
       eventId: event.id,
       memberId: event.memberId,
       data: {

@@ -55,22 +55,23 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  // Enriquece payload com dados da conta Google do membro
-  let googleAccount = null;
+  // Enriquece payload com dados da conta de calendário do membro (Outlook/Microsoft)
+  let calendarAccount = null;
   if (eventData?.['member_id']) {
     const { data } = await supabase
-      .from('google_calendar_accounts')
-      .select('id, calendar_id, google_email, sync_enabled, token_expires_at')
+      .from('calendar_provider_accounts')
+      .select('id, provider, calendar_id, account_email, sync_enabled, token_expires_at')
       .eq('member_id', eventData['member_id'])
+      .eq('provider', 'microsoft')
       .eq('is_primary', true)
       .single();
-    googleAccount = data;
+    calendarAccount = data;
   }
 
   const payload = {
     operation,
     event: eventData,
-    google_account: googleAccount,
+    calendar_account: calendarAccount,
     timestamp: new Date().toISOString(),
   };
 

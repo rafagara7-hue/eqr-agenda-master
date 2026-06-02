@@ -21,7 +21,7 @@ export default async function MembersPage() {
   const [membersRes, eventsRes, conflictsRes] = await Promise.all([
     supabase
       .from('members')
-      .select('id, name, slug, color_hex, avatar_url, role, is_active, google_linked, phone')
+      .select('id, name, slug, color_hex, avatar_url, role, is_active, calendar_linked, phone')
       .eq('is_active', true)
       .order('name'),
     // Só busca estatísticas se for admin (members não veem dos outros)

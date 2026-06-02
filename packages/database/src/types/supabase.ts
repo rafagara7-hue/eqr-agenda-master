@@ -20,7 +20,7 @@ export interface Database {
           role: 'admin' | 'member';
           is_active: boolean;
           avatar_url: string | null;
-          google_linked: boolean;
+          calendar_linked: boolean;
           phone: string | null;
           created_at: string;
           updated_at: string;
@@ -35,7 +35,7 @@ export interface Database {
           role?: 'admin' | 'member';
           is_active?: boolean;
           avatar_url?: string | null;
-          google_linked?: boolean;
+          calendar_linked?: boolean;
           phone?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -50,7 +50,7 @@ export interface Database {
           role?: 'admin' | 'member';
           is_active?: boolean;
           avatar_url?: string | null;
-          google_linked?: boolean;
+          calendar_linked?: boolean;
           phone?: string | null;
           updated_at?: string;
         };
@@ -104,7 +104,8 @@ export interface Database {
           recurrence_id: string | null;
           recurrence_exception_date: string | null;
           is_recurrence_root: boolean;
-          google_event_id: string | null;
+          external_event_id: string | null;
+          external_provider: 'google' | 'microsoft' | null;
           sync_status: 'pending' | 'synced' | 'failed' | 'conflict' | 'local_only';
           sync_error: string | null;
           last_synced_at: string | null;
@@ -128,7 +129,8 @@ export interface Database {
           recurrence_id?: string | null;
           recurrence_exception_date?: string | null;
           is_recurrence_root?: boolean;
-          google_event_id?: string | null;
+          external_event_id?: string | null;
+          external_provider?: 'google' | 'microsoft' | null;
           sync_status?: 'pending' | 'synced' | 'failed' | 'conflict' | 'local_only';
           sync_error?: string | null;
           last_synced_at?: string | null;
@@ -148,7 +150,8 @@ export interface Database {
           all_day?: boolean;
           status?: 'confirmed' | 'tentative' | 'cancelled';
           recurrence_id?: string | null;
-          google_event_id?: string | null;
+          external_event_id?: string | null;
+          external_provider?: 'google' | 'microsoft' | null;
           sync_status?: 'pending' | 'synced' | 'failed' | 'conflict' | 'local_only';
           sync_error?: string | null;
           last_synced_at?: string | null;
@@ -157,20 +160,20 @@ export interface Database {
           updated_at?: string;
         };
       };
-      google_calendar_accounts: {
+      calendar_provider_accounts: {
         Row: {
           id: string;
           member_id: string;
-          google_email: string;
+          provider: 'google' | 'microsoft';
+          provider_email: string;
           calendar_id: string;
           access_token: string;
           refresh_token: string;
           token_expires_at: string;
-          webhook_channel_id: string | null;
-          webhook_expiry: string | null;
+          subscription_id: string | null;
+          subscription_expiry: string | null;
           is_primary: boolean;
           sync_enabled: boolean;
-          last_synced_at: string | null;
           metadata: Json;
           created_at: string;
           updated_at: string;
@@ -178,16 +181,16 @@ export interface Database {
         Insert: {
           id?: string;
           member_id: string;
-          google_email: string;
+          provider: 'google' | 'microsoft';
+          provider_email: string;
           calendar_id: string;
           access_token: string;
           refresh_token: string;
           token_expires_at: string;
-          webhook_channel_id?: string | null;
-          webhook_expiry?: string | null;
+          subscription_id?: string | null;
+          subscription_expiry?: string | null;
           is_primary?: boolean;
           sync_enabled?: boolean;
-          last_synced_at?: string | null;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -195,16 +198,16 @@ export interface Database {
         Update: {
           id?: string;
           member_id?: string;
-          google_email?: string;
+          provider?: 'google' | 'microsoft';
+          provider_email?: string;
           calendar_id?: string;
           access_token?: string;
           refresh_token?: string;
           token_expires_at?: string;
-          webhook_channel_id?: string | null;
-          webhook_expiry?: string | null;
+          subscription_id?: string | null;
+          subscription_expiry?: string | null;
           is_primary?: boolean;
           sync_enabled?: boolean;
-          last_synced_at?: string | null;
           metadata?: Json;
           updated_at?: string;
         };
@@ -319,11 +322,11 @@ export interface Database {
           member_id: string;
           operation: 'create' | 'update' | 'delete' | 'inbound';
           direction: 'outbound' | 'inbound';
-          source: 'supabase' | 'google' | 'n8n';
+          source: 'supabase' | 'google' | 'microsoft' | 'n8n';
           status: 'success' | 'failed' | 'pending' | 'retry';
           attempt_count: number;
           n8n_execution_id: string | null;
-          google_event_id: string | null;
+          external_event_id: string | null;
           payload: Json | null;
           response: Json | null;
           error_message: string | null;
@@ -335,11 +338,11 @@ export interface Database {
           member_id: string;
           operation: 'create' | 'update' | 'delete' | 'inbound';
           direction: 'outbound' | 'inbound';
-          source: 'supabase' | 'google' | 'n8n';
+          source: 'supabase' | 'google' | 'microsoft' | 'n8n';
           status: 'success' | 'failed' | 'pending' | 'retry';
           attempt_count?: number;
           n8n_execution_id?: string | null;
-          google_event_id?: string | null;
+          external_event_id?: string | null;
           payload?: Json | null;
           response?: Json | null;
           error_message?: string | null;
@@ -351,11 +354,11 @@ export interface Database {
           member_id?: string;
           operation?: 'create' | 'update' | 'delete' | 'inbound';
           direction?: 'outbound' | 'inbound';
-          source?: 'supabase' | 'google' | 'n8n';
+          source?: 'supabase' | 'google' | 'microsoft' | 'n8n';
           status?: 'success' | 'failed' | 'pending' | 'retry';
           attempt_count?: number;
           n8n_execution_id?: string | null;
-          google_event_id?: string | null;
+          external_event_id?: string | null;
           payload?: Json | null;
           response?: Json | null;
           error_message?: string | null;

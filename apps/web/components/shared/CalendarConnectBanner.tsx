@@ -8,17 +8,17 @@ import { useTranslation } from '@/lib/i18n';
 
 /**
  * Banner persistente no topo do conteúdo quando o member ainda não conectou
- * o Google Calendar. Botão único leva direto ao OAuth. Pode ser dispensado
- * por sessão (não some pra sempre).
+ * o Microsoft Outlook Calendar. Botão único leva direto ao OAuth. Pode ser
+ * dispensado por sessão (não some pra sempre).
  */
 
-const DISMISS_KEY = 'eqr-google-connect-dismissed-until';
+const DISMISS_KEY = 'eqr-calendar-connect-dismissed-until';
 const DISMISS_HOURS = 12;
 
-export function GoogleConnectBanner() {
+export function CalendarConnectBanner() {
   const { member, isLoading } = useAuth();
   const { t } = useTranslation();
-  const [dismissed, setDismissed] = useState(true); // começa "true" pra evitar flash até hidratar
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
     try {
@@ -31,8 +31,7 @@ export function GoogleConnectBanner() {
   }, []);
 
   if (isLoading || !member) return null;
-  // google_linked é boolean no banco; se já está vinculado, oculta
-  if (member.googleLinked) return null;
+  if (member.calendarLinked) return null;
   if (dismissed) return null;
 
   function handleDismiss() {
@@ -55,25 +54,25 @@ export function GoogleConnectBanner() {
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-text-primary text-xs sm:text-sm font-medium leading-tight">
-              {t('banner.connectGoogle.title')}
+              {t('banner.connectCalendar.title')}
             </p>
             <p className="text-text-muted text-[11px] sm:text-xs leading-tight mt-0.5 hidden sm:block">
-              {t('banner.connectGoogle.body')}
+              {t('banner.connectCalendar.body')}
             </p>
           </div>
           <a
-            href="/api/google/connect"
+            href="/api/microsoft/connect"
             className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors whitespace-nowrap min-h-[36px] flex items-center"
             style={{ color: '#0D1B2A' }}
           >
-            {t('banner.connectGoogle.cta')}
+            {t('banner.connectCalendar.cta')}
           </a>
           <button
             type="button"
             onClick={handleDismiss}
-            aria-label={t('banner.connectGoogle.dismiss')}
+            aria-label={t('banner.connectCalendar.dismiss')}
             className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-overlay transition-colors flex-shrink-0"
-            title={t('banner.connectGoogle.dismissHint')}
+            title={t('banner.connectCalendar.dismissHint')}
           >
             <X className="w-3.5 h-3.5" />
           </button>

@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { syncCreateToGoogle, syncUpdateToGoogle } from '@/lib/googleSync';
+import { syncCreateToMicrosoft, syncUpdateToMicrosoft } from '@/lib/microsoftSync';
 
 /**
- * Força o re-sync de um evento específico para o Google Calendar do owner.
+ * Força o re-sync de um evento específico para o Outlook Calendar do owner.
  * Útil pra retentar eventos que ficaram sync_status='pending'/'failed'.
  * Apenas owner do evento OU admin pode disparar.
  */
@@ -37,7 +37,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     end_at: string;
     all_day: boolean;
     status: 'confirmed' | 'tentative' | 'cancelled';
-    google_event_id: string | null;
+    external_event_id: string | null;
+    external_provider: string | null;
     sync_status: string;
   } | null;
 
@@ -58,25 +59,30 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     status: event.status,
   } as const;
 
-  if (event.google_event_id) {
-    await syncUpdateToGoogle(serviceDb, {
+  // Só re-syncar se for Microsoft (ou ainda sem provider)
+  const externalEventId =
+    event.external_provider === 'microsoft' || event.external_provider === null
+      ? event.external_event_id
+      : null;
+
+  if (externalEventId) {
+    await syncUpdateToMicrosoft(serviceDb, {
       eventId: event.id,
       memberId: event.member_id,
-      googleEventId: event.google_event_id,
+      externalEventId,
       data,
     });
   } else {
-    await syncCreateToGoogle(serviceDb, {
+    await syncCreateToMicrosoft(serviceDb, {
       eventId: event.id,
       memberId: event.member_id,
       data,
     });
   }
 
-  // Lê o estado atualizado
   const { data: rawAfter } = await serviceDb
     .from('events')
-    .select('sync_status, sync_error, google_event_id')
+    .select('sync_status, sync_error, external_event_id, external_provider')
     .eq('id', event.id)
     .single();
 

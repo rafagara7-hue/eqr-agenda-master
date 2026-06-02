@@ -16,7 +16,7 @@ interface MemberRow {
   avatar_url: string | null;
   role: string;
   is_active: boolean;
-  google_linked: boolean;
+  calendar_linked: boolean;
   phone: string | null;
 }
 
@@ -106,9 +106,9 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                     {formatPhone(m.phone)}
                   </span>
                 )}
-                <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${m.google_linked ? 'text-success' : 'text-text-muted'}`}>
-                  {m.google_linked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
-                  {m.google_linked ? t('members.googleLinked') : t('members.googleNotLinked')}
+                <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${m.calendar_linked ? 'text-success' : 'text-text-muted'}`}>
+                  {m.calendar_linked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
+                  {m.calendar_linked ? t('members.calendarLinked') : t('members.calendarNotLinked')}
                 </span>
               </div>
 

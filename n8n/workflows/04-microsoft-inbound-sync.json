@@ -1,0 +1,121 @@
+{
+  "name": "04 — EQR Microsoft Inbound Sync (Bidirectional)",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "microsoft-push", "responseMode": "responseNode" },
+      "id": "ms-webhook-receiver",
+      "name": "Microsoft Graph Notification Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Microsoft Graph faz validação inicial enviando ?validationToken=XYZ.\n// Devemos ecoar o token em texto puro com 200 OK.\nconst query = $input.first().json.query ?? {};\nif (query.validationToken) {\n  return [{ json: { __responseMode: 'validation', token: query.validationToken } }];\n}\n\n// Notificação real: vem em body.value: [{ subscriptionId, clientState, resource, resourceData, ... }]\nconst body = $input.first().json.body ?? {};\nconst notifications = body.value ?? [];\nif (!notifications.length) throw new Error('No notifications in body');\n\nconst expectedClientState = $env['MICROSOFT_PUSH_NOTIFICATION_TOKEN'];\nreturn notifications.map(n => {\n  if (n.clientState !== expectedClientState) throw new Error('Invalid Microsoft clientState');\n  return { json: n };\n});"
+      },
+      "id": "validate-ms-token",
+      "name": "Validate clientState",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/calendar_provider_accounts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "webhook_channel_id", "value": "=eq.{{ $json.subscriptionId }}" },
+            { "name": "provider", "value": "eq.microsoft" },
+            { "name": "select", "value": "id,member_id,calendar_id,access_token,refresh_token,token_expires_at,metadata" }
+          ]
+        }
+      },
+      "id": "find-member-by-subscription",
+      "name": "Find Member by Subscription ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/me/calendarView/delta",
+        "authentication": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Prefer", "value": "odata.track-changes, odata.maxpagesize=50" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "$deltatoken", "value": "={{ $json[0].metadata?.deltaToken ?? '' }}" }
+          ]
+        }
+      },
+      "id": "get-changed-events",
+      "name": "Get Changed Events (delta query)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classifica eventos: new / modified / cancelled\n// Microsoft Graph delta retorna eventos com '@removed' pra deletados.\nconst items = $json.value ?? [];\nconst memberId = $('Find Member by Subscription ID').first().json[0].member_id;\nreturn items.map(e => {\n  const isCancelled = !!e['@removed'] || e.isCancelled === true;\n  const isNew = !e['@removed'] && (!e.lastModifiedDateTime || e.createdDateTime === e.lastModifiedDateTime);\n  return {\n    json: {\n      externalEventId: e.id,\n      externalProvider: 'microsoft',\n      memberId,\n      eventType: isCancelled ? 'cancelled' : (isNew ? 'new' : 'modified'),\n      title: e.subject ?? '(sem título)',\n      description: e.bodyPreview ?? null,\n      location: e.location?.displayName ?? null,\n      startAt: e.start?.dateTime ? `${e.start.dateTime}Z` : null,\n      endAt: e.end?.dateTime ? `${e.end.dateTime}Z` : null,\n      allDay: e.isAllDay ?? false\n    }\n  };\n});"
+      },
+      "id": "classify-changes",
+      "name": "Classify Changes",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=",
+              "value": "={{ { operation: $json.eventType === 'cancelled' ? 'delete' : 'create', event: { member_id: $json.memberId, external_event_id: $json.externalEventId, external_provider: 'microsoft', title: $json.title, start_at: $json.startAt, end_at: $json.endAt } } }}"
+            }
+          ]
+        }
+      },
+      "id": "upsert-in-supabase",
+      "name": "Upsert in Supabase via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/calendar_provider_accounts",
+        "requestMethod": "PATCH",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Find Member by Subscription ID').first().json[0].id }}" },
+            { "name": "provider", "value": "eq.microsoft" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "metadata", "value": "={{ { deltaToken: ($('Get Changed Events (delta query)').first().json['@odata.deltaLink'] ?? '').split('$deltatoken=')[1] ?? null } }}" }
+          ]
+        }
+      },
+      "id": "update-delta-token",
+      "name": "Update deltaToken",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Microsoft Graph Notification Receiver": { "main": [[{ "node": "Validate clientState", "type": "main", "index": 0 }]] },
+    "Validate clientState": { "main": [[{ "node": "Find Member by Subscription ID", "type": "main", "index": 0 }]] },
+    "Find Member by Subscription ID": { "main": [[{ "node": "Get Changed Events (delta query)", "type": "main", "index": 0 }]] },
+    "Get Changed Events (delta query)": { "main": [[{ "node": "Classify Changes", "type": "main", "index": 0 }]] },
+    "Classify Changes": { "main": [[{ "node": "Upsert in Supabase via API", "type": "main", "index": 0 }]] },
+    "Upsert in Supabase via API": { "main": [[{ "node": "Update deltaToken", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "calendar-sync", "inbound", "microsoft"]
+}
