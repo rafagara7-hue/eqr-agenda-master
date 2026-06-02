@@ -199,7 +199,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
     );
   }
 
-  // ── Vertical layout (left / right) — painel deslizante estilo Google Agenda ──
+  // ── Vertical layout (left / right) — painel deslizante estilo calendário ──
   return (
     <AnimatePresence>
       {isOpen && (

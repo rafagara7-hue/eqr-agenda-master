@@ -13,30 +13,30 @@
         "conditions": {
           "conditions": [
             {
-              "leftValue": "={{ $json.body.event.google_event_id }}",
+              "leftValue": "={{ $json.body.event.external_event_id }}",
               "rightValue": "",
               "operator": { "type": "string", "operation": "notEmpty" }
             }
           ]
         }
       },
-      "id": "has-google-id",
-      "name": "Has Google Event ID?",
+      "id": "has-external-id",
+      "name": "Has External Event ID?",
       "type": "n8n-nodes-base.if",
       "position": [460, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Se não tem google_event_id, delega para o workflow de criação\nconst event = $input.first().json.body.event;\n$execution.customData.set('shouldCreate', true);\nreturn [{ json: event }];"
+        "jsCode": "// Se não tem external_event_id, delega para o workflow de criação\nconst event = $input.first().json.body.event;\n$execution.customData.set('shouldCreate', true);\nreturn [{ json: event }];"
       },
       "id": "route-to-create",
-      "name": "Route: No Google ID → Create",
+      "name": "Route: No External ID → Create",
       "type": "n8n-nodes-base.code",
       "position": [680, 420]
     },
     {
       "parameters": {
-        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $('Webhook Receiver').first().json.body.google_account.calendar_id }}/events/{{ $('Webhook Receiver').first().json.body.event.google_event_id }}",
+        "url": "=https://graph.microsoft.com/v1.0/me/calendars/{{ $('Webhook Receiver').first().json.body.calendar_account.calendar_id }}/events/{{ $('Webhook Receiver').first().json.body.event.external_event_id }}",
         "requestMethod": "PATCH",
         "authentication": "oAuth2Api",
         "sendBody": true,
@@ -44,13 +44,13 @@
           "parameters": [
             {
               "name": "=",
-              "value": "={{ { summary: $json.body.event.title, description: $json.body.event.description, location: $json.body.event.location, start: { dateTime: $json.body.event.start_at, timeZone: 'America/Sao_Paulo' }, end: { dateTime: $json.body.event.end_at, timeZone: 'America/Sao_Paulo' } } }}"
+              "value": "={{ { subject: $json.body.event.title, body: { contentType: 'HTML', content: $json.body.event.description ?? '' }, location: $json.body.event.location ? { displayName: $json.body.event.location } : null, start: { dateTime: $json.body.event.start_at, timeZone: 'America/Sao_Paulo' }, end: { dateTime: $json.body.event.end_at, timeZone: 'America/Sao_Paulo' } } }}"
             }
           ]
         }
       },
-      "id": "patch-google-event",
-      "name": "Google Calendar: Patch Event",
+      "id": "patch-graph-event",
+      "name": "Microsoft Graph: Patch Event",
       "type": "n8n-nodes-base.httpRequest",
       "position": [680, 200]
     },
@@ -62,7 +62,7 @@
           "parameters": [
             {
               "name": "=",
-              "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, syncStatus: 'synced', event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}"
+              "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, externalProvider: 'microsoft', syncStatus: 'synced', event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}"
             }
           ]
         }
@@ -74,15 +74,15 @@
     }
   ],
   "connections": {
-    "Webhook Receiver": { "main": [[{ "node": "Has Google Event ID?", "type": "main", "index": 0 }]] },
-    "Has Google Event ID?": {
+    "Webhook Receiver": { "main": [[{ "node": "Has External Event ID?", "type": "main", "index": 0 }]] },
+    "Has External Event ID?": {
       "main": [
-        [{ "node": "Route: No Google ID → Create", "type": "main", "index": 0 }],
-        [{ "node": "Google Calendar: Patch Event", "type": "main", "index": 0 }]
+        [{ "node": "Route: No External ID → Create", "type": "main", "index": 0 }],
+        [{ "node": "Microsoft Graph: Patch Event", "type": "main", "index": 0 }]
       ]
     },
-    "Google Calendar: Patch Event": { "main": [[{ "node": "Update Sync: Synced", "type": "main", "index": 0 }]] }
+    "Microsoft Graph: Patch Event": { "main": [[{ "node": "Update Sync: Synced", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": ["eqr", "calendar-sync", "outbound"]
+  "tags": ["eqr", "calendar-sync", "outbound", "microsoft"]
 }

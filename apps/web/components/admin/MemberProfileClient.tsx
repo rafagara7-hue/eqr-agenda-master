@@ -17,7 +17,7 @@ interface MemberData {
   color_hex: string;
   avatar_url: string | null;
   role: string;
-  google_linked: boolean;
+  calendar_linked: boolean;
   phone: string | null;
   created_at: string;
 }
@@ -43,36 +43,36 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
+  const [disconnectingCalendar, setDisconnectingCalendar] = useState(false);
 
-  // Lê resultado do callback OAuth Google (?google=connected|denied|error&reason=...)
+  // Lê resultado do callback OAuth Microsoft (?microsoft=connected|denied|error&reason=...)
   const searchParams = useSearchParams();
   useEffect(() => {
-    const status = searchParams.get('google');
+    const status = searchParams.get('microsoft');
     if (!status) return;
-    if (status === 'connected') toast.success('Google Calendar conectado');
-    else if (status === 'denied') toast.error('Permissão negada no Google');
+    if (status === 'connected') toast.success('Outlook Calendar conectado');
+    else if (status === 'denied') toast.error('Permissão negada na Microsoft');
     else toast.error(`Erro ao conectar (${status}${searchParams.get('reason') ? ': ' + searchParams.get('reason') : ''})`);
     // Limpa o param da URL
     const url = new URL(window.location.href);
-    url.searchParams.delete('google');
+    url.searchParams.delete('microsoft');
     url.searchParams.delete('reason');
     router.replace(url.pathname + (url.search || ''));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  async function handleDisconnectGoogle() {
+  async function handleDisconnectCalendar() {
     const confirmMsg = isOwnProfile
-      ? 'Desvincular sua conta Google? Eventos atuais não serão removidos do Google, mas novas alterações deixarão de sincronizar.'
-      : `Desvincular o Google Calendar de ${member.name}? O sócio precisará reconectar pra voltar a sincronizar.`;
+      ? 'Desvincular sua conta Outlook? Eventos atuais não serão removidos do Outlook, mas novas alterações deixarão de sincronizar.'
+      : `Desvincular o Outlook Calendar de ${member.name}? O sócio precisará reconectar pra voltar a sincronizar.`;
     if (!confirm(confirmMsg)) return;
 
-    setDisconnectingGoogle(true);
+    setDisconnectingCalendar(true);
     try {
       // Próprio perfil usa /disconnect; admin desvinculando outro usa /admin-disconnect com memberId
       const res = isOwnProfile
-        ? await fetch('/api/google/disconnect', { method: 'POST' })
-        : await fetch('/api/google/admin-disconnect', {
+        ? await fetch('/api/microsoft/disconnect', { method: 'POST' })
+        : await fetch('/api/microsoft/admin-disconnect', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ memberId: member.id }),
@@ -82,13 +82,13 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
         throw new Error(err.error ?? 'Erro ao desvincular');
       }
       toast.success(
-        isOwnProfile ? 'Google Calendar desvinculado' : `Google Calendar de ${member.name} desvinculado`
+        isOwnProfile ? 'Outlook Calendar desvinculado' : `Outlook Calendar de ${member.name} desvinculado`
       );
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
     } finally {
-      setDisconnectingGoogle(false);
+      setDisconnectingCalendar(false);
     }
   }
 
@@ -344,10 +344,10 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
               )}
             </div>
 
-            {/* Google Calendar: só o próprio dono pode conectar/desconectar */}
+            {/* Outlook Calendar: só o próprio dono pode conectar/desconectar */}
             <div className="flex justify-between items-center gap-3 text-sm">
-              <span className="text-text-muted">Google Calendar</span>
-              {member.google_linked ? (
+              <span className="text-text-muted">Outlook Calendar</span>
+              {member.calendar_linked ? (
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1 text-xs font-medium text-success">
                     <Link2 className="w-3.5 h-3.5" /> Vinculado
@@ -355,17 +355,17 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
                   {(isOwnProfile || isAdmin) && (
                     <button
                       type="button"
-                      onClick={() => void handleDisconnectGoogle()}
-                      disabled={disconnectingGoogle}
+                      onClick={() => void handleDisconnectCalendar()}
+                      disabled={disconnectingCalendar}
                       className="text-xs text-text-muted hover:text-danger underline underline-offset-2 disabled:opacity-50"
                     >
-                      {disconnectingGoogle ? 'Desvinculando…' : 'Desvincular'}
+                      {disconnectingCalendar ? 'Desvinculando…' : 'Desvincular'}
                     </button>
                   )}
                 </div>
               ) : isOwnProfile ? (
                 <a
-                  href="/api/google/connect"
+                  href="/api/microsoft/connect"
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-member-blue hover:underline"
                 >
                   <Link2 className="w-3.5 h-3.5" />

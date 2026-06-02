@@ -144,9 +144,9 @@ function PanelContent() {
                     </a>
                   )}
                   <div className="flex justify-between items-center text-sm px-4 py-3">
-                    <span className="text-text-muted">{t('profilePanel.googleCalendar')}</span>
-                    <span className={`flex items-center gap-1 text-xs font-medium ${member.google_linked ? 'text-success' : 'text-text-muted'}`}>
-                      {member.google_linked
+                    <span className="text-text-muted">{t('profilePanel.outlookCalendar')}</span>
+                    <span className={`flex items-center gap-1 text-xs font-medium ${member.calendar_linked ? 'text-success' : 'text-text-muted'}`}>
+                      {member.calendar_linked
                         ? <><Link2 className="w-3.5 h-3.5" /> {t('common.linked')}</>
                         : <><Link2Off className="w-3.5 h-3.5" /> {t('common.notLinked')}</>
                       }

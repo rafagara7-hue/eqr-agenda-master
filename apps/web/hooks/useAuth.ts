@@ -42,7 +42,7 @@ export function useAuth(): AuthState {
       const memberRow = rawMemberRow as {
         id: string; user_id: string; name: string; slug: string; color: string; color_hex: string;
         role: 'admin' | 'member'; is_active: boolean; avatar_url: string | null;
-        google_linked: boolean; created_at: string; updated_at: string;
+        calendar_linked: boolean; created_at: string; updated_at: string;
       } | null;
 
       if (!mounted) return;
@@ -58,7 +58,7 @@ export function useAuth(): AuthState {
             role: memberRow.role,
             isActive: memberRow.is_active,
             avatarUrl: memberRow.avatar_url,
-            googleLinked: memberRow.google_linked,
+            calendarLinked: memberRow.calendar_linked,
             createdAt: new Date(memberRow.created_at),
             updatedAt: new Date(memberRow.updated_at),
           } satisfies Member)

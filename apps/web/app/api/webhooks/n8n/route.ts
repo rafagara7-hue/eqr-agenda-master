@@ -22,13 +22,15 @@ interface N8NInboundPayload {
   operation: 'create' | 'update' | 'delete' | 'sync_status';
   event?: {
     member_id: string;
-    google_event_id?: string;
+    external_event_id?: string;
+    external_provider?: 'google' | 'microsoft';
     title?: string;
     start_at?: string;
     end_at?: string;
   };
   eventId?: string;
-  googleEventId?: string;
+  externalEventId?: string;
+  externalProvider?: 'google' | 'microsoft';
   syncStatus?: 'synced' | 'failed' | 'conflict';
   syncError?: string;
   adminMemberId?: string;
@@ -63,7 +65,8 @@ export async function POST(req: NextRequest) {
         .from('events')
         .update({
           sync_status: payload.syncStatus ?? 'synced',
-          google_event_id: payload.googleEventId,
+          external_event_id: payload.externalEventId,
+          external_provider: payload.externalProvider ?? 'microsoft',
           sync_error: payload.syncError ?? null,
           last_synced_at: payload.syncStatus === 'synced' ? new Date().toISOString() : undefined,
           updated_at: new Date().toISOString(),
@@ -81,12 +84,12 @@ export async function POST(req: NextRequest) {
           direction: 'inbound',
           source: 'n8n',
           status: payload.syncStatus === 'synced' ? 'success' : 'failed',
-          google_event_id: payload.googleEventId ?? null,
+          external_event_id: payload.externalEventId ?? null,
           error_message: payload.syncError ?? null,
         });
       }
     } else if (payload.operation === 'create' && payload.event) {
-      // Criação inbound do Google Calendar
+      // Criação inbound do Outlook Calendar
       const adminId = payload.adminMemberId ?? '';
       const service = new EventService({
         db: serviceDb,
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
 
       if (payload.event.title && payload.event.start_at && payload.event.end_at) {
         await service.applyInboundSync(
-          payload.event.google_event_id ?? '',
+          payload.event.external_event_id ?? '',
           payload.event.member_id,
           {
             memberId: payload.event.member_id,

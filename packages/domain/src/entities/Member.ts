@@ -10,7 +10,8 @@ export interface Member {
   role: MemberRole;
   isActive: boolean;
   avatarUrl: string | null;
-  googleLinked: boolean;
+  /** Indica se o member tem algum calendário externo (Google ou Microsoft) vinculado via OAuth. */
+  calendarLinked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

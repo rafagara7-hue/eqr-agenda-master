@@ -4,10 +4,10 @@ export type AuditAction =
   | 'event.delete'
   | 'event.sync_retry'
   | 'conflict.resolve'
-  | 'member.link_google'
-  | 'member.unlink_google';
+  | 'member.link_calendar'
+  | 'member.unlink_calendar';
 
-export type AuditResourceType = 'event' | 'member' | 'google_account' | 'conflict';
+export type AuditResourceType = 'event' | 'member' | 'calendar_account' | 'conflict';
 
 export interface AuditLog {
   id: string;

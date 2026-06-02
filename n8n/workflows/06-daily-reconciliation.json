@@ -18,7 +18,7 @@
           "parameters": [
             { "name": "sync_status", "value": "=neq.synced" },
             { "name": "status", "value": "=neq.cancelled" },
-            { "name": "select", "value": "id,member_id,google_event_id,title,start_at,end_at,sync_status" },
+            { "name": "select", "value": "id,member_id,external_event_id,external_provider,title,start_at,end_at,sync_status" },
             { "name": "limit", "value": "200" }
           ]
         }
@@ -30,7 +30,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Para cada evento não sincronizado, dispara workflow de criação ou atualização\nconst events = $input.all()[0].json;\nconst results = [];\nfor (const event of Array.isArray(events) ? events : []) {\n  const operation = event.google_event_id ? 'update' : 'create';\n  results.push({ json: { event, operation } });\n}\nreturn results;"
+        "jsCode": "// Para cada evento não sincronizado, dispara workflow de criação ou atualização\nconst events = $input.all()[0].json;\nconst results = [];\nfor (const event of Array.isArray(events) ? events : []) {\n  const operation = event.external_event_id ? 'update' : 'create';\n  results.push({ json: { event, operation } });\n}\nreturn results;"
       },
       "id": "classify-repairs",
       "name": "Classify Repair Actions",

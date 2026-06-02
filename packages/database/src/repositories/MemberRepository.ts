@@ -15,7 +15,7 @@ function toMember(row: DbMember): Member {
     role: row.role,
     isActive: row.is_active,
     avatarUrl: row.avatar_url,
-    googleLinked: row.google_linked,
+    calendarLinked: row.calendar_linked,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -60,7 +60,7 @@ export class MemberRepository implements IMemberRepository {
       .update({
         name: data.name,
         avatar_url: data.avatarUrl,
-        google_linked: data.googleLinked,
+        calendar_linked: data.calendarLinked,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

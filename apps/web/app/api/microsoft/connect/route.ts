@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import crypto from 'node:crypto';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
-import { getAuthorizationUrl } from '@/lib/google';
+import { getAuthorizationUrl } from '@/lib/microsoft';
 
-// Inicia o fluxo OAuth: gera um state aleatório (CSRF), guarda em cookie,
-// redireciona pra Google.
+// Inicia o fluxo OAuth Microsoft Entra ID: gera um state aleatório (CSRF), guarda em cookie,
+// redireciona pra login.microsoftonline.com.
 export async function GET(_req: NextRequest) {
   const supabase = await getSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,14 +22,14 @@ export async function GET(_req: NextRequest) {
   const url = getAuthorizationUrl(state);
 
   const res = NextResponse.redirect(url);
-  res.cookies.set('eqr-google-state', state, {
+  res.cookies.set('eqr-ms-state', state, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
     maxAge: 600,
     path: '/',
   });
-  res.cookies.set('eqr-google-member', member.id, {
+  res.cookies.set('eqr-ms-member', member.id, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',

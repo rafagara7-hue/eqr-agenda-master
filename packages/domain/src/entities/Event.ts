@@ -49,7 +49,10 @@ export interface CalendarEvent {
   recurrenceId: string | null;
   recurrenceExceptionDate: Date | null;
   isRecurrenceRoot: boolean;
-  googleEventId: string | null;
+  /** ID do evento no calendário externo (Google ou Microsoft). Use `externalProvider` pra saber qual. */
+  externalEventId: string | null;
+  /** Provider do calendário externo onde o evento foi sincronizado. */
+  externalProvider: 'google' | 'microsoft' | null;
   syncStatus: SyncStatus;
   syncError: string | null;
   lastSyncedAt: Date | null;

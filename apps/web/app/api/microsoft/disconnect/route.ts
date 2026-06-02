@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { decryptToken, revokeRefreshToken } from '@/lib/google';
 
-// Revoga o refresh token no Google e remove a conta do banco.
+// Microsoft Graph não tem endpoint público de revoke de refresh_token.
+// Apenas removemos a linha do banco — o token efetivamente fica órfão
+// (será inválido na próxima tentativa de uso, mas continua existindo no AAD
+// até o usuário revogar manualmente em https://myaccount.microsoft.com/security).
 export async function POST(_req: NextRequest) {
   const supabase = await getSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,24 +19,13 @@ export async function POST(_req: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const serviceDb = await getSupabaseServiceClient();
-  const { data: rawAccount } = await serviceDb
-    .from('google_calendar_accounts')
-    .select('refresh_token')
+  await serviceDb
+    .from('calendar_provider_accounts')
+    .delete()
     .eq('member_id', member.id)
-    .maybeSingle();
-  const account = rawAccount as { refresh_token: string } | null;
+    .eq('provider', 'microsoft');
 
-  if (account) {
-    try {
-      const plain = decryptToken(account.refresh_token);
-      await revokeRefreshToken(plain);
-    } catch {
-      // Mesmo se a revogação falhar, removemos do banco
-    }
-    await serviceDb.from('google_calendar_accounts').delete().eq('member_id', member.id);
-  }
-
-  await serviceDb.from('members').update({ google_linked: false }).eq('id', member.id);
+  await serviceDb.from('members').update({ calendar_linked: false }).eq('id', member.id);
 
   return NextResponse.json({ ok: true });
 }

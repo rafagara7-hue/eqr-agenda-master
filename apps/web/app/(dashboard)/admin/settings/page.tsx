@@ -517,16 +517,16 @@ export default function SettingsPage() {
         </SettingRow>
       </motion.div>
 
-      {/* Google Calendar (Admin) — gerenciar vínculos dos sócios */}
-      <AdminGoogleSection />
+      {/* Outlook Calendar (Admin) — gerenciar vínculos dos sócios */}
+      <AdminCalendarSection />
 
-      {/* Google Calendar (Sócio) — desvincular o próprio Google */}
-      <MemberGoogleSection />
+      {/* Outlook Calendar (Sócio) — desvincular o próprio calendar */}
+      <MemberCalendarSection />
     </div>
   );
 }
 
-function AdminGoogleSection() {
+function AdminCalendarSection() {
   const { isAdmin } = useAuth();
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
@@ -534,13 +534,14 @@ function AdminGoogleSection() {
   const [disconnecting, setDisconnecting] = useState<string | 'all' | null>(null);
 
   const { data: linkedMembers = [], refetch } = useQuery({
-    queryKey: ['admin-google-linked-members'],
+    queryKey: ['admin-calendar-linked-members'],
     queryFn: async () => {
       const { data } = await supabase
         .from('members')
-        .select('id, name, slug, color_hex, avatar_url, google_calendar_accounts(google_email, last_synced_at)')
-        .eq('google_linked', true)
+        .select('id, name, slug, color_hex, avatar_url, calendar_provider_accounts!inner(account_email, last_synced_at, provider)')
+        .eq('calendar_linked', true)
         .eq('is_active', true)
+        .eq('calendar_provider_accounts.provider', 'microsoft')
         .order('name');
       return (data ?? []) as Array<{
         id: string;
@@ -548,7 +549,7 @@ function AdminGoogleSection() {
         slug: string;
         color_hex: string;
         avatar_url: string | null;
-        google_calendar_accounts: { google_email: string; last_synced_at: string | null }[] | null;
+        calendar_provider_accounts: { account_email: string; last_synced_at: string | null; provider: string }[] | null;
       }>;
     },
     enabled: isAdmin,
@@ -560,23 +561,23 @@ function AdminGoogleSection() {
   async function disconnect(memberId?: string) {
     const key = memberId ?? 'all';
     if (memberId) {
-      if (!confirm(t('settings.google.disconnectConfirmMember'))) return;
+      if (!confirm(t('settings.calendar.disconnectConfirmMember'))) return;
     } else {
-      if (!confirm(t('settings.google.disconnectConfirmAll'))) return;
+      if (!confirm(t('settings.calendar.disconnectConfirmAll'))) return;
     }
     setDisconnecting(key);
     try {
-      const res = await fetch('/api/google/admin-disconnect', {
+      const res = await fetch('/api/microsoft/admin-disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(memberId ? { memberId } : {}),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; disconnected?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.google.disconnectError'));
+      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.calendar.disconnectError'));
       toast.success(
         memberId
-          ? t('settings.google.disconnected')
-          : `${data.disconnected ?? 0} ${t('settings.google.disconnected')}`
+          ? t('settings.calendar.disconnected')
+          : `${data.disconnected ?? 0} ${t('settings.calendar.disconnected')}`
       );
       await Promise.all([
         refetch(),
@@ -585,7 +586,7 @@ function AdminGoogleSection() {
         queryClient.invalidateQueries({ queryKey: ['member-panel'] }),
       ]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('settings.google.disconnectError'));
+      toast.error(err instanceof Error ? err.message : t('settings.calendar.disconnectError'));
     } finally {
       setDisconnecting(null);
     }
@@ -599,7 +600,7 @@ function AdminGoogleSection() {
       className="bg-surface-elevated border border-surface-border rounded-xl px-5"
     >
       <div className="py-4 border-b border-surface-border flex items-center justify-between">
-        <h2 className="text-text-secondary text-sm font-medium">{t('settings.section.googleCalendarAdmin')}</h2>
+        <h2 className="text-text-secondary text-sm font-medium">{t('settings.section.outlookCalendarAdmin')}</h2>
         {linkedMembers.length > 0 && (
           <button
             type="button"
@@ -615,12 +616,12 @@ function AdminGoogleSection() {
       {linkedMembers.length === 0 ? (
         <div className="py-6 flex items-center gap-2 text-text-muted text-sm">
           <Link2Off className="w-4 h-4" />
-          {t('settings.google.noneLinked')}
+          {t('settings.calendar.noneLinked')}
         </div>
       ) : (
         <ul className="py-2 divide-y divide-surface-border">
           {linkedMembers.map((m) => {
-            const account = m.google_calendar_accounts?.[0];
+            const account = m.calendar_provider_accounts?.[0];
             const isBusy = disconnecting === m.id;
             return (
               <li key={m.id} className="flex items-center gap-3 py-3">
@@ -632,7 +633,7 @@ function AdminGoogleSection() {
                   <p className="text-text-primary text-sm font-medium truncate">{m.name}</p>
                   <p className="text-text-muted text-[11px] flex items-center gap-1.5">
                     <Link2 className="w-3 h-3 text-success" />
-                    {account?.google_email ?? '—'}
+                    {account?.account_email ?? '—'}
                   </p>
                 </div>
                 <button
@@ -651,7 +652,7 @@ function AdminGoogleSection() {
 
       <div className="pb-4 pt-1">
         <p className="text-text-muted text-[11px]">
-          {t('settings.google.disconnectInfoAdmin')}
+          {t('settings.calendar.disconnectInfoAdmin')}
         </p>
       </div>
     </motion.div>
@@ -659,10 +660,10 @@ function AdminGoogleSection() {
 }
 
 /**
- * Versão pessoal do bloco de Google Calendar — visível só para sócios não-admin.
- * Permite desvincular APENAS a própria conta. Usa /api/google/disconnect (não o admin-disconnect).
+ * Versão pessoal do bloco de Outlook Calendar — visível só para sócios não-admin.
+ * Permite desvincular APENAS a própria conta. Usa /api/microsoft/disconnect (não o admin-disconnect).
  */
-function MemberGoogleSection() {
+function MemberCalendarSection() {
   const { member, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -672,18 +673,17 @@ function MemberGoogleSection() {
   if (isAdmin || !member) return null;
 
   async function handleDisconnect() {
-    if (!confirm(t('settings.google.disconnectConfirmSelf'))) return;
+    if (!confirm(t('settings.calendar.disconnectConfirmSelf'))) return;
     setDisconnecting(true);
     try {
-      const res = await fetch('/api/google/disconnect', { method: 'POST' });
+      const res = await fetch('/api/microsoft/disconnect', { method: 'POST' });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.google.disconnectError'));
-      toast.success(t('settings.google.disconnected'));
+      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.calendar.disconnectError'));
+      toast.success(t('settings.calendar.disconnected'));
       await queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
-      // Recarrega pra atualizar member.googleLinked em todo lugar
       setTimeout(() => window.location.reload(), 400);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t('settings.google.disconnectError'));
+      toast.error(e instanceof Error ? e.message : t('settings.calendar.disconnectError'));
     } finally {
       setDisconnecting(false);
     }
@@ -697,27 +697,27 @@ function MemberGoogleSection() {
       className="bg-surface-elevated border border-surface-border rounded-xl px-5"
     >
       <div className="py-4 border-b border-surface-border">
-        <SectionTitle>{t('settings.section.googleCalendar')}</SectionTitle>
+        <SectionTitle>{t('settings.section.outlookCalendar')}</SectionTitle>
       </div>
 
       <div className="py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          {member.googleLinked ? (
+          {member.calendarLinked ? (
             <Link2 className="w-4 h-4 text-success flex-shrink-0" />
           ) : (
             <Link2Off className="w-4 h-4 text-text-muted flex-shrink-0" />
           )}
           <div className="min-w-0">
             <p className="text-text-primary text-sm font-medium">
-              {member.googleLinked ? t('settings.google.connected') : t('settings.google.notConnected')}
+              {member.calendarLinked ? t('settings.calendar.connected') : t('settings.calendar.notConnected')}
             </p>
             <p className="text-text-muted text-[11px]">
-              {member.googleLinked ? t('settings.google.descConnected') : t('settings.google.descNotConnected')}
+              {member.calendarLinked ? t('settings.calendar.descConnected') : t('settings.calendar.descNotConnected')}
             </p>
           </div>
         </div>
 
-        {member.googleLinked ? (
+        {member.calendarLinked ? (
           <button
             type="button"
             onClick={() => void handleDisconnect()}
@@ -728,7 +728,7 @@ function MemberGoogleSection() {
           </button>
         ) : (
           <a
-            href="/api/google/connect"
+            href="/api/microsoft/connect"
             className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors flex-shrink-0 min-h-[36px] flex items-center"
             style={{ color: '#0D1B2A' }}
           >
@@ -739,7 +739,7 @@ function MemberGoogleSection() {
 
       <div className="pb-4 pt-1">
         <p className="text-text-muted text-[11px]">
-          {t('settings.google.disconnectInfoSelf')}
+          {t('settings.calendar.disconnectInfoSelf')}
         </p>
       </div>
     </motion.div>

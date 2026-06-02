@@ -62,7 +62,7 @@ export function useCreateEvent() {
       const start = event.startAt instanceof Date ? event.startAt : new Date(event.startAt);
       pushLocalNotification(
         `Evento criado: ${event.title}`,
-        `${formatHora(start)} — sincronizado com seu Google Calendar`
+        `${formatHora(start)} — sincronizado com seu Outlook Calendar`
       );
     },
     onError: (err: Error) => {

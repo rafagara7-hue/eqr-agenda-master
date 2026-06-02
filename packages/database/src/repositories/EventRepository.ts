@@ -65,7 +65,8 @@ function toCalendarEvent(row: EventRowWithParticipants): CalendarEvent {
     recurrenceId: row.recurrence_id,
     recurrenceExceptionDate: row.recurrence_exception_date ? new Date(row.recurrence_exception_date) : null,
     isRecurrenceRoot: row.is_recurrence_root,
-    googleEventId: row.google_event_id,
+    externalEventId: row.external_event_id,
+    externalProvider: row.external_provider,
     syncStatus: row.sync_status,
     syncError: row.sync_error,
     lastSyncedAt: row.last_synced_at ? new Date(row.last_synced_at) : null,
@@ -276,12 +277,12 @@ export class EventRepository implements IEventRepository {
     if (error) throw new Error(`EventRepository.delete: ${error.message}`);
   }
 
-  async updateSyncStatus(id: string, syncStatus: string, googleEventId?: string, syncError?: string): Promise<void> {
+  async updateSyncStatus(id: string, syncStatus: string, externalEventId?: string, syncError?: string): Promise<void> {
     const { error } = await this.db
       .from('events')
       .update({
         sync_status: syncStatus as Database['public']['Tables']['events']['Update']['sync_status'],
-        google_event_id: googleEventId ?? undefined,
+        external_event_id: externalEventId ?? undefined,
         sync_error: syncError ?? null,
         last_synced_at: syncStatus === 'synced' ? new Date().toISOString() : undefined,
         updated_at: new Date().toISOString(),

@@ -466,7 +466,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
                   rightSlot={
                     <span
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-danger/40 text-danger bg-danger/10 max-w-[140px] truncate"
-                      title={e.sync_error ?? t('event.googleSyncFailed')}
+                      title={e.sync_error ?? t('event.calendarSyncFailed')}
                     >
                       {e.sync_error ? e.sync_error.split(':').pop()?.trim() ?? 'falha' : 'falha'}
                     </span>

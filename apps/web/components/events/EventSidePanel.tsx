@@ -325,9 +325,9 @@ function EventDetail({
             <span className="text-text-secondary">{formatDate(event.lastSyncedAt, 'dd/MM/yyyy HH:mm')}</span>
           </div>
         )}
-        {event.googleEventId && (
+        {event.externalEventId && (
           <div className="flex justify-between text-xs">
-            <span className="text-text-muted">{t('profilePanel.googleCalendar')}</span>
+            <span className="text-text-muted">{t('profilePanel.calendar')}</span>
             <span className="text-success text-xs">{t('common.linked')}</span>
           </div>
         )}
