@@ -36,7 +36,7 @@
             { "name": "provider", "value": "eq.microsoft" },
             { "name": "is_primary", "value": "=eq.true" },
             { "name": "sync_enabled", "value": "=eq.true" },
-            { "name": "select", "value": "id,calendar_id,account_email,access_token,refresh_token,token_expires_at" }
+            { "name": "select", "value": "id,calendar_id,provider_email,access_token,refresh_token,token_expires_at" }
           ]
         },
         "options": {}

@@ -69,5 +69,5 @@ POST https://graph.microsoft.com/v1.0/subscriptions
 }
 ```
 
-Salvar `webhook_channel_id` (que é o `subscriptionId` retornado) e `webhook_expiry` em `calendar_provider_accounts`.
+Salvar `subscription_id` (que é o `subscriptionId` retornado) e `subscription_expiry` em `calendar_provider_accounts`.
 A subscription do Microsoft Graph para `/me/events` expira em até 4230 minutos (~70h) e precisa ser renovada via PATCH antes disso. O Workflow 06 renova subscriptions expirando automaticamente.

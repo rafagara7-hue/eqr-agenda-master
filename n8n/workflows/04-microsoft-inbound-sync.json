@@ -23,7 +23,7 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "webhook_channel_id", "value": "=eq.{{ $json.subscriptionId }}" },
+            { "name": "subscription_id", "value": "=eq.{{ $json.subscriptionId }}" },
             { "name": "provider", "value": "eq.microsoft" },
             { "name": "select", "value": "id,member_id,calendar_id,access_token,refresh_token,token_expires_at,metadata" }
           ]
@@ -98,7 +98,7 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "metadata", "value": "={{ { deltaToken: ($('Get Changed Events (delta query)').first().json['@odata.deltaLink'] ?? '').split('$deltatoken=')[1] ?? null } }}" }
+            { "name": "metadata", "value": "={{ { deltaToken: (($('Get Changed Events (delta query)').first().json['@odata.deltaLink'] ?? '').split('$deltatoken=')[1] ?? null) } }}" }
           ]
         }
       },
