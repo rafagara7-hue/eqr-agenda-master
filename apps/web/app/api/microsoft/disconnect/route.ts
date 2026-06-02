@@ -19,11 +19,13 @@ export async function POST(_req: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const serviceDb = await getSupabaseServiceClient();
+  // Limpa TODOS providers do member — a app suporta apenas Microsoft no momento;
+  // rows com provider='google' são dados órfãos da migração 0014 e o disconnect
+  // deve deixar o member em estado consistente "não vinculado".
   await serviceDb
     .from('calendar_provider_accounts')
     .delete()
-    .eq('member_id', member.id)
-    .eq('provider', 'microsoft');
+    .eq('member_id', member.id);
 
   await serviceDb.from('members').update({ calendar_linked: false }).eq('id', member.id);
 
