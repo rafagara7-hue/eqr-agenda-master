@@ -85,6 +85,10 @@ async function getMemberRole(
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/health).*)',
+    // Exclui assets, rotas publicas e endpoints autenticados por outros mecanismos:
+    // - api/health: healthcheck publico
+    // - api/cron/*: Vercel Cron valida via CRON_SECRET Bearer no proprio handler
+    // - api/webhooks/*: validados via HMAC signature no handler
+    '/((?!_next/static|_next/image|favicon.ico|api/health|api/cron|api/webhooks).*)',
   ],
 };
