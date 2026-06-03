@@ -2,5 +2,11 @@
   "framework": "nextjs",
   "buildCommand": "npm run build -w @eqr/web",
   "outputDirectory": "apps/web/.next",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/sync-ical",
+      "schedule": "*/30 * * * *"
+    }
+  ]
 }
