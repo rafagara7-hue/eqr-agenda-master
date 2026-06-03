@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
@@ -11,19 +11,23 @@ interface AuthState {
   member: Member | null;
   isLoading: boolean;
   isAdmin: boolean;
+  refetch: () => Promise<void>;
 }
 
 export function useAuth(): AuthState {
-  const [state, setState] = useState<AuthState>({
+  const [state, setState] = useState<Omit<AuthState, 'refetch'>>({
     user: null,
     member: null,
     isLoading: true,
     isAdmin: false,
   });
   const supabase = getSupabaseBrowserClient();
+  const mountedRef = useRef(true);
+  const initRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    mountedRef.current = true;
 
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -72,6 +76,7 @@ export function useAuth(): AuthState {
       });
     }
 
+    initRef.current = init;
     void init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -85,11 +90,16 @@ export function useAuth(): AuthState {
 
     return () => {
       mounted = false;
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
   }, [supabase]);
 
-  return state;
+  const refetch = useCallback(async () => {
+    if (initRef.current) await initRef.current();
+  }, []);
+
+  return { ...state, refetch };
 }
 
 export function useSignOut() {

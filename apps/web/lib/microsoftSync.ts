@@ -22,14 +22,21 @@ import {
 type ServiceDb = SupabaseClient<Database>;
 
 async function getAccount(db: ServiceDb, memberId: string): Promise<MicrosoftAccountRecord | null> {
+  // Filtra rows iCal-only (ical_url IS NOT NULL, tokens NULL) pra não devolver
+  // conta sem OAuth pro fluxo de sync OAuth — quebraria com null deref.
   const { data } = await db
     .from('calendar_provider_accounts')
-    .select('id, member_id, provider_email, calendar_id, access_token, refresh_token, token_expires_at')
+    .select('id, member_id, provider_email, calendar_id, access_token, refresh_token, token_expires_at, ical_url')
     .eq('member_id', memberId)
     .eq('provider', 'microsoft')
     .eq('sync_enabled', true)
+    .is('ical_url', null)
     .maybeSingle();
-  return (data as unknown as MicrosoftAccountRecord | null) ?? null;
+  if (!data) return null;
+  const row = data as unknown as MicrosoftAccountRecord & { ical_url: string | null };
+  // Sanity check: row OAuth deve ter todos os 3 tokens preenchidos (CHECK do DB garante)
+  if (!row.access_token || !row.refresh_token || !row.token_expires_at) return null;
+  return row;
 }
 
 /**

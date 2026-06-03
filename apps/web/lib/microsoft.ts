@@ -40,9 +40,12 @@ export interface MicrosoftAccountRecord {
   member_id: string;
   provider_email: string;
   calendar_id: string;
-  access_token: string;
-  refresh_token: string;
-  token_expires_at: string;
+  // Tokens podem ser NULL em rows iCal-only (migration 0015). getAccount em
+  // microsoftSync.ts filtra ical_url IS NULL antes de retornar, mas tipamos
+  // como nullable pra forçar checks downstream.
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +284,11 @@ async function withFreshToken<T>(
   result: T;
   refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null;
 }> {
+  if (!account.access_token || !account.refresh_token || !account.token_expires_at) {
+    throw new Error(
+      'OAuth indisponível para esta conta (provável conta iCal-only). Use lib/microsoftIcal.ts em vez disso.'
+    );
+  }
   const refreshTokenPlain = decryptToken(account.refresh_token);
   let accessTokenPlain = decryptToken(account.access_token);
   let refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null = null;
