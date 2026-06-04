@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarDays, Users, Settings, Shield, LogOut, ChevronRight, BarChart3, X, MessageSquare } from 'lucide-react';
+import { CalendarDays, Users, Settings, Shield, LogOut, ChevronRight, BarChart3, X, MessageSquare, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useSignOut } from '@/hooks/useAuth';
 import { usePresenceContext } from '@/contexts/PresenceContext';
@@ -23,6 +23,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/calendar',       icon: CalendarDays,   labelKey: 'nav.calendar' },
+  { href: '/meetings',       icon: Handshake,      labelKey: 'nav.meetings' },
   { href: '/admin',          icon: Shield,         labelKey: 'nav.general',   adminOnly: true },
   { href: '/geral',          icon: BarChart3,      labelKey: 'nav.general',   memberOnly: true },
   { href: '/admin/members',  icon: Users,          labelKey: 'nav.members',   adminOnly: true },
@@ -33,6 +34,12 @@ const NAV_ITEMS: NavItem[] = [
 function isNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (href === '/admin/members' && pathname.startsWith('/admin/members/')) return true;
+  if (href === '/meetings' && (
+    pathname === '/meetings' ||
+    pathname.startsWith('/meetings/') ||
+    pathname === '/partner/meetings' ||
+    pathname === '/admin/meetings'
+  )) return true;
   return false;
 }
 
