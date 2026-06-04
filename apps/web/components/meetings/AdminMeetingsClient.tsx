@@ -77,7 +77,7 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const [busy, setBusy] = useState<BusyState>(null);
   const anyBusy = busy !== null;
-  const [filter, setFilter] = useState<Filter>('pending');
+  const [filter, setFilter] = useState<Filter>('all');
   const [partnerFilter, setPartnerFilter] = useState<string>('all');
 
   const filtered = useMemo(() => {
@@ -190,11 +190,11 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
             <option value="all">Sócio: Todos</option>
             {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          {(filter !== 'pending' || partnerFilter !== 'all') && (
+          {(filter !== 'all' || partnerFilter !== 'all') && (
             <button
               type="button"
-              onClick={() => { setFilter('pending'); setPartnerFilter('all'); }}
-              className="text-xs text-text-muted hover:text-text-secondary px-2 py-1 underline-offset-2 hover:underline"
+              onClick={() => { setFilter('all'); setPartnerFilter('all'); }}
+              className="text-xs text-text-muted hover:text-text-secondary px-2 py-1 underline-offset-2 hover:underline min-h-[40px]"
             >
               Limpar filtros
             </button>
