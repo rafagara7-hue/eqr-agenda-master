@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Send, Loader2 } from 'lucide-react';
+import { ChevronLeft, Send, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { formatMeetingTime } from '@/lib/meetings/format';
 
 interface PartnerLite {
   id: string;
@@ -30,30 +31,107 @@ const PRIORITIES = [
 ] as const;
 
 const DURATIONS = [
-  { value: 30, label: '30 minutos' },
-  { value: 60, label: '1 hora' },
-  { value: 90, label: '1h 30min' },
+  { value: 30,  label: '30 minutos' },
+  { value: 60,  label: '1 hora' },
+  { value: 90,  label: '1h 30min' },
   { value: 120, label: '2 horas' },
 ];
+
+interface BusySlot {
+  member_id: string;
+  start_at: string;
+  end_at: string;
+  status: string | null;
+  title_if_public: string | null;
+}
 
 function defaultDateTime(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   d.setHours(14, 0, 0, 0);
-  // Format pra <input type="datetime-local">
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  return aStart < bEnd && bStart < aEnd;
 }
 
 export function NewMeetingClient({ partners }: Props) {
   const router = useRouter();
   const [targetId, setTargetId] = useState<string>('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [nome, setNome] = useState('');
+  const [assunto, setAssunto] = useState('');
+  const [observacoes, setObservacoes] = useState('');
   const [start, setStart] = useState(defaultDateTime());
   const [duration, setDuration] = useState(60);
   const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
   const [submitting, setSubmitting] = useState(false);
+
+  // Conflict-check state
+  const [checkingAvail, setCheckingAvail] = useState(false);
+  const [conflicts, setConflicts] = useState<BusySlot[]>([]);
+  const [availChecked, setAvailChecked] = useState(false);
+  const checkSeqRef = useRef(0);
+
+  // Re-checa disponibilidade quando socio + data/duracao mudam
+  useEffect(() => {
+    if (!targetId || !start) {
+      setConflicts([]);
+      setAvailChecked(false);
+      return;
+    }
+
+    const startDate = new Date(start);
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + duration);
+    if (isNaN(startDate.getTime())) {
+      setConflicts([]);
+      setAvailChecked(false);
+      return;
+    }
+
+    const seq = ++checkSeqRef.current;
+    setCheckingAvail(true);
+
+    // Busca slots ocupados num range mais amplo (mesmo dia)
+    const dayStart = new Date(startDate); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(startDate);   dayEnd.setHours(23, 59, 59, 999);
+
+    void (async () => {
+      try {
+        const params = new URLSearchParams({
+          from: dayStart.toISOString(),
+          to: dayEnd.toISOString(),
+        });
+        const res = await fetch(`/api/meetings/availability/${targetId}?${params}`);
+        if (seq !== checkSeqRef.current) return; // race: ignora resposta stale
+
+        if (!res.ok) {
+          setConflicts([]);
+          setAvailChecked(false);
+          return;
+        }
+        const data = await res.json() as { slots?: BusySlot[] };
+        const slots = data.slots ?? [];
+
+        // Filtra slots que conflitam com a janela proposta
+        const conflicting = slots.filter((s) => {
+          if (!s.start_at || !s.end_at) return false;
+          return overlaps(startDate, endDate, new Date(s.start_at), new Date(s.end_at));
+        });
+        setConflicts(conflicting);
+        setAvailChecked(true);
+      } catch {
+        setConflicts([]);
+        setAvailChecked(false);
+      } finally {
+        if (seq === checkSeqRef.current) setCheckingAvail(false);
+      }
+    })();
+  }, [targetId, start, duration]);
+
+  const hasConflict = conflicts.length > 0;
 
   function calculateEnd(startIso: string, mins: number): string {
     const d = new Date(startIso);
@@ -63,8 +141,9 @@ export function NewMeetingClient({ partners }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!targetId) { toast.error('Selecione um sócio'); return; }
-    if (title.trim().length < 3) { toast.error('Título deve ter pelo menos 3 caracteres'); return; }
+    if (!targetId)               { toast.error('Selecione um sócio');                       return; }
+    if (nome.trim().length < 3)  { toast.error('Nome deve ter pelo menos 3 caracteres');     return; }
+    if (hasConflict)             { toast.error('Horário ocupado. Escolha outro horário.');  return; }
 
     setSubmitting(true);
     try {
@@ -76,8 +155,9 @@ export function NewMeetingClient({ partners }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetPartnerId: targetId,
-          title: title.trim(),
-          description: description.trim() || undefined,
+          title: nome.trim(),
+          description: assunto.trim() || undefined,
+          observations: observacoes.trim() || undefined,
           proposedStart: startIso,
           proposedEnd: endIso,
           priority,
@@ -107,17 +187,17 @@ export function NewMeetingClient({ partners }: Props) {
 
         <h1 className="text-text-primary text-xl font-semibold mb-1">Nova solicitação</h1>
         <p className="text-text-muted text-sm mb-6">
-          Preencha os detalhes e envie. Admin ou o sócio destinatário decidem.
+          Preencha os detalhes. Admin ou o sócio destinatário decidem.
         </p>
 
         <form
           onSubmit={handleSubmit}
           className="bg-surface-elevated border border-surface-border rounded-xl p-5 space-y-5"
         >
-          {/* Com quem */}
+          {/* Membro */}
           <div>
             <label className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
-              Com quem? <span className="text-accent">*</span>
+              Membro <span className="text-accent">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {partners.map((p) => (
@@ -146,44 +226,44 @@ export function NewMeetingClient({ partners }: Props) {
             </div>
           </div>
 
-          {/* Titulo */}
+          {/* Nome */}
           <div>
-            <label htmlFor="title" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
-              Título da reunião <span className="text-accent">*</span>
+            <label htmlFor="nome" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
+              Nome <span className="text-accent">*</span>
             </label>
             <input
-              id="title"
+              id="nome"
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Discussão sobre proposta cliente X"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex: Reunião sobre proposta cliente X"
               maxLength={200}
               className="w-full px-3 py-2.5 bg-surface-base border border-surface-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent"
               required
             />
           </div>
 
-          {/* Descricao */}
+          {/* Assunto */}
           <div>
-            <label htmlFor="description" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
-              Descrição
+            <label htmlFor="assunto" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
+              Assunto
             </label>
             <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="O que vocês vão discutir?"
-              maxLength={5000}
+              id="assunto"
+              value={assunto}
+              onChange={(e) => setAssunto(e.target.value)}
+              placeholder="O que vai ser discutido?"
+              maxLength={2000}
               rows={3}
               className="w-full px-3 py-2.5 bg-surface-base border border-surface-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent resize-y"
             />
           </div>
 
-          {/* Data e duracao */}
+          {/* Horário e data */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="start" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
-                Início <span className="text-accent">*</span>
+                Horário e data <span className="text-accent">*</span>
               </label>
               <input
                 id="start"
@@ -207,6 +287,55 @@ export function NewMeetingClient({ partners }: Props) {
                 {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Conflict / Available banner — só aparece se já há sócio + horário escolhidos */}
+          {targetId && start && (
+            <div>
+              {checkingAvail ? (
+                <div className="px-3 py-2.5 rounded-lg border border-surface-border bg-surface-overlay text-text-muted text-xs flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Verificando agenda do sócio…
+                </div>
+              ) : hasConflict ? (
+                <div className="px-3 py-2.5 rounded-lg border border-danger/40 bg-danger/10 text-danger text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium mb-1">Horário ocupado. Escolha outro horário.</p>
+                    <ul className="space-y-0.5 text-[11px] text-danger/80">
+                      {conflicts.slice(0, 3).map((c) => (
+                        <li key={c.start_at + c.end_at}>
+                          • {formatMeetingTime(c.start_at)} – {formatMeetingTime(c.end_at)}
+                          {c.title_if_public && <span className="text-text-muted ml-1">({c.title_if_public})</span>}
+                        </li>
+                      ))}
+                      {conflicts.length > 3 && <li>• +{conflicts.length - 3} outros</li>}
+                    </ul>
+                  </div>
+                </div>
+              ) : availChecked ? (
+                <div className="px-3 py-2.5 rounded-lg border border-success/30 bg-success/10 text-success text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Horário disponível.
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Observações */}
+          <div>
+            <label htmlFor="observacoes" className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
+              Observações
+            </label>
+            <textarea
+              id="observacoes"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Notas adicionais, contexto, anexos…"
+              maxLength={2000}
+              rows={2}
+              className="w-full px-3 py-2.5 bg-surface-base border border-surface-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent resize-y"
+            />
           </div>
 
           {/* Prioridade */}
@@ -234,7 +363,7 @@ export function NewMeetingClient({ partners }: Props) {
             </Link>
             <button
               type="submit"
-              disabled={submitting || !targetId || title.trim().length < 3}
+              disabled={submitting || !targetId || nome.trim().length < 3 || hasConflict || checkingAvail}
               className="text-xs font-medium px-4 py-2.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] flex items-center gap-2"
               style={{ color: '#0D1B2A' }}
             >
