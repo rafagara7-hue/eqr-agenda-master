@@ -70,6 +70,15 @@ export async function POST(req: NextRequest) {
     } else if (lower.includes('invalid priority')) {
       userMsg = 'Prioridade inválida';
       status = 422;
+    } else if (
+      lower.includes('pgrst116')
+      || lower.includes('json object requested')
+      || lower.includes('no rows')
+    ) {
+      // Defense-in-depth: se algum dia o re-fetch pos-RPC voltar e RLS
+      // bloquear o SELECT, sinaliza claramente em vez de cair no fallback.
+      userMsg = 'Solicitação criada — recarregue a página para atualizar a lista';
+      status = 202;
     }
     return NextResponse.json({ error: userMsg }, { status });
   }
