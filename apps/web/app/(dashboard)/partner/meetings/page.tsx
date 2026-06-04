@@ -12,7 +12,7 @@ type EventRow = Database['public']['Tables']['events']['Row'];
 type PendingFields = Pick<RequestRow,
   'id' | 'title' | 'description' | 'requester_id' |
   'proposed_start' | 'proposed_end' | 'suggested_start' | 'suggested_end' |
-  'status' | 'priority' | 'created_at' | 'decision_reason'
+  'status' | 'priority' | 'created_at' | 'decision_reason' | 'metadata'
 >;
 type RecentFields = Pick<RequestRow,
   'id' | 'title' | 'requester_id' | 'proposed_start' | 'status' | 'reviewed_at'
@@ -43,7 +43,7 @@ export default async function PartnerMeetingsPage() {
   const [pendingRes, recentRes, eventsRes] = await Promise.all([
     supabase
       .from('meeting_requests')
-      .select('id, title, description, requester_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, decision_reason')
+      .select('id, title, description, requester_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, decision_reason, metadata')
       .eq('target_partner_id', member.id)
       .in('status', ['pending', 'in_review'])
       .order('created_at', { ascending: false }),

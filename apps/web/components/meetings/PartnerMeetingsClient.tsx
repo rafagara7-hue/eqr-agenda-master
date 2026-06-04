@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, XCircle, Calendar as CalIcon } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -45,6 +45,20 @@ interface PendingRequest {
   priority: MeetingPriority;
   created_at: string;
   decision_reason: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface ExternalContact {
+  name: string;
+  phone: string;
+}
+
+function getExternalContact(r: PendingRequest): ExternalContact | null {
+  const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
+  if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
+    return { name: ext.name, phone: ext.phone };
+  }
+  return null;
 }
 
 interface RecentDecision {
@@ -83,11 +97,30 @@ export function PartnerMeetingsClient({
   const [busy, setBusy] = useState<BusyState>(null);
   const anyBusy = busy !== null;
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const upcomingThisWeek = useMemo(() => {
     const now = new Date();
     const weekFromNow = new Date(); weekFromNow.setDate(now.getDate() + 7);
     return upcomingEvents.filter((e) => new Date(e.start_at) <= weekFromNow).length;
   }, [upcomingEvents]);
+
+  // Separa pendentes em internas (sócio→sócio) e externas (/agendar)
+  const externalPending = useMemo(
+    () => pendingRequests.filter((r) => getExternalContact(r) !== null),
+    [pendingRequests],
+  );
+  const internalPending = useMemo(
+    () => pendingRequests.filter((r) => getExternalContact(r) === null),
+    [pendingRequests],
+  );
+
+  function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    router.refresh();
+    setTimeout(() => setRefreshing(false), 800);
+  }
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
@@ -143,36 +176,135 @@ export function PartnerMeetingsClient({
       <div className="max-w-5xl mx-auto">
         <MeetingPageHeader
           title={`Reuniões — ${member.name}`}
-          subtitle="Pedidos aguardando sua decisão. Próximas reuniões confirmadas."
           showNewMeetingCta
+          trailing={
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              title="Atualizar"
+              aria-label="Atualizar"
+            >
+              <RefreshCw className={`w-4 h-4 text-text-muted ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          }
         />
 
         <MeetingErrorBanner visible={!!hasLoadError} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <MeetingStatCard icon={<Clock className="w-4 h-4" />}        value={pendingRequests.length} label="Aguardam você"   tone="amber" />
-          <MeetingStatCard icon={<CalIcon className="w-4 h-4" />}      value={upcomingThisWeek}       label="Próx. 7 dias"    tone="gold" />
-          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />} value={recentDecisions.filter((d) => d.status === 'approved').length} label="Aprovadas (30d)" tone="success" />
-          <MeetingStatCard icon={<XCircle className="w-4 h-4" />}      value={recentDecisions.filter((d) => d.status === 'rejected').length} label="Rejeitadas (30d)" tone="danger" />
+          <MeetingStatCard icon={<Clock className="w-4 h-4" />}        value={pendingRequests.length} label="Aguardam você" tone="amber" />
+          <MeetingStatCard icon={<CalIcon className="w-4 h-4" />}      value={upcomingThisWeek}       label="Próximas"      tone="gold" />
+          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />} value={recentDecisions.filter((d) => d.status === 'approved').length} label="Aprovadas"  tone="success" />
+          <MeetingStatCard icon={<XCircle className="w-4 h-4" />}      value={recentDecisions.filter((d) => d.status === 'rejected').length} label="Rejeitadas" tone="danger" />
         </div>
 
-        {/* Aguardando decisão */}
+        {/* Reuniões com funcionários (solicitações externas via /agendar) */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
           <div className="px-5 py-3 border-b border-surface-border flex items-center">
+            <UserCheck className="w-3.5 h-3.5 text-accent mr-2" />
             <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-              Aguardando sua decisão
+              Reuniões com funcionários
             </span>
-            <span className="text-accent font-semibold ml-2 text-xs">({pendingRequests.length})</span>
+            <span className="text-accent font-semibold ml-2 text-xs">({externalPending.length})</span>
           </div>
 
-          {pendingRequests.length === 0 ? (
-            <div className="px-5 py-10 text-center text-text-muted text-sm">
-              ✓ Nenhum pedido pendente. Você está em dia.
+          {externalPending.length === 0 ? (
+            <div className="px-5 py-8 text-center text-text-muted text-sm">
+              Nenhuma solicitação de funcionário no momento.
             </div>
           ) : (
             <div className="divide-y divide-surface-border">
-              {pendingRequests.map((r, idx) => {
+              {externalPending.map((r, idx) => {
+                const contact = getExternalContact(r)!;
+                const useSuggested = !!(r.suggested_start && r.suggested_end);
+                const startIso = useSuggested ? (r.suggested_start as string) : r.proposed_start;
+                const endIso = useSuggested ? (r.suggested_end as string) : r.proposed_end;
+                const itemBusy = busy?.id === r.id;
+
+                return (
+                  <motion.div
+                    key={r.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(idx * 0.04, 0.3) }}
+                    className="p-5"
+                  >
+                    <Link href={`/meetings/${r.id}`} className="block group">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center flex-shrink-0">
+                          <UserCheck className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-text-primary font-medium text-sm group-hover:text-accent transition-colors">
+                            {r.title}
+                          </p>
+                          <p className="text-text-muted text-xs mt-0.5">
+                            <span className="text-text-secondary">{contact.name}</span>
+                            {' · '}
+                            <a
+                              href={`tel:${contact.phone.replace(/\D/g, '')}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-accent hover:underline inline-flex items-center gap-0.5"
+                            >
+                              <Phone className="w-3 h-3" />
+                              {contact.phone}
+                            </a>
+                            {' · '}
+                            {meetingTimeAgo(r.created_at)}
+                          </p>
+                        </div>
+                        <MeetingPriorityBadge priority={r.priority} highOnly />
+                      </div>
+
+                      <MeetingTimeBlock
+                        startIso={startIso}
+                        endIso={endIso}
+                        rescheduled={useSuggested}
+                        className="mb-3"
+                      />
+
+                      {r.description && (
+                        <p className="text-text-secondary text-xs mb-3 px-1">
+                          "{r.description}"
+                        </p>
+                      )}
+                    </Link>
+
+                    <MeetingDecisionActions
+                      busyAction={itemBusy ? busy?.action ?? null : null}
+                      disabled={anyBusy}
+                      onApprove={() => void handleApprove(r.id)}
+                      onReject={() => void handleReject(r.id)}
+                      approveLabel="Aprovar"
+                      rejectLabel="Recusar"
+                      className="mt-3"
+                    />
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Aguardando decisão (outras solicitações) */}
+        <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
+          <div className="px-5 py-3 border-b border-surface-border flex items-center">
+            <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
+              Outras solicitações
+            </span>
+            <span className="text-accent font-semibold ml-2 text-xs">({internalPending.length})</span>
+          </div>
+
+          {internalPending.length === 0 ? (
+            <div className="px-5 py-8 text-center text-text-muted text-sm">
+              Nenhuma outra solicitação.
+            </div>
+          ) : (
+            <div className="divide-y divide-surface-border">
+              {internalPending.map((r, idx) => {
                 const requester = memberById.get(r.requester_id);
                 const useSuggested = !!(r.suggested_start && r.suggested_end);
                 const startIso = useSuggested ? (r.suggested_start as string) : r.proposed_start;
