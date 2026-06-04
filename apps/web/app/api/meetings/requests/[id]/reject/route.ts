@@ -27,7 +27,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await repo.reject({ requestId: id, reviewerId: member.id, reason: parsed.data.reason });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erro ao rejeitar';
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const raw = err instanceof Error ? err.message : 'Erro ao rejeitar';
+    console.error('[api/meetings/reject] failed', { requestId: id, reviewerId: member.id, error: raw });
+    const lower = raw.toLowerCase();
+    let userMsg = 'Erro ao rejeitar a solicitação';
+    let status = 400;
+    if (lower.includes('forbidden') || lower.includes('not authorized')) {
+      userMsg = 'Sem permissão para rejeitar esta solicitação';
+      status = 403;
+    } else if (lower.includes('not found') || lower.includes('does not exist')) {
+      userMsg = 'Solicitação não encontrada';
+      status = 404;
+    } else if (lower.includes('already')) {
+      userMsg = 'Solicitação já foi decidida';
+      status = 409;
+    }
+    return NextResponse.json({ error: userMsg }, { status });
   }
 }
