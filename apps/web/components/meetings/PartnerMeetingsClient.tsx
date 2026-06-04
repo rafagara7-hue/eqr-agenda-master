@@ -247,7 +247,7 @@ export function PartnerMeetingsClient({
                             <a
                               href={`tel:${contact.phone.replace(/\D/g, '')}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-accent hover:underline inline-flex items-center gap-0.5"
+                              className="text-accent hover:underline inline-flex items-center gap-1 px-1.5 py-1 -my-1 min-h-[32px] rounded hover:bg-accent/10 align-middle"
                             >
                               <Phone className="w-3 h-3" />
                               {contact.phone}
