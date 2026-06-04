@@ -33,8 +33,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     return NextResponse.json({ ok: true, eventId });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erro ao aprovar';
-    const status = msg.includes('forbidden') ? 403 : msg.includes('not found') ? 404 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    const raw = err instanceof Error ? err.message : 'Erro ao aprovar';
+    console.error('[api/meetings/approve] failed', { requestId: id, reviewerId: member.id, error: raw });
+    const lower = raw.toLowerCase();
+    let userMsg = 'Erro ao aprovar a solicitação';
+    let status = 400;
+    if (lower.includes('forbidden') || lower.includes('not authorized')) {
+      userMsg = 'Sem permissão para aprovar esta solicitação';
+      status = 403;
+    } else if (lower.includes('not found') || lower.includes('does not exist')) {
+      userMsg = 'Solicitação não encontrada';
+      status = 404;
+    } else if (lower.includes('already')) {
+      userMsg = 'Solicitação já foi decidida';
+      status = 409;
+    } else if (lower.includes('conflict')) {
+      userMsg = 'Conflito de horário detectado';
+      status = 409;
+    }
+    return NextResponse.json({ error: userMsg }, { status });
   }
 }
