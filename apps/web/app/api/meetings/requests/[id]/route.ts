@@ -39,9 +39,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await repo.cancel(id, member.id);
       return NextResponse.json({ ok: true });
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : 'Erro' }, { status: 400 });
+      const raw = err instanceof Error ? err.message : 'Erro ao cancelar';
+      console.error('[api/meetings/cancel] failed', { requestId: id, memberId: member.id, error: raw });
+      const lower = raw.toLowerCase();
+      let userMsg = 'Erro ao cancelar a solicitação';
+      let status = 400;
+      if (lower.includes('forbidden') || lower.includes('row-level') || lower.includes('not authorized')) {
+        userMsg = 'Sem permissão para cancelar esta solicitação';
+        status = 403;
+      } else if (lower.includes('not found') || lower.includes('does not exist')) {
+        userMsg = 'Solicitação não encontrada';
+        status = 404;
+      } else if (lower.includes('already')) {
+        userMsg = 'Solicitação já foi decidida';
+        status = 409;
+      }
+      return NextResponse.json({ error: userMsg }, { status });
     }
   }
 
-  return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
+  return NextResponse.json({ error: 'Ação não suportada' }, { status: 400 });
 }
