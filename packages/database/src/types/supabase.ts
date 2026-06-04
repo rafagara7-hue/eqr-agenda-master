@@ -12,7 +12,7 @@ export interface Database {
       members: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           name: string;
           slug: string;
           color: string;
@@ -27,7 +27,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           name: string;
           slug: string;
           color: string;
@@ -641,6 +641,34 @@ export interface Database {
       cancel_meeting_request: {
         Args: { p_request_id: string; p_requester_id: string };
         Returns: boolean;
+      };
+      public_create_meeting_request: {
+        Args: {
+          p_external_name: string;
+          p_external_phone: string;
+          p_target_partner_id: string;
+          p_title: string;
+          p_proposed_start: string;
+          p_proposed_end: string;
+          p_description?: string | null;
+          p_observations?: string | null;
+        };
+        Returns: string;
+      };
+      public_get_partner_availability: {
+        Args: { p_partner_id: string; p_from: string; p_to: string };
+        Returns: { start_at: string; end_at: string }[];
+      };
+      public_list_partners: {
+        Args: Record<never, never>;
+        Returns: {
+          id: string;
+          name: string;
+          slug: string;
+          color_hex: string;
+          avatar_url: string | null;
+          role: string;
+        }[];
       };
       suggest_reschedule: {
         Args: { p_request_id: string; p_partner_id: string; p_new_start: string; p_new_end: string; p_message?: string | null };
