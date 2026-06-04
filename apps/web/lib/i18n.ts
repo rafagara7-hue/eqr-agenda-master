@@ -15,6 +15,7 @@ type Dict = Record<string, string>;
 const PT_BR: Dict = {
   // ── NAVEGAÇÃO ──
   'nav.calendar': 'Calendário',
+  'nav.meetings': 'Reuniões',
   'nav.general': 'Geral',
   'nav.members': 'Membros',
   'nav.feedback': 'Feedback',
@@ -453,6 +454,7 @@ const PT_BR: Dict = {
 const EN_US: Dict = {
   // ── NAVIGATION ──
   'nav.calendar': 'Calendar',
+  'nav.meetings': 'Meetings',
   'nav.general': 'Overview',
   'nav.members': 'Members',
   'nav.feedback': 'Feedback',
