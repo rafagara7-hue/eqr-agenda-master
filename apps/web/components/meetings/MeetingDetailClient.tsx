@@ -184,7 +184,7 @@ export function MeetingDetailClient({
   }
 
   const backHref = currentMember.role === 'admin' ? '/admin/meetings'
-                 : currentMember.role === 'employee' ? '/meetings'
+                 : currentMember.role === 'employee' ? '/staff'
                  : '/partner/meetings';
 
   return (

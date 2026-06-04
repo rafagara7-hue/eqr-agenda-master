@@ -51,7 +51,10 @@ export default function LoginPage() {
     }
 
     const role = (memberRow as { role?: string } | null)?.role;
-    const destination = role === 'admin' ? '/admin' : '/calendar';
+    const destination =
+      role === 'admin'    ? '/admin'
+      : role === 'employee' ? '/staff'
+      : '/calendar';
     router.push(destination);
     router.refresh();
   }

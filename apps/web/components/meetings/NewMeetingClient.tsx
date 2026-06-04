@@ -21,6 +21,10 @@ interface PartnerLite {
 interface Props {
   member: { id: string; name: string };
   partners: PartnerLite[];
+  /** URL pra onde o botao Voltar/Cancelar leva. Default: /meetings */
+  backHref?: string;
+  /** URL pra onde redireciona apos submit OK. Default: /meetings */
+  onSuccessHref?: string;
 }
 
 const PRIORITIES = [
@@ -57,7 +61,11 @@ function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
-export function NewMeetingClient({ partners }: Props) {
+export function NewMeetingClient({
+  partners,
+  backHref = '/meetings',
+  onSuccessHref = '/meetings',
+}: Props) {
   const router = useRouter();
   const [targetId, setTargetId] = useState<string>('');
   const [nome, setNome] = useState('');
@@ -170,7 +178,7 @@ export function NewMeetingClient({ partners }: Props) {
         return;
       }
       toast.success('Solicitação enviada!');
-      router.push('/meetings');
+      router.push(onSuccessHref);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
       setSubmitting(false);
@@ -180,7 +188,7 @@ export function NewMeetingClient({ partners }: Props) {
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-3xl mx-auto">
-        <Link href="/meetings" className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4">
+        <Link href={backHref} className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4">
           <ChevronLeft className="w-4 h-4" />
           Voltar
         </Link>
@@ -356,7 +364,7 @@ export function NewMeetingClient({ partners }: Props) {
           {/* Submit */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-border">
             <Link
-              href="/meetings"
+              href={backHref}
               className="text-xs font-medium px-4 py-2.5 rounded-md border border-surface-border text-text-secondary hover:border-surface-muted hover:text-text-primary transition-colors min-h-[40px] flex items-center"
             >
               Cancelar

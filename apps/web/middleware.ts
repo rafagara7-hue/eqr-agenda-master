@@ -36,13 +36,42 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Usuário logado tentando acessar /login → redireciona ao dashboard
+  // Usuário logado tentando acessar /login → redireciona ao dashboard apropriado
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone();
-    // Determina destino baseado no role
     const role = await getMemberRole(supabase, user.id);
-    url.pathname = role === 'admin' ? '/admin' : '/calendar';
+    url.pathname =
+      role === 'admin'    ? '/admin'
+      : role === 'employee' ? '/staff'
+      : '/calendar';
     return NextResponse.redirect(url);
+  }
+
+  // /staff/* — exclusivo de funcionários. Sócio/admin redirecionam pra /calendar/admin.
+  if (user && pathname.startsWith('/staff')) {
+    const role = await getMemberRole(supabase, user.id);
+    if (role !== 'employee') {
+      const url = request.nextUrl.clone();
+      url.pathname = role === 'admin' ? '/admin' : '/calendar';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Funcionário NÃO acessa interface principal de sócio.
+  // Bloqueia /calendar, /partner/*, /meetings/*, /admin/* (admin já gateado abaixo).
+  if (user && (
+    pathname.startsWith('/calendar')
+    || pathname.startsWith('/partner')
+    || pathname.startsWith('/meetings')
+    || pathname.startsWith('/geral')
+    || pathname.startsWith('/feedback')
+  )) {
+    const role = await getMemberRole(supabase, user.id);
+    if (role === 'employee') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/staff';
+      return NextResponse.redirect(url);
+    }
   }
 
   // Protege rotas /admin/* para não-admins. Exceções:
@@ -50,13 +79,12 @@ export async function middleware(request: NextRequest) {
   // - /admin/members/[id]: acessível a todos; a página valida se o member pode ver aquele id específico
   //   (admin vê todos; member só vê o próprio perfil — redireciona dentro da page.tsx)
   if (user && pathname.startsWith('/admin')) {
-    // /admin/members (lista) continua admin-only; /admin/members/[id] libera (member só vê o próprio)
     const isAllowedForMember = pathname === '/admin/settings' || /^\/admin\/members\/[^/]+$/.test(pathname);
     if (!isAllowedForMember) {
       const role = await getMemberRole(supabase, user.id);
       if (role !== 'admin') {
         const url = request.nextUrl.clone();
-        url.pathname = '/calendar';
+        url.pathname = role === 'employee' ? '/staff' : '/calendar';
         return NextResponse.redirect(url);
       }
     }
