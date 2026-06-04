@@ -17,7 +17,7 @@ export interface Database {
           slug: string;
           color: string;
           color_hex: string;
-          role: 'admin' | 'member';
+          role: 'admin' | 'member' | 'employee';
           is_active: boolean;
           avatar_url: string | null;
           calendar_linked: boolean;
@@ -32,7 +32,7 @@ export interface Database {
           slug: string;
           color: string;
           color_hex: string;
-          role?: 'admin' | 'member';
+          role?: 'admin' | 'member' | 'employee';
           is_active?: boolean;
           avatar_url?: string | null;
           calendar_linked?: boolean;
@@ -47,7 +47,7 @@ export interface Database {
           slug?: string;
           color?: string;
           color_hex?: string;
-          role?: 'admin' | 'member';
+          role?: 'admin' | 'member' | 'employee';
           is_active?: boolean;
           avatar_url?: string | null;
           calendar_linked?: boolean;
@@ -424,8 +424,186 @@ export interface Database {
           updated_at?: string;
         };
       };
+      meeting_requests: {
+        Row: {
+          id: string;
+          requester_id: string;
+          target_partner_id: string;
+          title: string;
+          description: string | null;
+          observations: string | null;
+          proposed_start: string;
+          proposed_end: string;
+          duration_minutes: number;
+          priority: 'low' | 'normal' | 'high' | 'urgent';
+          status: 'pending' | 'in_review' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'expired';
+          reviewer_id: string | null;
+          reviewed_at: string | null;
+          decision_reason: string | null;
+          suggested_start: string | null;
+          suggested_end: string | null;
+          suggested_at: string | null;
+          resulting_event_id: string | null;
+          detected_conflicts: Json;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          requester_id: string;
+          target_partner_id: string;
+          title: string;
+          description?: string | null;
+          observations?: string | null;
+          proposed_start: string;
+          proposed_end: string;
+          priority?: 'low' | 'normal' | 'high' | 'urgent';
+          status?: 'pending' | 'in_review' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'expired';
+          reviewer_id?: string | null;
+          reviewed_at?: string | null;
+          decision_reason?: string | null;
+          suggested_start?: string | null;
+          suggested_end?: string | null;
+          suggested_at?: string | null;
+          resulting_event_id?: string | null;
+          detected_conflicts?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          requester_id?: string;
+          target_partner_id?: string;
+          title?: string;
+          description?: string | null;
+          observations?: string | null;
+          proposed_start?: string;
+          proposed_end?: string;
+          priority?: 'low' | 'normal' | 'high' | 'urgent';
+          status?: 'pending' | 'in_review' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'expired';
+          reviewer_id?: string | null;
+          reviewed_at?: string | null;
+          decision_reason?: string | null;
+          suggested_start?: string | null;
+          suggested_end?: string | null;
+          suggested_at?: string | null;
+          resulting_event_id?: string | null;
+          detected_conflicts?: Json;
+          metadata?: Json;
+          updated_at?: string;
+        };
+      };
+      meeting_request_participants: {
+        Row: {
+          id: string;
+          meeting_request_id: string;
+          member_id: string;
+          optional: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_request_id: string;
+          member_id: string;
+          optional?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          meeting_request_id?: string;
+          member_id?: string;
+          optional?: boolean;
+        };
+      };
+      meeting_request_events: {
+        Row: {
+          id: string;
+          meeting_request_id: string;
+          actor_id: string | null;
+          action: 'created' | 'submitted' | 'viewed' | 'commented' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'reschedule_suggested' | 'reschedule_accepted' | 'reschedule_declined' | 'event_created' | 'completed';
+          from_status: string | null;
+          to_status: string | null;
+          payload: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_request_id: string;
+          actor_id?: string | null;
+          action: 'created' | 'submitted' | 'viewed' | 'commented' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'reschedule_suggested' | 'reschedule_accepted' | 'reschedule_declined' | 'event_created' | 'completed';
+          from_status?: string | null;
+          to_status?: string | null;
+          payload?: Json;
+          created_at?: string;
+        };
+        Update: never;
+      };
+      meeting_request_comments: {
+        Row: {
+          id: string;
+          meeting_request_id: string;
+          author_id: string;
+          body: string;
+          visible_to_requester: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_request_id: string;
+          author_id: string;
+          body: string;
+          visible_to_requester?: boolean;
+          created_at?: string;
+        };
+        Update: never;
+      };
+      partner_office_hours: {
+        Row: {
+          id: string;
+          partner_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          effective_from: string;
+          effective_until: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          effective_from?: string;
+          effective_until?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          day_of_week?: number;
+          start_time?: string;
+          end_time?: string;
+          effective_from?: string;
+          effective_until?: string | null;
+          is_active?: boolean;
+        };
+      };
     };
-    Views: Record<never, never>;
+    Views: {
+      v_availability_busy_slots: {
+        Row: {
+          member_id: string | null;
+          start_at: string | null;
+          end_at: string | null;
+          status: string | null;
+          title_if_public: string | null;
+        };
+      };
+    };
     Functions: {
       get_member_id: {
         Args: Record<never, never>;
@@ -434,6 +612,25 @@ export interface Database {
       is_admin: {
         Args: Record<never, never>;
         Returns: boolean;
+      };
+      eqr_get_member_id: { Args: Record<never, never>; Returns: string; };
+      eqr_is_admin: { Args: Record<never, never>; Returns: boolean; };
+      eqr_get_member_role: { Args: Record<never, never>; Returns: string; };
+      approve_meeting_request: {
+        Args: { p_request_id: string; p_reviewer_id: string; p_decision_note?: string | null };
+        Returns: string;
+      };
+      reject_meeting_request: {
+        Args: { p_request_id: string; p_reviewer_id: string; p_reason: string };
+        Returns: boolean;
+      };
+      suggest_reschedule: {
+        Args: { p_request_id: string; p_partner_id: string; p_new_start: string; p_new_end: string; p_message?: string | null };
+        Returns: boolean;
+      };
+      detect_meeting_conflicts: {
+        Args: { p_partner_id: string; p_start: string; p_end: string; p_exclude_event_id?: string | null };
+        Returns: { event_id: string; title: string; start_at: string; end_at: string; overlap_min: number }[];
       };
     };
     Enums: Record<never, never>;
