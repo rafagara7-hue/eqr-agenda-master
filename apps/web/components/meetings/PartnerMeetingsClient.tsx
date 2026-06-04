@@ -201,12 +201,12 @@ export function PartnerMeetingsClient({
           <MeetingStatCard icon={<XCircle className="w-4 h-4" />}      value={recentDecisions.filter((d) => d.status === 'rejected').length} label="Rejeitadas" tone="danger" />
         </div>
 
-        {/* Reuniões com funcionários (solicitações externas via /agendar) */}
+        {/* Funcionários (solicitações externas via /agendar) */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
           <div className="px-5 py-3 border-b border-surface-border flex items-center">
             <UserCheck className="w-3.5 h-3.5 text-accent mr-2" />
             <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-              Reuniões com funcionários
+              Funcionários
             </span>
             <span className="text-accent font-semibold ml-2 text-xs">({externalPending.length})</span>
           </div>
@@ -289,18 +289,18 @@ export function PartnerMeetingsClient({
           )}
         </div>
 
-        {/* Aguardando decisão (outras solicitações) */}
+        {/* Sócios (solicitações internas) */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
           <div className="px-5 py-3 border-b border-surface-border flex items-center">
             <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-              Outras solicitações
+              Sócios
             </span>
             <span className="text-accent font-semibold ml-2 text-xs">({internalPending.length})</span>
           </div>
 
           {internalPending.length === 0 ? (
             <div className="px-5 py-8 text-center text-text-muted text-sm">
-              Nenhuma outra solicitação.
+              Nenhuma solicitação de sócio.
             </div>
           ) : (
             <div className="divide-y divide-surface-border">
