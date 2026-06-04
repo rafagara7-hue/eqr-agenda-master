@@ -35,6 +35,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erro' }, { status: 400 });
+    const raw = err instanceof Error ? err.message : 'Erro ao sugerir reagendamento';
+    console.error('[api/meetings/suggest] failed', { requestId: id, memberId: member.id, error: raw });
+    const lower = raw.toLowerCase();
+    let userMsg = 'Erro ao sugerir reagendamento';
+    let status = 400;
+    if (lower.includes('forbidden') || lower.includes('row-level') || lower.includes('not authorized')) {
+      userMsg = 'Sem permissão para sugerir reagendamento';
+      status = 403;
+    } else if (lower.includes('not found') || lower.includes('does not exist')) {
+      userMsg = 'Solicitação não encontrada';
+      status = 404;
+    } else if (lower.includes('already')) {
+      userMsg = 'Solicitação já foi decidida';
+      status = 409;
+    } else if (lower.includes('invalid time range') || lower.includes('end must be after')) {
+      userMsg = 'Horário inválido: o fim precisa ser depois do início';
+      status = 422;
+    }
+    return NextResponse.json({ error: userMsg }, { status });
   }
 }

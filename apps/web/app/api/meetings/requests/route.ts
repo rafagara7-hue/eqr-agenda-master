@@ -96,11 +96,17 @@ export async function GET(req: NextRequest) {
   const priorityParam = url.searchParams.get('priority');
 
   const repo = new MeetingRequestRepository(supabase);
-  const rows = await repo.findAll({
-    status: statusParam ? statusParam.split(',') as Array<'pending'|'in_review'|'approved'|'rejected'|'cancelled'|'completed'|'expired'> : undefined,
-    targetPartnerId: partnerParam ?? undefined,
-    requesterId: requesterParam ?? undefined,
-    priority: priorityParam ?? undefined,
-  });
-  return NextResponse.json({ requests: rows });
+  try {
+    const rows = await repo.findAll({
+      status: statusParam ? statusParam.split(',') as Array<'pending'|'in_review'|'approved'|'rejected'|'cancelled'|'completed'|'expired'> : undefined,
+      targetPartnerId: partnerParam ?? undefined,
+      requesterId: requesterParam ?? undefined,
+      priority: priorityParam ?? undefined,
+    });
+    return NextResponse.json({ requests: rows });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : 'Erro';
+    console.error('[api/meetings/list] failed', { userId: user.id, error: raw });
+    return NextResponse.json({ error: 'Erro ao listar solicitações' }, { status: 500 });
+  }
 }

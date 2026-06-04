@@ -23,8 +23,8 @@ const bodySchema = z.object({
   externalPhone: z.string().min(8).max(40),
   targetPartnerId: z.string().uuid(),
   title: z.string().min(3).max(200),
-  proposedStart: z.string(),
-  proposedEnd: z.string(),
+  proposedStart: z.string().datetime(),
+  proposedEnd: z.string().datetime(),
   description: z.string().max(2000).optional(),
   observations: z.string().max(2000).optional(),
   // Honeypot: campo invisivel "website" — humanos nunca preenchem
@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Formulário inválido' }, { status: 400 });
   }
   if (parsed.data.website && parsed.data.website.length > 0) {
-    // Bot detectado — retorna 200 fake pra nao dar feedback
+    // Bot detectado — retorna 200 com UUID aleatorio pra nao dar signature exploitavel
     console.warn('[api/public/meeting-requests] honeypot triggered', { ip });
-    return NextResponse.json({ ok: true, id: '00000000-0000-0000-0000-000000000000' });
+    return NextResponse.json({ ok: true, id: crypto.randomUUID() });
   }
 
   const supabase = await getSupabaseServerClient();

@@ -9,15 +9,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const repo = new MeetingRequestRepository(supabase);
-  const request = await repo.findById(id);
-  if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  try {
+    const request = await repo.findById(id);
+    if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const [history, comments] = await Promise.all([
-    repo.getHistory(id),
-    repo.getComments(id),
-  ]);
+    const [historyRes, commentsRes] = await Promise.allSettled([
+      repo.getHistory(id),
+      repo.getComments(id),
+    ]);
+    // Partial-degrade: se historico ou comments falha, retorna [] mas mantem request
+    const history = historyRes.status === 'fulfilled' ? historyRes.value : [];
+    const comments = commentsRes.status === 'fulfilled' ? commentsRes.value : [];
+    if (historyRes.status === 'rejected') console.error('[api/meetings/detail] history failed', { id, error: historyRes.reason });
+    if (commentsRes.status === 'rejected') console.error('[api/meetings/detail] comments failed', { id, error: commentsRes.reason });
 
-  return NextResponse.json({ request, history, comments });
+    return NextResponse.json({ request, history, comments });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : 'Erro';
+    console.error('[api/meetings/detail] failed', { id, error: raw });
+    return NextResponse.json({ error: 'Erro ao carregar solicitação' }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

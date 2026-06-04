@@ -80,7 +80,12 @@ export class MeetingRequestRepository implements IMeetingRequestRepository {
       .select('*, meeting_request_participants(member_id)')
       .eq('id', id)
       .maybeSingle();
-    if (error || !data) return null;
+    // Distingue erro de "nao encontrado" — antes ambos retornavam null silenciosamente
+    if (error) {
+      console.error('[repo.findById] query failed', { id, code: error.code, message: error.message });
+      throw new Error(`findById meeting_request: ${error.message}`);
+    }
+    if (!data) return null;
     const base = toMeetingRequest(data as unknown as DbMR);
     const participantIds = ((data as unknown as { meeting_request_participants?: { member_id: string }[] | null })
       .meeting_request_participants ?? []).map((p) => p.member_id);

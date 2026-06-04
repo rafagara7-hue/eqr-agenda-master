@@ -76,17 +76,19 @@ export function NewMeetingClient({
   const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
   const [submitting, setSubmitting] = useState(false);
 
-  // Conflict-check state
-  const [checkingAvail, setCheckingAvail] = useState(false);
+  // Conflict-check state — adiciona 'error' pra distinguir falha do check
+  // (PR #23 audit: antes a falha era silenciosa e habilitava o submit).
+  const [availStatus, setAvailStatus] = useState<'idle' | 'checking' | 'available' | 'conflict' | 'error'>('idle');
   const [conflicts, setConflicts] = useState<BusySlot[]>([]);
-  const [availChecked, setAvailChecked] = useState(false);
   const checkSeqRef = useRef(0);
+  const checkingAvail = availStatus === 'checking';
+  const availChecked = availStatus === 'available' || availStatus === 'conflict';
 
   // Re-checa disponibilidade quando socio + data/duracao mudam
   useEffect(() => {
     if (!targetId || !start) {
       setConflicts([]);
-      setAvailChecked(false);
+      setAvailStatus('idle');
       return;
     }
 
@@ -95,14 +97,13 @@ export function NewMeetingClient({
     endDate.setMinutes(endDate.getMinutes() + duration);
     if (isNaN(startDate.getTime())) {
       setConflicts([]);
-      setAvailChecked(false);
+      setAvailStatus('idle');
       return;
     }
 
     const seq = ++checkSeqRef.current;
-    setCheckingAvail(true);
+    setAvailStatus('checking');
 
-    // Busca slots ocupados num range mais amplo (mesmo dia)
     const dayStart = new Date(startDate); dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(startDate);   dayEnd.setHours(23, 59, 59, 999);
 
@@ -113,28 +114,28 @@ export function NewMeetingClient({
           to: dayEnd.toISOString(),
         });
         const res = await fetch(`/api/meetings/availability/${targetId}?${params}`);
-        if (seq !== checkSeqRef.current) return; // race: ignora resposta stale
+        if (seq !== checkSeqRef.current) return;
 
         if (!res.ok) {
+          console.warn('[availability] non-2xx', { status: res.status });
           setConflicts([]);
-          setAvailChecked(false);
+          setAvailStatus('error');
           return;
         }
         const data = await res.json() as { slots?: BusySlot[] };
         const slots = data.slots ?? [];
 
-        // Filtra slots que conflitam com a janela proposta
         const conflicting = slots.filter((s) => {
           if (!s.start_at || !s.end_at) return false;
           return overlaps(startDate, endDate, new Date(s.start_at), new Date(s.end_at));
         });
         setConflicts(conflicting);
-        setAvailChecked(true);
-      } catch {
+        setAvailStatus(conflicting.length > 0 ? 'conflict' : 'available');
+      } catch (err) {
+        if (seq !== checkSeqRef.current) return;
+        console.warn('[availability] check failed', err);
         setConflicts([]);
-        setAvailChecked(false);
-      } finally {
-        if (seq === checkSeqRef.current) setCheckingAvail(false);
+        setAvailStatus('error');
       }
     })();
   }, [targetId, start, duration]);
@@ -149,9 +150,11 @@ export function NewMeetingClient({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!targetId)               { toast.error('Selecione um sócio');                       return; }
-    if (nome.trim().length < 3)  { toast.error('Nome deve ter pelo menos 3 caracteres');     return; }
-    if (hasConflict)             { toast.error('Horário ocupado. Escolha outro horário.');  return; }
+    if (!targetId)                       { toast.error('Selecione um sócio');                       return; }
+    if (nome.trim().length < 3)          { toast.error('Nome deve ter pelo menos 3 caracteres');     return; }
+    if (availStatus === 'checking')      { toast.error('Aguarde a verificação de disponibilidade');  return; }
+    if (availStatus === 'error')         { toast.error('Não foi possível verificar disponibilidade — tente novamente'); return; }
+    if (hasConflict)                     { toast.error('Horário ocupado. Escolha outro horário.');  return; }
 
     setSubmitting(true);
     try {
@@ -304,6 +307,11 @@ export function NewMeetingClient({
                 <div className="px-3 py-2.5 rounded-lg border border-surface-border bg-surface-overlay text-text-muted text-xs flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   Verificando agenda do sócio…
+                </div>
+              ) : availStatus === 'error' ? (
+                <div className="px-3 py-2.5 rounded-lg border border-warning/40 bg-warning/10 text-warning text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>Não foi possível verificar disponibilidade. Confirme com o sócio antes de enviar.</span>
                 </div>
               ) : hasConflict ? (
                 <div className="px-3 py-2.5 rounded-lg border border-danger/40 bg-danger/10 text-danger text-xs flex items-start gap-2">
