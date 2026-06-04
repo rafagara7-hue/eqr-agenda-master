@@ -624,6 +624,24 @@ export interface Database {
         Args: { p_request_id: string; p_reviewer_id: string; p_reason: string };
         Returns: boolean;
       };
+      create_meeting_request: {
+        Args: {
+          p_requester_id: string;
+          p_target_partner_id: string;
+          p_title: string;
+          p_proposed_start: string;
+          p_proposed_end: string;
+          p_description?: string | null;
+          p_observations?: string | null;
+          p_priority?: string;
+          p_participant_ids?: string[] | null;
+        };
+        Returns: string;
+      };
+      cancel_meeting_request: {
+        Args: { p_request_id: string; p_requester_id: string };
+        Returns: boolean;
+      };
       suggest_reschedule: {
         Args: { p_request_id: string; p_partner_id: string; p_new_start: string; p_new_end: string; p_message?: string | null };
         Returns: boolean;

@@ -4,8 +4,6 @@ import type {
   MeetingRequestComment,
   MeetingRequestEvent,
   MeetingRequestStatus,
-  MeetingRequestPriority,
-  MeetingRequestAction,
   ConflictSnapshot,
   CreateMeetingRequestInput,
   ApproveMeetingRequestInput,
@@ -105,62 +103,41 @@ export class MeetingRequestRepository implements IMeetingRequestRepository {
   }
 
   async create(input: CreateMeetingRequestInput): Promise<MeetingRequest> {
+    // Chama SECURITY DEFINER function (migration 0018) — atomico:
+    // insert na meeting_requests + participants + audit event 'created'.
+    // Bypass RLS no audit event (impossivel pra non-admin via INSERT direto).
+    const { data: createdId, error: rpcErr } = await this.db.rpc('create_meeting_request', {
+      p_requester_id: input.requesterId,
+      p_target_partner_id: input.targetPartnerId,
+      p_title: input.title,
+      p_proposed_start: input.proposedStart.toISOString(),
+      p_proposed_end: input.proposedEnd.toISOString(),
+      p_description: input.description ?? null,
+      p_observations: input.observations ?? null,
+      p_priority: input.priority ?? 'normal',
+      p_participant_ids: input.participantIds ?? null,
+    });
+    if (rpcErr) throw new Error(`create_meeting_request: ${rpcErr.message}`);
+    const id = createdId as unknown as string;
+
+    // Re-fetch a row pra retornar entidade completa (a function so retorna o uuid)
     const { data, error } = await this.db
       .from('meeting_requests')
-      .insert({
-        requester_id: input.requesterId,
-        target_partner_id: input.targetPartnerId,
-        title: input.title,
-        description: input.description ?? null,
-        observations: null,
-        proposed_start: input.proposedStart.toISOString(),
-        proposed_end: input.proposedEnd.toISOString(),
-        priority: input.priority ?? 'normal',
-        status: 'pending',
-      })
       .select('*')
+      .eq('id', id)
       .single();
-    if (error || !data) throw new Error(`create meeting_request: ${error?.message ?? 'unknown'}`);
-    const created = toMeetingRequest(data as unknown as DbMR);
-
-    if (input.participantIds && input.participantIds.length > 0) {
-      const rows = input.participantIds.map((memberId) => ({
-        meeting_request_id: created.id,
-        member_id: memberId,
-        optional: false,
-      }));
-      await this.db.from('meeting_request_participants').insert(rows);
-    }
-
-    // Audit
-    await this.db.from('meeting_request_events').insert({
-      meeting_request_id: created.id,
-      actor_id: input.requesterId,
-      action: 'created' as MeetingRequestAction,
-      from_status: null,
-      to_status: 'pending',
-      payload: {},
-    });
-
-    return created;
+    if (error || !data) throw new Error(`create_meeting_request fetch: ${error?.message ?? 'unknown'}`);
+    return toMeetingRequest(data as unknown as DbMR);
   }
 
   async cancel(id: string, requesterId: string): Promise<void> {
-    const { error } = await this.db
-      .from('meeting_requests')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-      .eq('requester_id', requesterId)
-      .in('status', ['pending', 'in_review']);
-    if (error) throw new Error(`cancel meeting_request: ${error.message}`);
-
-    await this.db.from('meeting_request_events').insert({
-      meeting_request_id: id,
-      actor_id: requesterId,
-      action: 'cancelled' as MeetingRequestAction,
-      to_status: 'cancelled',
-      payload: {},
+    // Chama SECURITY DEFINER function (migration 0018) — atomico:
+    // UPDATE + audit event 'cancelled' + lock pessimista + validacao status.
+    const { error } = await this.db.rpc('cancel_meeting_request', {
+      p_request_id: id,
+      p_requester_id: requesterId,
     });
+    if (error) throw new Error(`cancel_meeting_request: ${error.message}`);
   }
 
   async approve(input: ApproveMeetingRequestInput): Promise<string> {

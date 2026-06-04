@@ -44,10 +44,34 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, request: created });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    );
+    const raw = err instanceof Error ? err.message : 'Erro ao criar solicitacao';
+    console.error('[api/meetings/create] failed', { memberId: member.id, error: raw });
+    const lower = raw.toLowerCase();
+    let userMsg = 'Erro ao criar solicitação';
+    let status = 400;
+    if (lower.includes('forbidden') || lower.includes('not authorized') || lower.includes('row-level')) {
+      userMsg = 'Sem permissão para criar esta solicitação';
+      status = 403;
+    } else if (lower.includes('not found') || lower.includes('does not exist')) {
+      userMsg = 'Destinatário ou solicitante inválido';
+      status = 404;
+    } else if (lower.includes('invalid time range')) {
+      userMsg = 'Horário inválido: o fim precisa ser depois do início';
+      status = 422;
+    } else if (lower.includes('invalid duration')) {
+      userMsg = 'Duração inválida: máximo 8 horas';
+      status = 422;
+    } else if (lower.includes('cannot request meeting with yourself')) {
+      userMsg = 'Não é possível pedir uma reunião com você mesmo';
+      status = 422;
+    } else if (lower.includes('target must be partner')) {
+      userMsg = 'Destinatário precisa ser sócio ou admin';
+      status = 422;
+    } else if (lower.includes('invalid priority')) {
+      userMsg = 'Prioridade inválida';
+      status = 422;
+    }
+    return NextResponse.json({ error: userMsg }, { status });
   }
 }
 
