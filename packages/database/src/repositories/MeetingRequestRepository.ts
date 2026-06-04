@@ -103,9 +103,8 @@ export class MeetingRequestRepository implements IMeetingRequestRepository {
   }
 
   async create(input: CreateMeetingRequestInput): Promise<MeetingRequest> {
-    // Chama SECURITY DEFINER function (migration 0018) — atomico:
+    // Chama SECURITY DEFINER function (migration 0019) — atomico:
     // insert na meeting_requests + participants + audit event 'created'.
-    // Bypass RLS no audit event (impossivel pra non-admin via INSERT direto).
     const { data: createdId, error: rpcErr } = await this.db.rpc('create_meeting_request', {
       p_requester_id: input.requesterId,
       p_target_partner_id: input.targetPartnerId,
@@ -120,14 +119,55 @@ export class MeetingRequestRepository implements IMeetingRequestRepository {
     if (rpcErr) throw new Error(`create_meeting_request: ${rpcErr.message}`);
     const id = createdId as unknown as string;
 
-    // Re-fetch a row pra retornar entidade completa (a function so retorna o uuid)
+    // Re-fetch tenta retornar entidade completa. Se RLS bloquear o SELECT
+    // (cenario raro mas observado em prod), construimos entidade minima do
+    // input + UUID. INSERT ja aconteceu via SECURITY DEFINER — request EXISTE.
     const { data, error } = await this.db
       .from('meeting_requests')
       .select('*')
       .eq('id', id)
-      .single();
-    if (error || !data) throw new Error(`create_meeting_request fetch: ${error?.message ?? 'unknown'}`);
-    return toMeetingRequest(data as unknown as DbMR);
+      .maybeSingle();
+
+    if (data) {
+      return toMeetingRequest(data as unknown as DbMR);
+    }
+
+    if (error) {
+      console.warn('[repo.create] post-rpc fetch failed, returning minimal entity', {
+        id, errorCode: error.code, errorMsg: error.message,
+      });
+    }
+
+    // Entidade minima — request foi criada, dados completos ficam pra refetch posterior
+    const now = new Date();
+    const durationMinutes = Math.max(
+      1,
+      Math.floor((input.proposedEnd.getTime() - input.proposedStart.getTime()) / 60_000),
+    );
+    return {
+      id,
+      requesterId: input.requesterId,
+      targetPartnerId: input.targetPartnerId,
+      title: input.title,
+      description: input.description ?? null,
+      observations: input.observations ?? null,
+      proposedStart: input.proposedStart,
+      proposedEnd: input.proposedEnd,
+      durationMinutes,
+      priority: input.priority ?? 'normal',
+      status: 'pending',
+      reviewerId: null,
+      reviewedAt: null,
+      decisionReason: null,
+      suggestedStart: null,
+      suggestedEnd: null,
+      suggestedAt: null,
+      resultingEventId: null,
+      detectedConflicts: [],
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 
   async cancel(id: string, requesterId: string): Promise<void> {
