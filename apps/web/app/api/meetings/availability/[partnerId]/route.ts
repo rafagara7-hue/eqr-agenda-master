@@ -6,6 +6,10 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
  *
  * Retorna busy slots do socio na janela. Usa view v_availability_busy_slots
  * que respeita RLS — funcionario so ve (member_id, start, end, 'busy').
+ *
+ * Overlap fix (PR #23 audit): usa predicado de OVERLAP em vez de start_at-only
+ * pra incluir eventos que cruzam a borda do range (espelhando o fix do
+ * public_get_partner_availability na migration 0022).
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ partnerId: string }> }) {
   const { partnerId } = await params;
@@ -19,17 +23,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ part
   if (!from || !to) {
     return NextResponse.json({ error: 'from and to required' }, { status: 400 });
   }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerId)) {
+    return NextResponse.json({ error: 'invalid partner id' }, { status: 400 });
+  }
 
-  // View v_availability_busy_slots eh security_invoker e respeita RLS de events.
-  // Funcionarios sem acesso direto a events nao veem detalhes — so member_id, start, end.
+  // OVERLAP predicate: event.start_at < to AND event.end_at > from
+  // (PostgREST sintaxe — equivale a tstzrange overlap, captura eventos
+  // que cruzam a borda do range. Antes usavamos só gte/lte em start_at,
+  // o que perdia eventos overnight ou multi-dia.)
   const { data, error } = await supabase
     .from('v_availability_busy_slots')
     .select('member_id, start_at, end_at, status, title_if_public')
     .eq('member_id', partnerId)
-    .gte('start_at', from)
-    .lte('start_at', to)
+    .lt('start_at', to)
+    .gt('end_at', from)
     .order('start_at', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[api/meetings/availability] query failed', { partnerId, error: error.message });
+    return NextResponse.json({ error: 'Erro ao consultar disponibilidade' }, { status: 500 });
+  }
+
   return NextResponse.json({ slots: data ?? [] });
 }

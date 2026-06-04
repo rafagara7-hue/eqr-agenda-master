@@ -9,6 +9,7 @@ import {
   MeetingStatusBadge,
   MeetingStatCard,
   MeetingPageHeader,
+  MeetingErrorBanner,
 } from '@/components/meetings/shared';
 import {
   formatMeetingDateTime,
@@ -41,9 +42,10 @@ interface Props {
   member: { id: string; name: string };
   requests: RequestRow[];
   partners: PartnerLite[];
+  hasLoadError?: boolean;
 }
 
-export function MeetingsListClient({ requests, partners }: Props) {
+export function MeetingsListClient({ requests, partners, hasLoadError }: Props) {
   const partnerById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners]);
 
   const stats = useMemo(() => ({
@@ -61,6 +63,8 @@ export function MeetingsListClient({ requests, partners }: Props) {
           subtitle="Solicite uma conversa com um sócio. Acompanhe o status."
           showNewMeetingCta
         />
+
+        <MeetingErrorBanner visible={!!hasLoadError} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

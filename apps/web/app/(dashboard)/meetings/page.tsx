@@ -26,24 +26,29 @@ export default async function MeetingsPage() {
   if (member.role === 'member') redirect('/partner/meetings');
 
   // Funcionario: listar proprias solicitacoes
-  const { data: requests } = await supabase
-    .from('meeting_requests')
-    .select('id, title, target_partner_id, proposed_start, proposed_end, status, priority, created_at, reviewed_at, decision_reason')
-    .eq('requester_id', member.id)
-    .order('created_at', { ascending: false });
+  const [reqRes, partnersRes] = await Promise.all([
+    supabase
+      .from('meeting_requests')
+      .select('id, title, target_partner_id, proposed_start, proposed_end, status, priority, created_at, reviewed_at, decision_reason')
+      .eq('requester_id', member.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('members')
+      .select('id, name, slug, color_hex, avatar_url')
+      .in('role', ['member', 'admin'])
+      .eq('is_active', true)
+      .order('name'),
+  ]);
 
-  const { data: partners } = await supabase
-    .from('members')
-    .select('id, name, slug, color_hex, avatar_url')
-    .in('role', ['member', 'admin'])
-    .eq('is_active', true)
-    .order('name');
+  if (reqRes.error) console.error('[meetings/page] requests query failed', reqRes.error);
+  if (partnersRes.error) console.error('[meetings/page] partners query failed', partnersRes.error);
 
   return (
     <MeetingsListClient
       member={member}
-      requests={requests ?? []}
-      partners={partners ?? []}
+      requests={reqRes.data ?? []}
+      partners={partnersRes.data ?? []}
+      hasLoadError={!!(reqRes.error || partnersRes.error)}
     />
   );
 }

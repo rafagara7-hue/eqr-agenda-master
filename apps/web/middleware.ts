@@ -83,11 +83,15 @@ async function getMemberRole(
   supabase: ReturnType<typeof createServerClient>,
   userId: string
 ): Promise<string> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('members')
     .select('role')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+  // PGRST116 (no rows) é normal pra users sem member row; outros erros viram log.
+  if (error && error.code !== 'PGRST116') {
+    console.error('[middleware.getMemberRole]', { userId, code: error.code, message: error.message });
+  }
   const m = data as { role: string } | null;
   return m?.role ?? 'member';
 }
