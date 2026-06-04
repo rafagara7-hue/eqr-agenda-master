@@ -96,11 +96,12 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           'border-surface-border'
         )}
       >
-        <div className="flex items-center gap-2.5 flex-shrink-0">
+        {/* Logo + "Agenda" escondidos no mobile (libera espaço pra nav itens) */}
+        <div className="hidden sm:flex items-center gap-2.5 flex-shrink-0">
           <EqrLogo blend className={cn('rounded-full ring-2 ring-accent', isTop ? 'w-10 h-10' : 'w-7 h-7')} />
           <span
             className={cn(
-              'text-text-primary font-semibold hidden sm:block',
+              'text-text-primary font-semibold',
               isTop ? 'text-base' : 'text-sm'
             )}
           >
@@ -123,7 +124,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                       ? 'gap-2 px-3.5 py-2.5 text-[15px] font-medium'
                       : 'gap-1.5 px-2.5 py-1.5 text-sm',
                     isActive
-                      ? 'bg-accent/15 text-accent ring-1 ring-accent/25'
+                      ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/25'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
                   )}
                 >
@@ -167,14 +168,14 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           <div
             className={cn(
               'flex items-center flex-shrink-0 border-l border-surface-border',
-              isTop ? 'gap-2 sm:gap-2.5 pl-3 sm:pl-4' : 'gap-1.5 sm:gap-2 pl-2 sm:pl-3'
+              isTop ? 'gap-1.5 sm:gap-2.5 pl-2 sm:pl-4' : 'gap-1.5 sm:gap-2 pl-2 sm:pl-3'
             )}
           >
             <Link
               href={{ pathname, query: { profile: member.id } }}
               className={cn(
-                'flex items-center rounded-lg hover:bg-surface-overlay/60 transition-colors',
-                isTop ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
+                'flex items-center rounded-lg hover:bg-surface-overlay/60 transition-colors min-h-[40px] justify-center sm:justify-start',
+                isTop ? 'gap-2 sm:gap-2.5 sm:px-1' : 'gap-1.5 sm:gap-2'
               )}
               title={t('nav.profile')}
             >
@@ -193,12 +194,13 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
             <button
               onClick={() => void signOut()}
               className={cn(
-                'rounded-md hover:bg-surface-overlay transition-colors',
-                isTop ? 'p-2' : 'p-1.5'
+                'rounded-md hover:bg-surface-overlay transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center',
+                isTop ? 'p-1.5 sm:p-2' : 'p-1.5'
               )}
               title={t('nav.signOut')}
+              aria-label={t('nav.signOut')}
             >
-              <LogOut className={cn('text-text-muted', isTop ? 'w-[18px] h-[18px]' : 'w-3.5 h-3.5')} />
+              <LogOut className={cn('text-text-muted', isTop ? 'w-4 h-4 sm:w-[18px] sm:h-[18px]' : 'w-3.5 h-3.5')} />
             </button>
           </div>
         )}

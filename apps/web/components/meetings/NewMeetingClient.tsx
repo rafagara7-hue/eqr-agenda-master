@@ -188,7 +188,7 @@ export function NewMeetingClient({
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-3xl mx-auto">
-        <Link href={backHref} className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4">
+        <Link href={backHref} className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4 px-2 py-2 -mx-2 min-h-[40px] rounded-md hover:bg-surface-overlay">
           <ChevronLeft className="w-4 h-4" />
           Voltar
         </Link>

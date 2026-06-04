@@ -178,14 +178,14 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
           <select
             value={filter}
             onChange={(e) => { const v = e.target.value; if (isFilter(v)) setFilter(v); }}
-            className="bg-surface-base border border-surface-border rounded-md px-3 py-2 text-text-secondary text-xs focus:outline-none focus:border-accent"
+            className="bg-surface-base border border-surface-border rounded-md px-3 py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent min-h-[40px]"
           >
             {FILTERS.map((f) => <option key={f} value={f}>Status: {FILTER_LABEL[f]}</option>)}
           </select>
           <select
             value={partnerFilter}
             onChange={(e) => setPartnerFilter(e.target.value)}
-            className="bg-surface-base border border-surface-border rounded-md px-3 py-2 text-text-secondary text-xs focus:outline-none focus:border-accent"
+            className="bg-surface-base border border-surface-border rounded-md px-3 py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent min-h-[40px]"
           >
             <option value="all">Sócio: Todos</option>
             {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -244,7 +244,7 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
                           <p className="text-text-primary font-medium text-sm group-hover:text-accent transition-colors">
                             {r.title}
                           </p>
-                          <p className="text-text-muted text-xs mt-0.5">
+                          <p className="text-text-muted text-xs mt-0.5 break-words">
                             <span className="text-text-secondary">{requester?.name ?? '?'}</span>
                             {' → '}
                             <span className="text-text-secondary">{partner?.name ?? '?'}</span>
@@ -255,7 +255,7 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
                             {meetingTimeAgo(r.created_at)}
                           </p>
                           {r.decision_reason && (
-                            <p className="text-danger text-xs mt-1">"{r.decision_reason}"</p>
+                            <p className="text-danger text-xs mt-1 break-words">"{r.decision_reason}"</p>
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-1">

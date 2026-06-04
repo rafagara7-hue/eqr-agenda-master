@@ -57,10 +57,14 @@ export function TopBar({
     : pos === 'left'
     ? 'md:pl-14'
     : 'md:pr-14';
+  // Quando a sidebar fica no topo (top mode), TopBar do calendario tem que
+  // sticky abaixo dela (68px) — senao fica oculto sob o z-20 da Sidebar ao rolar.
+  const stickyTop = pos === 'top' ? 'top-[68px]' : pos === 'bottom' ? 'top-0' : 'top-0';
 
   return (
     <header className={cn(
-      'relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky top-0 z-10',
+      'relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky z-10',
+      stickyTop,
       edgePadding
     )}>
       {/* Hairline dourado sob o cabeçalho — detalhe EQR */}
