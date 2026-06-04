@@ -63,6 +63,9 @@ export function PublicBookingForm({ partners }: Props) {
   const [observacoes, setObservacoes] = useState('');
   const [start, setStart] = useState(defaultDateTime());
   const [duration, setDuration] = useState(60);
+  const [consent, setConsent] = useState(false);
+  // Honeypot: campo invisivel — bots tendem a preencher campos com name='website'
+  const [website, setWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [doneId, setDoneId] = useState<string | null>(null);
 
@@ -131,6 +134,7 @@ export function PublicBookingForm({ partners }: Props) {
     && phoneDigits.length >= 8
     && assunto.trim().length >= 3
     && !!start
+    && consent
     && !hasConflict
     && !checkingAvail;
 
@@ -160,6 +164,7 @@ export function PublicBookingForm({ partners }: Props) {
           proposedEnd: endIso,
           description: undefined,
           observations: observacoes.trim() || undefined,
+          website: website, // honeypot — vazio em humanos
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -215,6 +220,20 @@ export function PublicBookingForm({ partners }: Props) {
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="bg-surface-elevated border border-surface-border rounded-xl p-5 space-y-5">
+          {/* Honeypot field — invisivel pra humanos, bots tendem a preencher */}
+          <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+            <label htmlFor="website">Website (não preencha)</label>
+            <input
+              id="website"
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
+
           {/* Membro */}
           <div>
             <label className="block text-text-secondary text-xs uppercase tracking-wider font-medium mb-2">
@@ -379,6 +398,35 @@ export function PublicBookingForm({ partners }: Props) {
               rows={3}
               className="w-full px-3 py-2.5 bg-surface-base border border-surface-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent resize-y"
             />
+          </div>
+
+          {/* LGPD: aviso + consentimento explicito */}
+          <div className="pt-3 border-t border-surface-border space-y-3">
+            <div className="px-3 py-2.5 rounded-lg bg-surface-overlay border border-surface-border text-text-secondary text-xs leading-relaxed">
+              <p className="mb-1.5">
+                <strong className="text-text-primary">Privacidade:</strong> seu nome e telefone
+                serão usados apenas para o sócio entrar em contato sobre esta solicitação de reunião.
+              </p>
+              <p className="text-text-muted">
+                Base legal: execução de procedimento preliminar a contrato (Art. 7º, V, LGPD).
+                Você pode solicitar a exclusão a qualquer momento via{' '}
+                <a href="mailto:privacidade@eqrholding.com.br" className="text-accent hover:underline">
+                  privacidade@eqrholding.com.br
+                </a>.
+              </p>
+            </div>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-surface-border bg-surface-base text-accent focus:ring-accent focus:ring-offset-0"
+                required
+              />
+              <span className="text-text-secondary text-xs">
+                Concordo com o uso do meu nome e telefone para o sócio entrar em contato sobre esta solicitação. <span className="text-accent">*</span>
+              </span>
+            </label>
           </div>
 
           {/* Submit */}

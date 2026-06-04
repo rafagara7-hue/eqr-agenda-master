@@ -1,9 +1,14 @@
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { PublicBookingForm } from '@/components/public/PublicBookingForm';
 
+// Cache da lista de socios por 5min (mudanca rara) — alivia carga no SSR.
+export const revalidate = 300;
+
 export const metadata = {
   title: 'Solicitar reunião — EQR',
   description: 'Solicite uma reunião com um sócio EQR Holding.',
+  // Nao indexar em buscadores ate ter rate-limit/captcha mais robusto + LGPD revisado.
+  robots: { index: false, follow: false },
 };
 
 interface PartnerFields {

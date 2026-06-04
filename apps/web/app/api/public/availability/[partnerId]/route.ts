@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * GET /api/public/availability/[partnerId]?from=ISO&to=ISO
@@ -7,8 +8,20 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
  * Endpoint PUBLICO usado pelo form /agendar para conflict check pre-submit.
  * Chama public_get_partner_availability SECURITY DEFINER que retorna apenas
  * (start_at, end_at) — sem titulos, sem IDs (privacidade).
+ *
+ * Rate-limit 60 req/min/IP pra evitar scrape em massa da agenda EQR.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ partnerId: string }> }) {
+  // Rate-limit por IP
+  const ip = getClientIp(req);
+  const rl = rateLimit(`avail:${ip}`, 60, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Muitas consultas. Aguarde alguns segundos.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
   const { partnerId } = await params;
   const url = new URL(req.url);
   const from = url.searchParams.get('from');

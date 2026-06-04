@@ -23,34 +23,46 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // ATENÇÃO: não chamar getSession() — usar getUser() para validação server-side
-  const { data: { user } } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
+  // Rotas públicas — boundary checks (evita bypass via /agendarXxx ou /loginYyy).
+  // /api/public/* eh excluido do matcher, mas mantemos no isPublicPath
+  // pra defesa-em-profundidade caso o matcher mude.
+  const isPublicPath =
+    pathname === '/login'
+    || pathname.startsWith('/login/')
+    || pathname.startsWith('/auth/')
+    || pathname === '/agendar'
+    || pathname.startsWith('/agendar/')
+    || pathname === '/privacidade'
+    || pathname.startsWith('/privacidade/')
+    || pathname.startsWith('/api/public/');
+
+  // Nao precisamos getUser() pra rotas publicas — evita chamada ao GoTrue
+  if (isPublicPath) {
+    return supabaseResponse;
+  }
+
+  // ATENÇÃO: getUser() valida server-side; nao usar getSession()
+  const { data: { user } } = await supabase.auth.getUser();
+
   // Redireciona usuários não autenticados para login
-  const isPublicPath = pathname.startsWith('/login') || pathname.startsWith('/auth');
-  if (!user && !isPublicPath) {
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
   // Usuário logado tentando acessar /login → redireciona ao dashboard
-  if (user && pathname === '/login') {
+  if (pathname === '/login') {
     const url = request.nextUrl.clone();
-    // Determina destino baseado no role
     const role = await getMemberRole(supabase, user.id);
     url.pathname = role === 'admin' ? '/admin' : '/calendar';
     return NextResponse.redirect(url);
   }
 
   // Protege rotas /admin/* para não-admins. Exceções:
-  // - /admin/settings: acessível a todos
-  // - /admin/members/[id]: acessível a todos; a página valida se o member pode ver aquele id específico
-  //   (admin vê todos; member só vê o próprio perfil — redireciona dentro da page.tsx)
-  if (user && pathname.startsWith('/admin')) {
-    // /admin/members (lista) continua admin-only; /admin/members/[id] libera (member só vê o próprio)
+  if (pathname.startsWith('/admin')) {
     const isAllowedForMember = pathname === '/admin/settings' || /^\/admin\/members\/[^/]+$/.test(pathname);
     if (!isAllowedForMember) {
       const role = await getMemberRole(supabase, user.id);
@@ -62,11 +74,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Injeta member_id no header para uso nas API routes
-  if (user) {
-    supabaseResponse.headers.set('x-user-id', user.id);
-  }
-
+  // Injeta member_id no header SO em rotas autenticadas (nao em /agendar etc)
+  supabaseResponse.headers.set('x-user-id', user.id);
   return supabaseResponse;
 }
 
@@ -85,10 +94,11 @@ async function getMemberRole(
 
 export const config = {
   matcher: [
-    // Exclui assets, rotas publicas e endpoints autenticados por outros mecanismos:
+    // Exclui assets, rotas publicas auto-contidas, e endpoints autenticados por outros mecanismos:
     // - api/health: healthcheck publico
-    // - api/cron/*: Vercel Cron valida via CRON_SECRET Bearer no proprio handler
-    // - api/webhooks/*: validados via HMAC signature no handler
-    '/((?!_next/static|_next/image|favicon.ico|api/health|api/cron|api/webhooks).*)',
+    // - api/cron/*: Vercel Cron valida via CRON_SECRET Bearer
+    // - api/webhooks/*: validados via HMAC signature
+    // - api/public/*: auto-contidos via SECURITY DEFINER + zod + rate-limit
+    '/((?!_next/static|_next/image|favicon.ico|api/health|api/cron|api/webhooks|api/public).*)',
   ],
 };
