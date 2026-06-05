@@ -44,6 +44,15 @@ interface Request {
   created_at: string;
   reviewed_at: string | null;
   decision_reason: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+function getExternalContact(r: Request): { name: string; phone: string } | null {
+  const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
+  if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
+    return { name: ext.name, phone: ext.phone };
+  }
+  return null;
 }
 
 interface Props {
