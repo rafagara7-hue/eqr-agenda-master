@@ -243,6 +243,8 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      <CalendarConnectBanner />
+
       <TopBar
         currentDate={currentDate}
         view={view}
@@ -251,8 +253,6 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         onOpenMobileFilters={() => setMobileFiltersOpen(true)}
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
-
-      <CalendarConnectBanner />
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
