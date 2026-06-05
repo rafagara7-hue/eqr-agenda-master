@@ -100,6 +100,15 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     };
   }, [router]);
 
+  // Polling de fallback: focus/visibility nao cobre admin parado na aba
+  // assistindo a fila. 20s + skip quando hidden — mesmo padrao do partner.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const filtered = useMemo(() => {
     return requests.filter((r) => {
       if (filter !== 'all' && r.status !== filter) return false;

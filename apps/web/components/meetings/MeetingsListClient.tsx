@@ -69,6 +69,15 @@ export function MeetingsListClient({ requests, partners }: Props) {
     };
   }, [router]);
 
+  // Polling de fallback (mesmo padrao do Partner/Admin client) — funcionario
+  // parado na aba ve quando o socio aprovou/rejeitou sem precisar trocar foco.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const stats = useMemo(() => ({
     pending: requests.filter((r) => r.status === 'pending').length,
     review: requests.filter((r) => r.status === 'in_review').length,
