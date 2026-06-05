@@ -115,6 +115,18 @@ export function PartnerMeetingsClient({
     };
   }, [router]);
 
+  // Polling de fallback: PR #27 (focus/visibility) NAO cobre o cenario real
+  // — usuaria fica passiva na aba focada esperando ver pedidos novos sem
+  // trocar de aba. Sem este interval, ela so descobre clicando Atualizar
+  // ou dando F5. 20s eh suficiente pra "tempo real percebido" sem custo.
+  // Pula quando a aba esta oculta (poupa requests + bateria).
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const upcomingThisWeek = useMemo(() => {
     const now = new Date();
     const weekFromNow = new Date(); weekFromNow.setDate(now.getDate() + 7);
