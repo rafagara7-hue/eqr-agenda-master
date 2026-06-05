@@ -260,7 +260,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
               activeMemberIds.length === 0
                 ? 'bg-accent/15 border-accent/40 text-accent scale-105'
-                : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
+                : 'border-surface-border text-text-secondary hover:border-accent/40 hover:text-text-primary'
             }`}
           >
             {t('common.all')}
@@ -278,7 +278,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
                   isActive
                     ? 'text-white border-transparent scale-105'
-                    : `border-surface-border text-text-muted ${hasSelection ? 'opacity-50' : 'opacity-90'} hover:opacity-100 hover:text-text-secondary`
+                    : `border-surface-border ${hasSelection ? 'text-text-muted' : 'text-text-secondary'} hover:border-surface-muted hover:text-text-primary`
                 }`}
                 style={isActive ? { backgroundColor: m.colorHex, borderColor: m.colorHex } : {}}
               >
@@ -303,7 +303,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
             !activeFilter
               ? 'bg-accent/15 border-accent/40 text-accent scale-105'
-              : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
+              : 'border-surface-border text-text-secondary hover:border-accent/40 hover:text-text-primary'
           }`}
         >
           {t('common.all')}
@@ -315,14 +315,14 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               key={f.key}
               onClick={() => setActiveFilter(isActive ? undefined : f.key)}
               aria-pressed={isActive}
-              className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+              className={`shrink-0 min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                 isActive
                   ? 'text-white border-transparent scale-105'
-                  : 'border-surface-border text-text-muted opacity-90 hover:opacity-100 hover:text-text-secondary'
+                  : 'border-surface-border text-text-secondary hover:border-surface-muted hover:text-text-primary'
               }`}
               style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor, opacity: isActive ? 0.9 : 1 }} />
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor }} />
               {t(f.labelKey)}
             </button>
           );
