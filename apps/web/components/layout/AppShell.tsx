@@ -8,7 +8,6 @@ import { Sidebar } from './Sidebar';
 import { BrandBackground } from './BrandBackground';
 import { CommandPalette } from './CommandPalette';
 import { MemberProfilePanel } from './MemberProfilePanel';
-import { CalendarConnectBanner } from '@/components/shared/CalendarConnectBanner';
 import { PresenceProvider } from '@/contexts/PresenceContext';
 import { AgendaSettingsProvider, useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { useTranslation } from '@/lib/i18n';
@@ -162,7 +161,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       )}
 
       <main className={`relative z-10 flex-1 flex flex-col min-h-screen ${mainClass}`}>
-        <CalendarConnectBanner />
         {children}
       </main>
       <CommandPalette />
