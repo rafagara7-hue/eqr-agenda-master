@@ -13,7 +13,7 @@ import { useDeleteEvent } from '@/hooks/useEventMutations';
 import { EventSidePanel } from '@/components/events/EventSidePanel';
 import { useAuth } from '@/hooks/useAuth';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from '@/lib/calendar/dateUtils';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, isSameDay } from '@/lib/calendar/dateUtils';
 import type { CalendarEvent } from '@eqr/domain';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { BottomSheet } from '@/components/shared/BottomSheet';
@@ -102,6 +102,19 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
     return () => clearInterval(id);
   }, [queryClient]);
 
+  // Bug #7: ao voltar pra aba (ou se a aba ficou aberta passando da meia-noite),
+  // ressincroniza currentDate para o dia de hoje — senao o header de 'hoje' e o
+  // NowLine ficam congelados no dia em que o componente foi montado.
+  useEffect(() => {
+    function onVis() {
+      if (document.visibilityState !== 'visible') return;
+      const now = new Date();
+      setCurrentDate((prev) => (isSameDay(now, prev) ? prev : now));
+    }
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
   const { isAdmin, member } = useAuth();
   const supabase = getSupabaseBrowserClient();
   const deleteEvent = useDeleteEvent();
@@ -123,7 +136,10 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         avatarUrl: m.avatar_url,
       }));
     },
-    enabled: isAdmin,
+    // Bug #6: non-admins tambem precisam dessa lista (apenas para colorir EventCards
+    // por dono — chips de filtro continuam admin-only via gate visual abaixo).
+    // RLS members_select_authenticated (migration 0012) ja permite o SELECT.
+    enabled: !!member,
     staleTime: 5 * 60_000,
   });
 
@@ -147,18 +163,37 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
   }, [events, memberOptions]);
 
   const conflictEventIds = useMemo(() => {
-    const counts: Record<string, number> = {};
+    // Bug #4: dois eventos conflitam se compartilham QUALQUER participante (inclui
+    // owner + participant cross-member). Antes so checava memberId, perdendo o caso
+    // 'sou owner de A e participant de B no mesmo horario'.
+    const result = new Set<string>();
     events.forEach((a) => {
+      const aPart = new Set(a.participantIds ?? [a.memberId]);
       events.forEach((b) => {
-        if (a.id !== b.id && a.memberId === b.memberId) {
-          if (a.startAt < b.endAt && a.endAt > b.startAt) {
-            counts[a.id] = (counts[a.id] ?? 0) + 1;
-          }
+        if (a.id === b.id) return;
+        if (!(a.startAt < b.endAt && a.endAt > b.startAt)) return;
+        const bPart = b.participantIds ?? [b.memberId];
+        for (const id of bPart) {
+          if (aPart.has(id)) { result.add(a.id); result.add(b.id); break; }
         }
       });
     });
-    return new Set(Object.keys(counts));
+    return result;
   }, [events]);
+
+  // Bug #1: contagem de eventos ocultados pelo filtro de horario visivel.
+  // Quando > 0, exibimos um CTA inline ao lado do toggle para o usuario nao
+  // achar que a tela esta vazia por erro do sistema.
+  const hiddenByHourFilter = useMemo(() => {
+    if (!showFilteredHours) return 0;
+    let hidden = 0;
+    for (const e of events) {
+      const sH = e.startAt.getHours() + e.startAt.getMinutes() / 60;
+      const eH = e.endAt.getHours() + e.endAt.getMinutes() / 60;
+      if (!(eH > settings.workStart && sH < settings.workEnd)) hidden++;
+    }
+    return hidden;
+  }, [events, settings.workStart, settings.workEnd, showFilteredHours]);
 
   const eventsToShow = useMemo(() => {
     if (activeFilter === 'conflicts') return events.filter((e) => conflictEventIds.has(e.id));
@@ -320,6 +355,16 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               {t('calendar.filters.fullDay')}
             </button>
           </div>
+          {/* Bug #1 — desktop: CTA inline quando ha eventos ocultos pelo filtro de horario */}
+          {hiddenByHourFilter > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowFilteredHours(false)}
+              className="text-warning text-xs underline hover:no-underline shrink-0"
+            >
+              +{hiddenByHourFilter} fora desta faixa — ver dia todo
+            </button>
+          )}
         </div>
       )}
 
@@ -357,6 +402,16 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                   {t('calendar.filters.fullDayRange')}
                 </button>
               </div>
+              {/* Bug #1 — mobile: aviso dentro do BottomSheet quando ha eventos fora da faixa */}
+              {hiddenByHourFilter > 0 && showFilteredHours && (
+                <button
+                  type="button"
+                  onClick={() => { setShowFilteredHours(false); setMobileFiltersOpen(false); }}
+                  className="mt-2 w-full text-warning text-xs underline hover:no-underline text-left"
+                >
+                  +{hiddenByHourFilter} fora desta faixa — ver dia todo
+                </button>
+              )}
             </section>
           )}
 

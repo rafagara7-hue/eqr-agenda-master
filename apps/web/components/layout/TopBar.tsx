@@ -153,7 +153,7 @@ export function TopBar({
         type="button"
         onClick={handleRefresh}
         disabled={refreshing}
-        className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0"
+        className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center flex-shrink-0"
         title="Atualizar"
         aria-label="Atualizar"
       >

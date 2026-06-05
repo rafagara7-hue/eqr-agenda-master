@@ -89,7 +89,8 @@ export function WeekView({
         */}
         <div className="w-full sm:w-auto sm:min-w-[420px]">
           {/* Cabeçalho dos dias — sticky within scroll container */}
-          <div className="flex border-b border-surface-border bg-surface-elevated z-10 sticky top-0">
+          {/* Bug #8: z-20 para ficar acima dos EventCards (que sao position:absolute sem z-index proprio e venceriam a corrida do DOM em empate de z) */}
+          <div className="flex border-b border-surface-border bg-surface-elevated z-20 sticky top-0">
             <div className="w-10 sm:w-14 flex-shrink-0" />
             {days.map((day) => {
               const today = isToday(day);
@@ -120,7 +121,8 @@ export function WeekView({
           {/* Grade de horas */}
           <div className="flex" style={{ height: `${totalHeight}px` }}>
             {/* Coluna de horas — sticky left within scroll container */}
-            <div className="w-10 sm:w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-10 overflow-hidden">
+            {/* Bug #8: z-20 pelos mesmos motivos do header sticky acima */}
+            <div className="w-10 sm:w-14 flex-shrink-0 sticky left-0 bg-surface-elevated z-20 overflow-hidden">
               {visibleHours.map((hour) => (
                 <div
                   key={hour}
