@@ -20,6 +20,9 @@ type UpcomingApprovedFields = Pick<RequestRow,
   'proposed_start' | 'proposed_end' | 'suggested_start' | 'suggested_end' |
   'decision_reason' | 'metadata'
 >;
+type RecentDecisionFields = Pick<RequestRow,
+  'id' | 'title' | 'requester_id' | 'proposed_start' | 'status' | 'reviewed_at' | 'decision_reason'
+>;
 type MemberFields = Pick<MemberRow, 'id' | 'name' | 'slug' | 'color_hex' | 'avatar_url' | 'role'>;
 
 export default async function PartnerMeetingsPage() {
@@ -39,8 +42,10 @@ export default async function PartnerMeetingsPage() {
   if (member.role === 'employee') redirect('/meetings');
 
   const nowIso = new Date().toISOString();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [pendingRes, outgoingRes, upcomingRes] = await Promise.all([
+  const [pendingRes, outgoingRes, upcomingRes, historyRes] = await Promise.all([
     // INCOMING: requests targeting o sócio logado
     supabase
       .from('meeting_requests')
@@ -64,22 +69,34 @@ export default async function PartnerMeetingsPage() {
       .gte('proposed_start', nowIso)
       .order('proposed_start', { ascending: true })
       .limit(20),
+    // HISTORY: decisoes (approved + rejected) ultimos 30 dias como target. Visivel via botao "Historico".
+    supabase
+      .from('meeting_requests')
+      .select('id, title, requester_id, proposed_start, status, reviewed_at, decision_reason')
+      .eq('target_partner_id', member.id)
+      .in('status', ['approved', 'rejected'])
+      .gte('reviewed_at', thirtyDaysAgo.toISOString())
+      .order('reviewed_at', { ascending: false })
+      .limit(20),
   ]);
 
-  const hasLoadError = !!(pendingRes.error || outgoingRes.error || upcomingRes.error);
+  const hasLoadError = !!(pendingRes.error || outgoingRes.error || upcomingRes.error || historyRes.error);
   if (pendingRes.error)  console.error('[partner/meetings] pending query failed', pendingRes.error);
   if (outgoingRes.error) console.error('[partner/meetings] outgoing query failed', outgoingRes.error);
   if (upcomingRes.error) console.error('[partner/meetings] upcoming query failed', upcomingRes.error);
+  if (historyRes.error)  console.error('[partner/meetings] history query failed', historyRes.error);
 
   const pendingRequests = (pendingRes.data ?? []) as PendingFields[];
   const outgoingRequests = (outgoingRes.data ?? []) as PendingFields[];
   const upcomingApproved = (upcomingRes.data ?? []) as UpcomingApprovedFields[];
+  const recentDecisions = (historyRes.data ?? []) as RecentDecisionFields[];
 
   // Resolver nomes — busca todos members envolvidos
   const memberIds = Array.from(new Set([
     ...pendingRequests.map((r) => r.requester_id),
     ...outgoingRequests.map((r) => r.target_partner_id),
     ...upcomingApproved.flatMap((r) => [r.requester_id, r.target_partner_id]),
+    ...recentDecisions.map((r) => r.requester_id),
   ]));
   const { data: rawMembers, error: reqErr } = memberIds.length > 0
     ? await supabase
@@ -95,6 +112,7 @@ export default async function PartnerMeetingsPage() {
       pendingRequests={pendingRequests as Array<PendingFields & { status: 'pending' | 'in_review'; priority: 'low' | 'normal' | 'high' | 'urgent' }>}
       outgoingRequests={outgoingRequests as Array<PendingFields & { status: 'pending' | 'in_review'; priority: 'low' | 'normal' | 'high' | 'urgent' }>}
       upcomingApproved={upcomingApproved}
+      recentDecisions={recentDecisions as Array<RecentDecisionFields & { status: 'approved' | 'rejected'; reviewed_at: string }>}
       members={(rawMembers ?? []) as MemberFields[]}
       hasLoadError={hasLoadError}
     />

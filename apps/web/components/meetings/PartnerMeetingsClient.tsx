@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Loader2, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Send, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -75,11 +75,22 @@ interface UpcomingApprovedRequest {
   metadata: Record<string, unknown> | null;
 }
 
+interface RecentDecision {
+  id: string;
+  title: string;
+  requester_id: string;
+  proposed_start: string;
+  status: 'approved' | 'rejected';
+  reviewed_at: string;
+  decision_reason: string | null;
+}
+
 interface Props {
   member: { id: string; name: string };
   pendingRequests: PendingRequest[];
   outgoingRequests: PendingRequest[];
   upcomingApproved: UpcomingApprovedRequest[];
+  recentDecisions: RecentDecision[];
   members: MemberLite[];
   hasLoadError?: boolean;
 }
@@ -87,7 +98,7 @@ interface Props {
 type BusyState = { id: string; action: DecisionAction } | null;
 
 export function PartnerMeetingsClient({
-  member, pendingRequests, outgoingRequests, upcomingApproved, members,
+  member, pendingRequests, outgoingRequests, upcomingApproved, recentDecisions, members,
 }: Props) {
   const router = useRouter();
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -95,10 +106,9 @@ export function PartnerMeetingsClient({
   const anyBusy = busy !== null;
 
   const [refreshing, setRefreshing] = useState(false);
-  const [rejectingFor, setRejectingFor] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
   const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
   const [expandedUpcoming, setExpandedUpcoming] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -176,22 +186,14 @@ export function PartnerMeetingsClient({
     }
   }
 
-  function handleReject(requestId: string) {
+  async function handleReject(requestId: string) {
     if (anyBusy) return;
-    setRejectReason('');
-    setRejectingFor(requestId);
-  }
-
-  async function submitReject(requestId: string) {
-    if (anyBusy) return;
-    const reason = rejectReason.trim();
-    if (reason.length < 1) { toast.error('Informe o motivo da recusa'); return; }
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -199,8 +201,6 @@ export function PartnerMeetingsClient({
         return;
       }
       toast.success('Solicitação rejeitada');
-      setRejectingFor(null);
-      setRejectReason('');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
@@ -311,25 +311,16 @@ export function PartnerMeetingsClient({
 
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
-                      disabled={anyBusy || rejectingFor !== null}
+                      disabled={anyBusy}
                       onApprove={() => {
                         if (confirmApproveFor === r.id) void handleApprove(r.id);
-                        else { setConfirmApproveFor(r.id); setRejectingFor(null); }
+                        else setConfirmApproveFor(r.id);
                       }}
-                      onReject={() => { handleReject(r.id); setConfirmApproveFor(null); }}
+                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
                       approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
-                    {rejectingFor === r.id && (
-                      <InlineRejectForm
-                        reason={rejectReason}
-                        onReasonChange={setRejectReason}
-                        onCancel={() => { setRejectingFor(null); setRejectReason(''); }}
-                        onSubmit={() => void submitReject(r.id)}
-                        submitting={itemBusy && busy?.action === 'reject'}
-                      />
-                    )}
                   </motion.div>
                 );
               })}
@@ -404,25 +395,16 @@ export function PartnerMeetingsClient({
 
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
-                      disabled={anyBusy || rejectingFor !== null}
+                      disabled={anyBusy}
                       onApprove={() => {
                         if (confirmApproveFor === r.id) void handleApprove(r.id);
-                        else { setConfirmApproveFor(r.id); setRejectingFor(null); }
+                        else setConfirmApproveFor(r.id);
                       }}
-                      onReject={() => { handleReject(r.id); setConfirmApproveFor(null); }}
+                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
                       approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
-                    {rejectingFor === r.id && (
-                      <InlineRejectForm
-                        reason={rejectReason}
-                        onReasonChange={setRejectReason}
-                        onCancel={() => { setRejectingFor(null); setRejectReason(''); }}
-                        onSubmit={() => void submitReject(r.id)}
-                        submitting={itemBusy && busy?.action === 'reject'}
-                      />
-                    )}
                   </motion.div>
                 );
               })}
@@ -526,6 +508,18 @@ export function PartnerMeetingsClient({
                           {counterpartLabel} <span className="text-text-secondary">{counterpart?.name ?? '?'}</span>
                         </p>
                       </div>
+                      {counterpart && (
+                        <div
+                          className="flex-shrink-0"
+                          title={`${counterpartLabel}: ${counterpart.name}`}
+                          aria-label={`${counterpartLabel}: ${counterpart.name}`}
+                        >
+                          <MemberAvatar
+                            member={{ name: counterpart.name, colorHex: counterpart.color_hex, avatarUrl: counterpart.avatar_url }}
+                            size="sm"
+                          />
+                        </div>
+                      )}
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-text-muted flex-shrink-0" />
                       ) : (
@@ -584,59 +578,71 @@ export function PartnerMeetingsClient({
             </ul>
           )}
         </div>
+
+        {/* Historico — colapsado por padrao, abre ao clicar no botao */}
+        {recentDecisions.length > 0 && (
+          <div className="mt-5 bg-surface-elevated border border-surface-border rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="w-full px-5 py-3 flex items-center hover:bg-surface-overlay transition-colors"
+              aria-expanded={showHistory}
+            >
+              <History className="w-3.5 h-3.5 text-text-muted mr-2" />
+              <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
+                Histórico
+              </span>
+              <span className="text-text-muted font-semibold ml-2 text-xs">
+                ({recentDecisions.length})
+              </span>
+              <span className="text-text-muted text-[11px] ml-2 normal-case tracking-normal">
+                últimos 30 dias
+              </span>
+              <span className="ml-auto">
+                {showHistory ? (
+                  <ChevronUp className="w-4 h-4 text-text-muted" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-text-muted" />
+                )}
+              </span>
+            </button>
+
+            {showHistory && (
+              <motion.ul
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="divide-y divide-surface-border text-sm border-t border-surface-border"
+              >
+                {recentDecisions.map((d) => {
+                  const requester = memberById.get(d.requester_id);
+                  return (
+                    <li key={d.id}>
+                      <Link
+                        href={`/meetings/${d.id}`}
+                        className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface-overlay transition-colors"
+                      >
+                        {d.status === 'approved' ? (
+                          <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-danger flex-shrink-0" />
+                        )}
+                        <span className="text-text-primary text-xs flex-1 truncate">
+                          {d.title}
+                          <span className="text-text-muted"> · {requester?.name ?? '?'}</span>
+                        </span>
+                        <span className="text-text-muted text-[11px]">
+                          {meetingTimeAgo(d.reviewed_at)}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </motion.ul>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function InlineRejectForm({
-  reason, onReasonChange, onCancel, onSubmit, submitting,
-}: {
-  reason: string;
-  onReasonChange: (v: string) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
-  submitting: boolean;
-}) {
-  return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
-      className="mt-3 p-4 rounded-lg border border-danger/30 bg-danger/5 space-y-3"
-    >
-      <div className="flex items-center gap-2">
-        <XCircle className="w-3.5 h-3.5 text-danger" />
-        <p className="text-danger text-xs uppercase tracking-wider font-medium">
-          Motivo da recusa
-        </p>
-      </div>
-      <textarea
-        autoFocus
-        value={reason}
-        onChange={(e) => onReasonChange(e.target.value)}
-        placeholder="Visível ao solicitante. Ex: conflito de agenda…"
-        required
-        maxLength={2000}
-        rows={3}
-        className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-danger resize-y"
-      />
-      <div className="flex gap-2 justify-end pt-1">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={submitting}
-          className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[36px]"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={submitting || reason.trim().length < 1}
-          className="text-xs font-medium px-3 py-1.5 rounded-md bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[36px]"
-        >
-          {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          Enviar recusa
-        </button>
-      </div>
-    </form>
-  );
-}
