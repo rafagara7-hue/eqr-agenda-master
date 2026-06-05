@@ -23,6 +23,7 @@ export default async function MembersPage() {
       .from('members')
       .select('id, name, slug, color_hex, avatar_url, role, is_active, calendar_linked, phone')
       .eq('is_active', true)
+      .neq('slug', 'external')
       .order('name'),
     // Só busca estatísticas se for admin (members não veem dos outros)
     isAdmin
