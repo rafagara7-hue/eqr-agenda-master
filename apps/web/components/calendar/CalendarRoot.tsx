@@ -247,8 +247,8 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         </div>
       )}
 
-      {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado). Mobile fica dentro do BottomSheet. */}
-      <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+      {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado). Inline em todos os tamanhos. */}
+      <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
         <button
           onClick={() => setActiveFilter(undefined)}
           aria-pressed={!activeFilter}
