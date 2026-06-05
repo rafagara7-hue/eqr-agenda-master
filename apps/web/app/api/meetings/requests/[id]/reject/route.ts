@@ -4,7 +4,7 @@ import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabas
 import { MeetingRequestRepository } from '@eqr/database';
 
 const bodySchema = z.object({
-  reason: z.string().min(1).max(2000),
+  reason: z.string().max(2000).optional(),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,13 +18,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: 'reason required' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: 'invalid body' }, { status: 400 });
 
   const serviceDb = await getSupabaseServiceClient();
   const repo = new MeetingRequestRepository(serviceDb);
 
   try {
-    await repo.reject({ requestId: id, reviewerId: member.id, reason: parsed.data.reason });
+    await repo.reject({ requestId: id, reviewerId: member.id, reason: parsed.data.reason ?? '' });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const raw = err instanceof Error ? err.message : 'Erro ao rejeitar';

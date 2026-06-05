@@ -79,6 +79,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [partnerFilter, setPartnerFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
 
   function handleRefresh() {
     if (refreshing) return;
@@ -135,7 +136,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no calendário do sócio.')) return;
+    setConfirmApproveFor(null);
     setBusy({ id: requestId, action: 'approve' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/approve`, {
@@ -159,14 +160,12 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
 
   async function handleReject(requestId: string) {
     if (anyBusy) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -207,9 +206,9 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
           <MeetingStatCard icon={<Clock className="w-4 h-4" />}         value={stats.pending}  label="Pendentes"      tone="amber" />
           <MeetingStatCard icon={<AlertTriangle className="w-4 h-4" />} value={stats.urgent}   label="Urgentes"       tone="danger" />
-          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />}  value={stats.approved} label="Aprovadas 30d"  tone="success" />
-          <MeetingStatCard icon={<XCircle className="w-4 h-4" />}       value={stats.rejected} label="Rejeitadas 30d" tone="dim" />
-          <MeetingStatCard icon={<Calendar className="w-4 h-4" />}      value={stats.total}    label="Ativos + 30d"   tone="gold" />
+          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />}  value={stats.approved} label="Aprovadas"  tone="success" />
+          <MeetingStatCard icon={<XCircle className="w-4 h-4" />}       value={stats.rejected} label="Rejeitadas" tone="dim" />
+          <MeetingStatCard icon={<Calendar className="w-4 h-4" />}      value={stats.total}    label="Ativos"     tone="gold" />
         </div>
 
         {/* Filtros */}
@@ -309,9 +308,12 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                         <MeetingDecisionActions
                           busyAction={itemBusy ? busy?.action ?? null : null}
                           disabled={anyBusy}
-                          onApprove={() => void handleApprove(r.id)}
-                          onReject={() => void handleReject(r.id)}
-                          approveLabel="Aprovar"
+                          onApprove={() => {
+                            if (confirmApproveFor === r.id) void handleApprove(r.id);
+                            else setConfirmApproveFor(r.id);
+                          }}
+                          onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                          approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                           rejectLabel="Rejeitar"
                         />
                       </div>

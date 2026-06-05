@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  ChevronLeft, MessageCircle, History, User, Loader2, Send, Ban,
+  ChevronLeft, MessageCircle, History, User, Loader2, Send, Ban, Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@eqr/database';
@@ -71,6 +71,8 @@ export function MeetingDetailClient({
   const [suggestStart, setSuggestStart] = useState('');
   const [suggestDuration, setSuggestDuration] = useState(60);
   const [suggestMessage, setSuggestMessage] = useState('');
+  const [confirmApprove, setConfirmApprove] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     const onVisible = () => {
@@ -110,7 +112,7 @@ export function MeetingDetailClient({
 
   async function handleApprove() {
     if (busyAction !== null || cancelling) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no calendário do sócio.')) return;
+    setConfirmApprove(false);
     setBusyAction('approve');
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}/approve`, {
@@ -134,14 +136,12 @@ export function MeetingDetailClient({
 
   async function handleReject() {
     if (busyAction !== null || cancelling) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
     setBusyAction('reject');
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -195,7 +195,7 @@ export function MeetingDetailClient({
 
   async function handleCancel() {
     if (busyAction !== null || cancelling) return;
-    if (!confirm('Cancelar esta solicitação? Essa ação não pode ser desfeita.')) return;
+    setConfirmCancel(false);
     setCancelling(true);
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}`, {
@@ -316,9 +316,12 @@ export function MeetingDetailClient({
                   <MeetingDecisionActions
                     busyAction={busyAction}
                     disabled={busyAction !== null || cancelling || suggesting}
-                    onApprove={() => void handleApprove()}
+                    onApprove={() => {
+                      if (confirmApprove) void handleApprove();
+                      else setConfirmApprove(true);
+                    }}
                     onReject={() => void handleReject()}
-                    approveLabel="Aprovar"
+                    approveLabel={confirmApprove ? 'Confirmar aprovação' : 'Aprovar'}
                     rejectLabel={rejectLabel}
                   />
                   {/* Sugerir outro horario (alternativa ao Aprovar/Rejeitar) */}
@@ -419,15 +422,29 @@ export function MeetingDetailClient({
                 </>
               )}
               {canCancel && !canDecide && (
-                <button
-                  type="button"
-                  disabled={cancelling || busyAction !== null}
-                  onClick={() => void handleCancel()}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5"
-                >
-                  {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-                  Cancelar solicitação
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={cancelling || busyAction !== null}
+                    onClick={() => {
+                      if (confirmCancel) void handleCancel();
+                      else setConfirmCancel(true);
+                    }}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-md border ${confirmCancel ? 'border-danger/60 text-danger bg-danger/10' : 'border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5`}
+                  >
+                    {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                    {confirmCancel ? 'Confirmar cancelamento' : 'Cancelar solicitação'}
+                  </button>
+                  {confirmCancel && !cancelling && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmCancel(false)}
+                      className="text-xs text-text-muted hover:text-text-secondary px-2 py-1.5 min-h-[36px]"
+                    >
+                      Desistir
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
