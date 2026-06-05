@@ -34,7 +34,7 @@ INSERT INTO public.members (
 ) VALUES (
   '00000000-ee00-0000-0000-000000000001'::uuid,
   NULL,
-  'Solicitação Externa',
+  'Colaboradores',
   'external',
   'employee',
   'gray',
