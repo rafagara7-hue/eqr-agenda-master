@@ -80,7 +80,7 @@ export function CalendarConnectBanner() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="relative z-20 border-b border-accent/40 sm:border-accent/30 bg-accent/15 sm:bg-accent/5"
+            className="border-b border-accent/40 sm:border-accent/30 bg-accent/15 sm:bg-accent/5"
           >
             <div className="px-3 sm:px-4 py-2.5 flex items-center gap-3">
               <span className="inline-flex w-7 h-7 rounded-full bg-accent/15 items-center justify-center flex-shrink-0">
