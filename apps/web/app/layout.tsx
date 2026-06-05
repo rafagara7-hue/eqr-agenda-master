@@ -25,13 +25,17 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.png', type: 'image/png' },
-      { url: '/favicon.ico' },
     ],
     apple: '/logo-eqr.png',
   },
   appleWebApp: {
     statusBarStyle: 'black-translucent',
     title: 'EQR Agenda',
+  },
+  other: {
+    // Chrome 132+ deprecou apple-mobile-web-app-capable; mantemos appleWebApp
+    // (iOS Safari ainda usa) e adicionamos o equivalente moderno via `other`.
+    'mobile-web-app-capable': 'yes',
   },
 };
 
