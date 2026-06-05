@@ -96,7 +96,6 @@ export function MeetingDetailClient({
 
   const requester = memberById.get(request.requester_id);
   const partner = memberById.get(request.target_partner_id);
-  const reviewer = request.reviewer_id ? memberById.get(request.reviewer_id) : null;
 
   const isRequester = currentMember.id === request.requester_id;
   const isPartner = currentMember.id === request.target_partner_id;
@@ -271,17 +270,11 @@ export function MeetingDetailClient({
 
         {/* Card principal */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl p-5 mb-5">
-          {/* Solicitante → Sócio */}
+          {/* Solicitante → Convidado */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
             <PersonChip label="Solicitante" member={requester} />
             <span className="text-text-muted">→</span>
-            <PersonChip label="Sócio" member={partner} />
-            {reviewer && (
-              <>
-                <span className="text-text-muted hidden sm:inline">·</span>
-                <PersonChip label="Decidido por" member={reviewer} subtle />
-              </>
-            )}
+            <PersonChip label="Convidado" member={partner} />
           </div>
 
           {/* Horario */}
