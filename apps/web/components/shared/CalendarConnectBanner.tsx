@@ -80,10 +80,10 @@ export function CalendarConnectBanner() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="border-b border-accent/40 bg-accent/15 hidden sm:block"
+            className="border-b border-accent/40 sm:border-accent/30 bg-accent/15 sm:bg-accent/5"
           >
-            <div className="px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2 sm:gap-3">
-              <span className="inline-flex w-7 h-7 rounded-full bg-accent/25 items-center justify-center flex-shrink-0">
+            <div className="px-3 sm:px-4 py-2.5 flex items-center gap-3">
+              <span className="inline-flex w-7 h-7 rounded-full bg-accent/15 items-center justify-center flex-shrink-0">
                 <Link2 className="w-3.5 h-3.5 text-accent" />
               </span>
               <div className="flex-1 min-w-0">

@@ -203,7 +203,7 @@ export function MeetingDetailClient({
       <div className="max-w-3xl mx-auto">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4 px-2 py-2 -mx-2 min-h-[40px] rounded-md hover:bg-surface-overlay"
+          className="inline-flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors mb-4 px-2 py-2 -mx-2 sm:min-h-0 min-h-[44px] rounded-md hover:bg-surface-overlay"
         >
           <ChevronLeft className="w-4 h-4" />
           Voltar
