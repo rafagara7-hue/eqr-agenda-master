@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -99,6 +99,9 @@ export function PartnerMeetingsClient({
   const anyBusy = busy !== null;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [rejectingFor, setRejectingFor] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -152,7 +155,7 @@ export function PartnerMeetingsClient({
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no seu calendário.')) return;
+    setConfirmApproveFor(null);
     setBusy({ id: requestId, action: 'approve' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/approve`, {
@@ -174,16 +177,22 @@ export function PartnerMeetingsClient({
     }
   }
 
-  async function handleReject(requestId: string) {
+  function handleReject(requestId: string) {
     if (anyBusy) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
+    setRejectReason('');
+    setRejectingFor(requestId);
+  }
+
+  async function submitReject(requestId: string) {
+    if (anyBusy) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 1) { toast.error('Informe o motivo da recusa'); return; }
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({ reason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -191,6 +200,8 @@ export function PartnerMeetingsClient({
         return;
       }
       toast.success('Solicitação rejeitada');
+      setRejectingFor(null);
+      setRejectReason('');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
@@ -301,13 +312,25 @@ export function PartnerMeetingsClient({
 
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
-                      disabled={anyBusy}
-                      onApprove={() => void handleApprove(r.id)}
-                      onReject={() => void handleReject(r.id)}
-                      approveLabel="Aprovar"
+                      disabled={anyBusy || rejectingFor !== null}
+                      onApprove={() => {
+                        if (confirmApproveFor === r.id) void handleApprove(r.id);
+                        else { setConfirmApproveFor(r.id); setRejectingFor(null); }
+                      }}
+                      onReject={() => { handleReject(r.id); setConfirmApproveFor(null); }}
+                      approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
+                    {rejectingFor === r.id && (
+                      <InlineRejectForm
+                        reason={rejectReason}
+                        onReasonChange={setRejectReason}
+                        onCancel={() => { setRejectingFor(null); setRejectReason(''); }}
+                        onSubmit={() => void submitReject(r.id)}
+                        submitting={itemBusy && busy?.action === 'reject'}
+                      />
+                    )}
                   </motion.div>
                 );
               })}
@@ -382,13 +405,25 @@ export function PartnerMeetingsClient({
 
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
-                      disabled={anyBusy}
-                      onApprove={() => void handleApprove(r.id)}
-                      onReject={() => void handleReject(r.id)}
-                      approveLabel="Aprovar"
+                      disabled={anyBusy || rejectingFor !== null}
+                      onApprove={() => {
+                        if (confirmApproveFor === r.id) void handleApprove(r.id);
+                        else { setConfirmApproveFor(r.id); setRejectingFor(null); }
+                      }}
+                      onReject={() => { handleReject(r.id); setConfirmApproveFor(null); }}
+                      approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
+                    {rejectingFor === r.id && (
+                      <InlineRejectForm
+                        reason={rejectReason}
+                        onReasonChange={setRejectReason}
+                        onCancel={() => { setRejectingFor(null); setRejectReason(''); }}
+                        onSubmit={() => void submitReject(r.id)}
+                        submitting={itemBusy && busy?.action === 'reject'}
+                      />
+                    )}
                   </motion.div>
                 );
               })}
@@ -512,5 +547,57 @@ export function PartnerMeetingsClient({
         )}
       </div>
     </div>
+  );
+}
+
+function InlineRejectForm({
+  reason, onReasonChange, onCancel, onSubmit, submitting,
+}: {
+  reason: string;
+  onReasonChange: (v: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+  submitting: boolean;
+}) {
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
+      className="mt-3 p-4 rounded-lg border border-danger/30 bg-danger/5 space-y-3"
+    >
+      <div className="flex items-center gap-2">
+        <XCircle className="w-3.5 h-3.5 text-danger" />
+        <p className="text-danger text-xs uppercase tracking-wider font-medium">
+          Motivo da recusa
+        </p>
+      </div>
+      <textarea
+        autoFocus
+        value={reason}
+        onChange={(e) => onReasonChange(e.target.value)}
+        placeholder="Visível ao solicitante. Ex: conflito de agenda…"
+        required
+        maxLength={2000}
+        rows={3}
+        className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-danger resize-y"
+      />
+      <div className="flex gap-2 justify-end pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={submitting}
+          className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[36px]"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={submitting || reason.trim().length < 1}
+          className="text-xs font-medium px-3 py-1.5 rounded-md bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[36px]"
+        >
+          {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          Enviar recusa
+        </button>
+      </div>
+    </form>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  ChevronLeft, MessageCircle, History, User, Loader2, Send, Ban,
+  ChevronLeft, MessageCircle, History, User, Loader2, Send, Ban, Calendar, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@eqr/database';
@@ -71,6 +71,11 @@ export function MeetingDetailClient({
   const [suggestStart, setSuggestStart] = useState('');
   const [suggestDuration, setSuggestDuration] = useState(60);
   const [suggestMessage, setSuggestMessage] = useState('');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [confirmApprove, setConfirmApprove] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     const onVisible = () => {
@@ -110,7 +115,7 @@ export function MeetingDetailClient({
 
   async function handleApprove() {
     if (busyAction !== null || cancelling) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no calendário do sócio.')) return;
+    setConfirmApprove(false);
     setBusyAction('approve');
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}/approve`, {
@@ -132,16 +137,23 @@ export function MeetingDetailClient({
     }
   }
 
-  async function handleReject() {
+  function handleReject() {
     if (busyAction !== null || cancelling) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
+    setShowRejectForm(true);
+  }
+
+  async function handleRejectSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (rejecting || busyAction !== null) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 1) { toast.error('Informe o motivo da rejeição'); return; }
+    setRejecting(true);
     setBusyAction('reject');
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({ reason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -149,10 +161,13 @@ export function MeetingDetailClient({
         return;
       }
       toast.success('Solicitação rejeitada');
+      setShowRejectForm(false);
+      setRejectReason('');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
     } finally {
+      setRejecting(false);
       setBusyAction(null);
     }
   }
@@ -195,7 +210,7 @@ export function MeetingDetailClient({
 
   async function handleCancel() {
     if (busyAction !== null || cancelling) return;
-    if (!confirm('Cancelar esta solicitação? Essa ação não pode ser desfeita.')) return;
+    setConfirmCancel(false);
     setCancelling(true);
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}`, {
@@ -315,12 +330,59 @@ export function MeetingDetailClient({
                 <>
                   <MeetingDecisionActions
                     busyAction={busyAction}
-                    disabled={busyAction !== null || cancelling || suggesting}
-                    onApprove={() => void handleApprove()}
-                    onReject={() => void handleReject()}
-                    approveLabel="Aprovar"
+                    disabled={busyAction !== null || cancelling || suggesting || rejecting}
+                    onApprove={() => {
+                      if (confirmApprove) void handleApprove();
+                      else setConfirmApprove(true);
+                    }}
+                    onReject={() => handleReject()}
+                    approveLabel={confirmApprove ? 'Confirmar aprovação' : 'Aprovar'}
                     rejectLabel={rejectLabel}
                   />
+                  {showRejectForm && (
+                    <motion.form
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onSubmit={(e) => void handleRejectSubmit(e)}
+                      className="mt-3 p-4 rounded-lg border border-danger/30 bg-danger/5 space-y-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-3.5 h-3.5 text-danger" />
+                        <p className="text-danger text-xs uppercase tracking-wider font-medium">
+                          Motivo da {rejectLabel.toLowerCase() === 'rejeitar' ? 'rejeição' : 'recusa'}
+                        </p>
+                      </div>
+                      <textarea
+                        id="reject-reason"
+                        autoFocus
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="Visível ao solicitante. Ex: conflito de agenda…"
+                        required
+                        maxLength={2000}
+                        rows={3}
+                        className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-danger resize-y"
+                      />
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setShowRejectForm(false); setRejectReason(''); }}
+                          disabled={rejecting}
+                          className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[36px]"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={rejecting || rejectReason.trim().length < 1}
+                          className="text-xs font-medium px-3 py-1.5 rounded-md bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[36px]"
+                        >
+                          {rejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          Enviar recusa
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
                   {/* Sugerir outro horario (alternativa ao Aprovar/Rejeitar) */}
                   <div className="mt-3">
                     {!showSuggestForm ? (
@@ -419,15 +481,29 @@ export function MeetingDetailClient({
                 </>
               )}
               {canCancel && !canDecide && (
-                <button
-                  type="button"
-                  disabled={cancelling || busyAction !== null}
-                  onClick={() => void handleCancel()}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5"
-                >
-                  {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-                  Cancelar solicitação
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={cancelling || busyAction !== null}
+                    onClick={() => {
+                      if (confirmCancel) void handleCancel();
+                      else setConfirmCancel(true);
+                    }}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-md border ${confirmCancel ? 'border-danger/60 text-danger bg-danger/10' : 'border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5`}
+                  >
+                    {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                    {confirmCancel ? 'Confirmar cancelamento' : 'Cancelar solicitação'}
+                  </button>
+                  {confirmCancel && !cancelling && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmCancel(false)}
+                      className="text-xs text-text-muted hover:text-text-secondary px-2 py-1.5 min-h-[36px]"
+                    >
+                      Desistir
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

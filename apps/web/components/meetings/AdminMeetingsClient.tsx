@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar, RefreshCw } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar, RefreshCw, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -79,6 +79,9 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [partnerFilter, setPartnerFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [rejectingFor, setRejectingFor] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
 
   function handleRefresh() {
     if (refreshing) return;
@@ -135,7 +138,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no calendário do sócio.')) return;
+    setConfirmApproveFor(null);
     setBusy({ id: requestId, action: 'approve' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/approve`, {
@@ -157,16 +160,22 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     }
   }
 
-  async function handleReject(requestId: string) {
+  function handleReject(requestId: string) {
     if (anyBusy) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
+    setRejectReason('');
+    setRejectingFor(requestId);
+  }
+
+  async function submitReject(requestId: string) {
+    if (anyBusy) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 1) { toast.error('Informe o motivo da rejeição'); return; }
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({ reason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -174,6 +183,8 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
         return;
       }
       toast.success('Solicitação rejeitada');
+      setRejectingFor(null);
+      setRejectReason('');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
@@ -308,12 +319,56 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                       <div className="mt-3 pt-3 border-t border-surface-border">
                         <MeetingDecisionActions
                           busyAction={itemBusy ? busy?.action ?? null : null}
-                          disabled={anyBusy}
-                          onApprove={() => void handleApprove(r.id)}
-                          onReject={() => void handleReject(r.id)}
-                          approveLabel="Aprovar"
+                          disabled={anyBusy || rejectingFor !== null}
+                          onApprove={() => {
+                            if (confirmApproveFor === r.id) void handleApprove(r.id);
+                            else { setConfirmApproveFor(r.id); setRejectingFor(null); }
+                          }}
+                          onReject={() => { handleReject(r.id); setConfirmApproveFor(null); }}
+                          approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                           rejectLabel="Rejeitar"
                         />
+                        {rejectingFor === r.id && (
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); void submitReject(r.id); }}
+                            className="mt-3 p-4 rounded-lg border border-danger/30 bg-danger/5 space-y-3"
+                          >
+                            <div className="flex items-center gap-2">
+                              <XCircle className="w-3.5 h-3.5 text-danger" />
+                              <p className="text-danger text-xs uppercase tracking-wider font-medium">
+                                Motivo da rejeição
+                              </p>
+                            </div>
+                            <textarea
+                              autoFocus
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              placeholder="Visível ao solicitante. Ex: agenda lotada…"
+                              required
+                              maxLength={2000}
+                              rows={3}
+                              className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-danger resize-y"
+                            />
+                            <div className="flex gap-2 justify-end pt-1">
+                              <button
+                                type="button"
+                                onClick={() => { setRejectingFor(null); setRejectReason(''); }}
+                                disabled={itemBusy && busy?.action === 'reject'}
+                                className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[36px]"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={(itemBusy && busy?.action === 'reject') || rejectReason.trim().length < 1}
+                                className="text-xs font-medium px-3 py-1.5 rounded-md bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[36px]"
+                              >
+                                {(itemBusy && busy?.action === 'reject') ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                Enviar rejeição
+                              </button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     )}
                   </motion.div>
