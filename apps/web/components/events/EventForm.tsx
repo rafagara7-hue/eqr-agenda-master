@@ -91,6 +91,7 @@ export function EventForm({ event, initialDate, onSuccess, onCancel }: EventForm
         .select('id, name, color_hex, avatar_url')
         .eq('is_active', true)
         .neq('slug', 'admin')
+        .neq('slug', 'external')
         .order('name');
       if (error) throw error;
       return (data ?? []).map((m) => ({
