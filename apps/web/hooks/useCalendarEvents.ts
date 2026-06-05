@@ -134,32 +134,15 @@ export function useCalendarEvents({ startAt, endAt, memberIds }: UseCalendarEven
       : [member.id];
 
     const unsubscribes = memberIdsToWatch.map((memberId) =>
-      subscribeToMemberEvents(memberId, ({ eventType, record, oldRecord }) => {
-        queryClient.setQueryData(queryKey, (old: CalendarEvent[] | undefined) => {
-          const current = old ?? [];
-
-          if (eventType === 'INSERT' && record) {
-            const newEvent = dbToCalendarEvent(record as DbEvent);
-            const inRange = newEvent.startAt < endAt && newEvent.endAt > startAt;
-            if (!inRange) return current;
-            return [...current, newEvent].sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
-          }
-
-          if (eventType === 'UPDATE' && record) {
-            const updated = dbToCalendarEvent(record as DbEvent);
-            return current
-              .filter((e) => e.id !== updated.id)
-              .concat(updated.startAt < endAt && updated.endAt > startAt ? [updated] : [])
-              .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
-          }
-
-          if (eventType === 'DELETE' && oldRecord) {
-            const deleted = oldRecord as { id: string };
-            return current.filter((e) => e.id !== deleted.id);
-          }
-
-          return current;
-        });
+      // Para INSERT/UPDATE/DELETE invalidamos a query inteira em vez de
+      // mutar o cache local. Dois motivos:
+      //  (a) o payload realtime de `events` NAO traz o join `event_participants`,
+      //      logo `dbToCalendarEvent(record)` apaga participantes do cache (bug #2).
+      //  (b) o `queryKey` capturado no closure pode ser de uma semana antiga
+      //      apos navegacao, escrevendo em cache obsoleto (bug #3).
+      // Invalidacao por chave-pai resolve ambos sem precisar refazer o fetch a mao.
+      subscribeToMemberEvents(memberId, () => {
+        void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       })
     );
 
