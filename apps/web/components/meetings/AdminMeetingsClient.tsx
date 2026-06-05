@@ -247,7 +247,6 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
         <MeetingPageHeader
           title="Reuniões — Admin"
           subtitle={`Painel de ${member.name}. Aprove ou rejeite pedidos.`}
-          showNewMeetingCta
           trailing={
             <div className="flex items-center gap-2">
               <button
