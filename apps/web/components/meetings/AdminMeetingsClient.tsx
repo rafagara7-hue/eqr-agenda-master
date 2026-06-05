@@ -295,7 +295,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                 Cancelamentos a notificar
               </span>
               <span className="text-danger font-semibold ml-2 text-xs">({pendingNotifications.length})</span>
-              <span className="ml-auto text-text-muted text-[11px]">Avisar o funcionário externamente</span>
+              <span className="ml-auto text-text-muted text-[11px]">Avisar o colaborador externamente</span>
             </div>
             <div className="divide-y divide-danger/20">
               {pendingNotifications.map((r) => {
