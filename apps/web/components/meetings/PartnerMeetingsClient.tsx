@@ -13,6 +13,7 @@ import {
   MeetingStatCard,
   MeetingDecisionActions,
   MeetingPageHeader,
+  RejectFeedbackModal,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -109,6 +110,8 @@ export function PartnerMeetingsClient({
   const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
   const [expandedUpcoming, setExpandedUpcoming] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -186,14 +189,14 @@ export function PartnerMeetingsClient({
     }
   }
 
-  async function handleReject(requestId: string) {
+  async function handleReject(requestId: string, reason: string) {
     if (anyBusy) return;
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(reason ? { reason } : {}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -206,6 +209,19 @@ export function PartnerMeetingsClient({
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
     } finally {
       setBusy(null);
+    }
+  }
+
+  function openRejectModal(requestId: string) {
+    setRejectRequestId(requestId);
+    setRejectModalOpen(true);
+  }
+
+  async function handleRejectModalConfirm(reason: string) {
+    if (rejectRequestId) {
+      await handleReject(rejectRequestId, reason);
+      setRejectModalOpen(false);
+      setRejectRequestId(null);
     }
   }
 
@@ -294,12 +310,11 @@ export function PartnerMeetingsClient({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-text-primary font-medium text-sm group-hover:text-accent transition-colors">
-                            {contact.name}
-                          </p>
-                          <p className="text-text-secondary text-xs mt-0.5 truncate">
                             {r.title}
                           </p>
-                          <p className="text-text-muted text-xs mt-1">
+                          <p className="text-text-muted text-xs mt-0.5">
+                            <span className="text-text-secondary">{contact.name}</span>
+                            {' · '}
                             <a
                               href={`tel:${contact.phone.replace(/\D/g, '')}`}
                               onClick={(e) => e.stopPropagation()}
@@ -336,7 +351,7 @@ export function PartnerMeetingsClient({
                         if (confirmApproveFor === r.id) void handleApprove(r.id);
                         else setConfirmApproveFor(r.id);
                       }}
-                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                      onReject={() => { setConfirmApproveFor(null); openRejectModal(r.id); }}
                       approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
@@ -420,7 +435,7 @@ export function PartnerMeetingsClient({
                         if (confirmApproveFor === r.id) void handleApprove(r.id);
                         else setConfirmApproveFor(r.id);
                       }}
-                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                      onReject={() => { setConfirmApproveFor(null); openRejectModal(r.id); }}
                       approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
