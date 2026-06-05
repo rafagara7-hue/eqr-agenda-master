@@ -47,6 +47,7 @@ export default async function AdminMeetingsPage() {
       .from('members')
       .select('id, name, slug, color_hex, avatar_url, role')
       .eq('is_active', true)
+      .neq('slug', 'external')
       .order('name'),
   ]);
 
