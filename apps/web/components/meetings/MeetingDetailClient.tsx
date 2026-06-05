@@ -17,6 +17,7 @@ import {
   MeetingDecisionActions,
   MeetingPageHeader,
   RejectFeedbackModal,
+  CancelFeedbackModal,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -75,6 +76,7 @@ export function MeetingDetailClient({
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   useEffect(() => {
     const onVisible = () => {
@@ -225,6 +227,39 @@ export function MeetingDetailClient({
     }
   }
 
+  function getExternalContact(r: { metadata: Record<string, unknown> | null }): boolean {
+    const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
+    return !!(ext && typeof ext.name === 'string' && typeof ext.phone === 'string');
+  }
+
+  function openCancelModal() {
+    setCancelModalOpen(true);
+  }
+
+  async function handleCancelAsPartner(reason: string) {
+    if (busyAction !== null || cancelling) return;
+    setBusyAction('cancel');
+    try {
+      const res = await fetch(`/api/meetings/requests/${request.id}/cancel-as-partner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reason ? { reason } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Erro ao cancelar');
+        return;
+      }
+      toast.success('Reunião cancelada — colaborador será notificado via admin');
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro de rede');
+    } finally {
+      setBusyAction(null);
+      setCancelModalOpen(false);
+    }
+  }
+
   async function handlePostComment(e: FormEvent) {
     e.preventDefault();
     const body = commentBody.trim();
@@ -311,7 +346,7 @@ export function MeetingDetailClient({
           </p>
 
           {/* Acoes */}
-          {(canDecide || canCancel) && (
+          {(canDecide || canCancel || (isPartner && request.status === 'approved' && getExternalContact(request))) && (
             <div className="mt-5 pt-4 border-t border-surface-border">
               {canDecide && (
                 <>
@@ -448,6 +483,19 @@ export function MeetingDetailClient({
                   )}
                 </div>
               )}
+              {isPartner && request.status === 'approved' && getExternalContact(request) && (
+                <div className="pt-3 border-t border-surface-border">
+                  <button
+                    type="button"
+                    onClick={() => openCancelModal()}
+                    disabled={busyAction !== null || cancelling}
+                    className="text-xs font-medium px-3 py-1.5 rounded-md bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] w-full inline-flex items-center justify-center gap-1.5"
+                  >
+                    {busyAction === 'cancel' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                    Cancelar reunião com colaborador
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -567,6 +615,13 @@ export function MeetingDetailClient({
         open={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
         onConfirm={handleReject}
+        meetingTitle={request.title}
+      />
+
+      <CancelFeedbackModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={handleCancelAsPartner}
         meetingTitle={request.title}
       />
     </div>
