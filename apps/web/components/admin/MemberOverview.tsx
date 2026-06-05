@@ -105,6 +105,7 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
           value={confirmedCount}
           icon={<CheckCircle2 className="w-4 h-4" />}
           color="#22C55E"
+          onClick={confirmedCount > 0 ? () => router.push('/calendar?filter=confirmed') : undefined}
         />
         <StatCard
           label={t('member.indicator.tentative')}
@@ -118,6 +119,7 @@ export function MemberOverview({ member, events }: MemberOverviewProps) {
           value={todayCount}
           icon={<CalendarCheck className="w-4 h-4" />}
           color="#8B5CF6"
+          onClick={todayCount > 0 ? () => router.push('/calendar') : undefined}
         />
       </div>
 
