@@ -35,7 +35,7 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
   const { onlineMemberIds } = usePresenceContext();
   const { t } = useTranslation();
 
-  const active = members.filter((m) => m.slug !== 'admin');
+  const active = members.filter((m) => m.slug !== 'admin' && m.slug !== 'external');
   const adminMember = members.find((m) => m.slug === 'admin');
 
   return (
