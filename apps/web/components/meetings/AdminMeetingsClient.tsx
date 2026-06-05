@@ -292,7 +292,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                             {r.title}
                           </p>
                           <p className="text-text-muted text-xs mt-0.5 break-words">
-                            <span className="text-text-secondary">{requester?.name ?? '?'}</span>
+                            <span className="text-text-secondary">{getExternalContact(r)?.name ?? requester?.name ?? '?'}</span>{getExternalContact(r) && <span className="ml-1 text-[10px] uppercase tracking-wider text-accent bg-accent/10 px-1.5 py-0.5 rounded">externo</span>}
                             {' → '}
                             <span className="text-text-secondary">{partner?.name ?? '?'}</span>
                             {' · '}
