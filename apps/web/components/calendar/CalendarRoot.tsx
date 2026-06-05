@@ -260,7 +260,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
           }`}
         >
-          Todos
+          {t('common.all')}
         </button>
         {STATUS_FILTERS.map((f) => {
           const isActive = activeFilter === f.key;
@@ -398,7 +398,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                       : 'border-surface-border text-text-muted'
                   }`}
                 >
-                  Todos
+                  {t('common.all')}
                 </button>
                 {memberOptions.map((m) => {
                   const isActive = activeMemberIds.includes(m.id);
