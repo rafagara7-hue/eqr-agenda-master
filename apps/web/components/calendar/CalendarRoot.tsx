@@ -295,7 +295,9 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
       {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado).
           Mobile usa BottomSheet (botao SlidersHorizontal no TopBar), entao
-          inline so em sm+ pra evitar duplicacao + economiza ~50px no mobile. */}
+          inline so em sm+ pra evitar duplicacao + economiza ~50px no mobile.
+          Cores inativas usam style inline para evitar Tailwind purge ou
+          override de specificity que tinham deixado os chips invisiveis (PR #42 nao bastou). */}
       <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
         <button
           onClick={() => setActiveFilter(undefined)}
@@ -303,8 +305,13 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
             !activeFilter
               ? 'bg-accent/15 border-accent/40 text-accent scale-105'
-              : 'border-surface-border text-text-secondary hover:border-accent/40 hover:text-text-primary'
+              : 'border'
           }`}
+          style={!activeFilter ? {} : {
+            color: 'rgb(var(--text-primary-rgb))',
+            backgroundColor: 'rgb(var(--surface-overlay-rgb) / 0.6)',
+            borderColor: 'rgb(var(--surface-border-rgb))',
+          }}
         >
           {t('common.all')}
         </button>
@@ -318,9 +325,13 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               className={`shrink-0 min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                 isActive
                   ? 'text-white border-transparent scale-105'
-                  : 'border-surface-border text-text-secondary hover:border-surface-muted hover:text-text-primary'
+                  : 'border'
               }`}
-              style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {}}
+              style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {
+                color: 'rgb(var(--text-primary-rgb))',
+                backgroundColor: 'rgb(var(--surface-overlay-rgb) / 0.6)',
+                borderColor: 'rgb(var(--surface-border-rgb))',
+              }}
             >
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor }} />
               {t(f.labelKey)}
