@@ -185,7 +185,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Atualizar"
               aria-label="Atualizar"
             >
@@ -208,14 +208,14 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
           <select
             value={filter}
             onChange={(e) => { const v = e.target.value; if (isFilter(v)) setFilter(v); }}
-            className="bg-surface-base border border-surface-border rounded-md px-3 py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent min-h-[40px]"
+            className="bg-surface-base border border-surface-border rounded-md px-3 py-2 sm:py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent sm:min-h-0 min-h-[44px]"
           >
             {FILTERS.map((f) => <option key={f} value={f}>Status: {FILTER_LABEL[f]}</option>)}
           </select>
           <select
             value={partnerFilter}
             onChange={(e) => setPartnerFilter(e.target.value)}
-            className="bg-surface-base border border-surface-border rounded-md px-3 py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent min-h-[40px]"
+            className="bg-surface-base border border-surface-border rounded-md px-3 py-2 sm:py-2.5 text-text-secondary text-xs focus:outline-none focus:border-accent sm:min-h-0 min-h-[44px]"
           >
             <option value="all">Sócio: Todos</option>
             {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -224,7 +224,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
             <button
               type="button"
               onClick={() => { setFilter('all'); setPartnerFilter('all'); }}
-              className="text-xs text-text-muted hover:text-text-secondary px-2 py-1 underline-offset-2 hover:underline min-h-[40px]"
+              className="text-xs text-text-muted hover:text-text-secondary px-2 py-1 underline-offset-2 hover:underline sm:min-h-0 min-h-[44px]"
             >
               Limpar filtros
             </button>

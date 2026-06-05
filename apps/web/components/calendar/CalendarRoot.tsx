@@ -205,13 +205,13 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
 
-      {/* Member filter pills — admin only — sem o texto "Filtrar" */}
+      {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
-        <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
           <button
             onClick={() => setActiveMemberIds([])}
             aria-pressed={activeMemberIds.length === 0}
-            className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
               activeMemberIds.length === 0
                 ? 'bg-accent/15 border-accent/40 text-accent scale-105'
                 : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'
@@ -229,7 +229,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
                 aria-pressed={isActive}
                 aria-label={`${t('calendar.filterByMember')} ${m.name}`}
                 title={m.name}
-                className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
                   isActive
                     ? 'text-white border-transparent scale-105'
                     : `border-surface-border text-text-muted ${hasSelection ? 'opacity-50' : 'opacity-90'} hover:opacity-100 hover:text-text-secondary`
@@ -247,12 +247,14 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         </div>
       )}
 
-      {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado). Inline em todos os tamanhos. */}
-      <div className="flex items-center gap-2 px-2 sm:px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+      {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado).
+          Mobile usa BottomSheet (botao SlidersHorizontal no TopBar), entao
+          inline so em sm+ pra evitar duplicacao + economiza ~50px no mobile. */}
+      <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
         <button
           onClick={() => setActiveFilter(undefined)}
           aria-pressed={!activeFilter}
-          className={`shrink-0 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
             !activeFilter
               ? 'bg-accent/15 border-accent/40 text-accent scale-105'
               : 'border-surface-border text-text-muted opacity-70 hover:opacity-100 hover:border-surface-muted hover:text-text-secondary'

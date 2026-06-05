@@ -96,9 +96,8 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           'border-surface-border'
         )}
       >
-        {/* Logo + "Agenda" escondidos no mobile (libera espaço pra nav itens
-            + avatar do user). Visivel a partir de md: (768px+). */}
-        <div className="hidden md:flex items-center gap-2.5 flex-shrink-0">
+        {/* Logo + "Agenda" — visivel em sm+ (alinha com labels do nav que tambem sao sm:inline) */}
+        <div className="hidden sm:flex items-center gap-2.5 flex-shrink-0">
           <EqrLogo blend className={cn('rounded-full ring-2 ring-accent', isTop ? 'w-10 h-10' : 'w-7 h-7')} />
           <span
             className={cn(
@@ -110,14 +109,20 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
           </span>
         </div>
 
-        <div className={cn('w-px bg-surface-border flex-shrink-0 hidden md:block', isTop ? 'h-7' : 'h-5')} />
+        <div className={cn('w-px bg-surface-border flex-shrink-0 hidden sm:block', isTop ? 'h-7' : 'h-5')} />
 
         <nav className={cn('flex items-center flex-1 overflow-x-auto', isTop ? 'gap-1' : 'gap-0.5')}>
           {visibleItems.map((item) => {
             const isActive = isNavActive(pathname, item.href);
             const Icon = item.icon;
+            const label = t(item.labelKey);
             return (
-              <Link key={item.href} href={item.href}>
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={label}
+                title={label}
+              >
                 <div
                   className={cn(
                     'flex items-center rounded-lg transition-colors whitespace-nowrap',
@@ -130,7 +135,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
                   )}
                 >
                   <Icon className={cn('flex-shrink-0', isTop ? 'w-[22px] h-[22px]' : 'w-4 h-4')} />
-                  <span className="hidden sm:inline">{t(item.labelKey)}</span>
+                  <span className="hidden sm:inline">{label}</span>
                 </div>
               </Link>
             );
@@ -138,7 +143,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
         </nav>
 
         {isAdmin && sidebarMembers.length > 0 && (
-          <div className={cn('hidden md:flex items-center flex-shrink-0', isTop ? 'gap-2.5' : 'gap-2')}>
+          <div className={cn('hidden sm:flex items-center flex-shrink-0', isTop ? 'gap-2.5' : 'gap-2')}>
             {sidebarMembers.map((m) => {
               const isOnline = onlineMemberIds.has(m.id);
               return (
@@ -185,7 +190,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
               </div>
               <span
                 className={cn(
-                  'text-text-primary font-medium hidden md:block truncate',
+                  'text-text-primary font-medium hidden sm:block truncate',
                   isTop ? 'text-sm max-w-[100px]' : 'text-xs max-w-[80px]'
                 )}
               >

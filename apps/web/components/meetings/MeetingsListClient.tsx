@@ -88,7 +88,7 @@ export function MeetingsListClient({ requests, partners }: Props) {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Atualizar"
               aria-label="Atualizar"
             >
