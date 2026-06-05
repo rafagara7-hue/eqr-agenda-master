@@ -26,7 +26,7 @@ export function MeetingPageHeader({
         <h1 className="text-text-primary text-xl font-semibold break-words sm:truncate">{title}</h1>
         {subtitle && <p className="text-text-muted text-sm mt-1">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 shrink-0 flex-wrap self-center sm:self-auto">
         {trailing}
         {showNewMeetingCta && (
           <Link
