@@ -311,7 +311,7 @@ export function PartnerMeetingsClient({
           <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />} value={upcomingApproved.length}  label="Aprovadas"     tone="success" />
         </div>
 
-        {/* Funcionários (solicitações externas via /agendar) */}
+        {/* Colaboradores (solicitações externas via /agendar) */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
           <div className="px-5 py-3 border-b border-surface-border flex items-center">
             <UserCheck className="w-3.5 h-3.5 text-accent mr-2" />
