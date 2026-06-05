@@ -4,6 +4,8 @@ import { PartnerMeetingsClient } from '@/components/meetings/PartnerMeetingsClie
 import type { Database } from '@eqr/database';
 
 export const metadata = { title: 'Reuniões — Sócio' };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type MemberRow = Database['public']['Tables']['members']['Row'];
 type RequestRow = Database['public']['Tables']['meeting_requests']['Row'];

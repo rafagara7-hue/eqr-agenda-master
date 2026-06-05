@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -86,6 +86,19 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     router.refresh();
     setTimeout(() => setRefreshing(false), 800);
   }
+
+  // Auto-refresh quando volta foco (mesmo padrao do Partner client)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') router.refresh();
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [router]);
 
   const filtered = useMemo(() => {
     return requests.filter((r) => {

@@ -4,6 +4,8 @@ import { AdminMeetingsClient } from '@/components/meetings/AdminMeetingsClient';
 import type { Database } from '@eqr/database';
 
 export const metadata = { title: 'Reuniões — Admin' };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type MemberRow = Database['public']['Tables']['members']['Row'];
 type RequestRow = Database['public']['Tables']['meeting_requests']['Row'];
