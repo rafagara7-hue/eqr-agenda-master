@@ -39,7 +39,7 @@ export default async function AdminMeetingsPage() {
   const [requestsRes, membersRes] = await Promise.all([
     supabase
       .from('meeting_requests')
-      .select('id, title, requester_id, target_partner_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, reviewed_at, decision_reason')
+      .select('id, title, requester_id, target_partner_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, reviewed_at, decision_reason, metadata')
       .or(`status.in.(pending,in_review),created_at.gte.${thirtyDaysAgo.toISOString()}`)
       .order('created_at', { ascending: false })
       .limit(200),
