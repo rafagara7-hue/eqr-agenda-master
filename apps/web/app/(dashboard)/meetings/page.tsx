@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { MeetingsListClient } from '@/components/meetings/MeetingsListClient';
 
 export const metadata = { title: 'Reuniões' };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function MeetingsPage() {
   const supabase = await getSupabaseServerClient();

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Clock, Eye, CheckCircle2, BarChart3, RefreshCw } from 'lucide-react';
@@ -56,6 +56,18 @@ export function MeetingsListClient({ requests, partners }: Props) {
     router.refresh();
     setTimeout(() => setRefreshing(false), 800);
   }
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') router.refresh();
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [router]);
 
   const stats = useMemo(() => ({
     pending: requests.filter((r) => r.status === 'pending').length,

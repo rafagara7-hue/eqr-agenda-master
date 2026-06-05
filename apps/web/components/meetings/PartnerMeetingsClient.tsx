@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -97,6 +97,21 @@ export function PartnerMeetingsClient({
   const anyBusy = busy !== null;
 
   const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-refresh quando o user volta pra aba/janela.
+  // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
+  // este socio retorna foco -> page revalida sem precisar clicar Atualizar.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') router.refresh();
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [router]);
 
   const upcomingThisWeek = useMemo(() => {
     const now = new Date();
