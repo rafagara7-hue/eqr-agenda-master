@@ -66,6 +66,11 @@ export function MeetingDetailClient({
   const [cancelling, setCancelling] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [posting, setPosting] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [showSuggestForm, setShowSuggestForm] = useState(false);
+  const [suggestStart, setSuggestStart] = useState('');
+  const [suggestDuration, setSuggestDuration] = useState(60);
+  const [suggestMessage, setSuggestMessage] = useState('');
 
   useEffect(() => {
     const onVisible = () => {
@@ -149,6 +154,42 @@ export function MeetingDetailClient({
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
     } finally {
       setBusyAction(null);
+    }
+  }
+
+  async function handleSuggestReschedule(e: FormEvent) {
+    e.preventDefault();
+    if (suggesting) return;
+    if (!suggestStart) { toast.error('Selecione um novo horário'); return; }
+    const startDate = new Date(suggestStart);
+    if (isNaN(startDate.getTime())) { toast.error('Horário inválido'); return; }
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + suggestDuration);
+    setSuggesting(true);
+    try {
+      const res = await fetch(`/api/meetings/requests/${request.id}/suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newStart: startDate.toISOString(),
+          newEnd: endDate.toISOString(),
+          message: suggestMessage.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Erro ao sugerir reagendamento');
+        return;
+      }
+      toast.success('Reagendamento sugerido!');
+      setShowSuggestForm(false);
+      setSuggestStart('');
+      setSuggestMessage('');
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro de rede');
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -271,21 +312,118 @@ export function MeetingDetailClient({
           {(canDecide || canCancel) && (
             <div className="mt-5 pt-4 border-t border-surface-border">
               {canDecide && (
-                <MeetingDecisionActions
-                  busyAction={busyAction}
-                  disabled={busyAction !== null || cancelling}
-                  onApprove={() => void handleApprove()}
-                  onReject={() => void handleReject()}
-                  approveLabel="Aprovar"
-                  rejectLabel={rejectLabel}
-                />
+                <>
+                  <MeetingDecisionActions
+                    busyAction={busyAction}
+                    disabled={busyAction !== null || cancelling || suggesting}
+                    onApprove={() => void handleApprove()}
+                    onReject={() => void handleReject()}
+                    approveLabel="Aprovar"
+                    rejectLabel={rejectLabel}
+                  />
+                  {/* Sugerir outro horario (alternativa ao Aprovar/Rejeitar) */}
+                  <div className="mt-3">
+                    {!showSuggestForm ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSuggestForm(true);
+                          // Pre-fill com data proposta + 1 hora pra facilitar
+                          if (!suggestStart) {
+                            const d = new Date(request.proposed_start);
+                            d.setHours(d.getHours() + 1);
+                            const pad = (n: number) => n.toString().padStart(2, '0');
+                            setSuggestStart(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+                          }
+                        }}
+                        disabled={busyAction !== null || cancelling}
+                        className="text-xs font-medium px-3 py-2 rounded-md border border-info/40 text-info hover:bg-info/10 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        Sugerir outro horário
+                      </button>
+                    ) : (
+                      <form
+                        onSubmit={(e) => void handleSuggestReschedule(e)}
+                        className="mt-3 p-4 rounded-lg border border-info/30 bg-info/5 space-y-3"
+                      >
+                        <p className="text-info text-xs uppercase tracking-wider font-medium">
+                          Sugerir reagendamento
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label htmlFor="suggest-start" className="block text-text-secondary text-xs font-medium mb-1.5">
+                              Novo horário
+                            </label>
+                            <input
+                              id="suggest-start"
+                              type="datetime-local"
+                              value={suggestStart}
+                              onChange={(e) => setSuggestStart(e.target.value)}
+                              required
+                              className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm focus:outline-none focus:border-accent sm:min-h-0 min-h-[44px]"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="suggest-duration" className="block text-text-secondary text-xs font-medium mb-1.5">
+                              Duração
+                            </label>
+                            <select
+                              id="suggest-duration"
+                              value={suggestDuration}
+                              onChange={(e) => setSuggestDuration(parseInt(e.target.value, 10))}
+                              className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm focus:outline-none focus:border-accent sm:min-h-0 min-h-[44px]"
+                            >
+                              <option value={30}>30 minutos</option>
+                              <option value={60}>1 hora</option>
+                              <option value={90}>1h 30min</option>
+                              <option value={120}>2 horas</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor="suggest-msg" className="block text-text-secondary text-xs font-medium mb-1.5">
+                            Mensagem opcional
+                          </label>
+                          <textarea
+                            id="suggest-msg"
+                            value={suggestMessage}
+                            onChange={(e) => setSuggestMessage(e.target.value)}
+                            placeholder="Ex: nesse horário tenho mais disponibilidade…"
+                            maxLength={2000}
+                            rows={2}
+                            className="w-full px-3 py-2 bg-surface-base border border-surface-border rounded-md text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent resize-y"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => { setShowSuggestForm(false); setSuggestMessage(''); }}
+                            disabled={suggesting}
+                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[36px]"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={suggesting || !suggestStart}
+                            className="text-xs font-medium px-3 py-1.5 rounded-md bg-info/15 text-info border border-info/40 hover:bg-info/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[36px]"
+                          >
+                            {suggesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            Enviar sugestão
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                </>
               )}
               {canCancel && !canDecide && (
                 <button
                   type="button"
                   disabled={cancelling || busyAction !== null}
                   onClick={() => void handleCancel()}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] inline-flex items-center gap-1.5"
+                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5"
                 >
                   {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                   Cancelar solicitação
