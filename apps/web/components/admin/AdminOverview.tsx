@@ -161,7 +161,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const confirmedCount = events.filter((e) => e.status === 'confirmed').length;
   const pastCount = events.filter((e) => new Date(e.end_at).getTime() < nowMs).length;
 
-  const activeMembers = members.filter((m) => m.slug !== 'admin');
+  const activeMembers = members.filter((m) => m.slug !== 'admin' && m.slug !== 'external');
   const onlineMembers = activeMembers.filter((m) => onlineMemberIds.has(m.id));
   const offlineMembers = activeMembers.filter((m) => !onlineMemberIds.has(m.id));
   const onlineCount = onlineMembers.length;
