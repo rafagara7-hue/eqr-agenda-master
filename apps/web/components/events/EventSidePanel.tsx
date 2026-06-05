@@ -160,15 +160,17 @@ export function EventSidePanel({ open, event, initialDate, onClose }: EventSideP
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete()}
-                      className="p-2 rounded-lg border-2 border-surface-border text-text-secondary hover:border-danger hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
-                      title={t('common.delete')}
-                      aria-label={t('common.delete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {event.createdBy === member?.id && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete()}
+                        className="p-2 rounded-lg border-2 border-surface-border text-text-secondary hover:border-danger hover:text-danger hover:bg-danger/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </>
                 )}
                 {/* Botão X fechar — sempre visível */}
