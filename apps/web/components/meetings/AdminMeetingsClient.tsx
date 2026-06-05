@@ -13,6 +13,7 @@ import {
   MeetingStatCard,
   MeetingDecisionActions,
   MeetingPageHeader,
+  RejectFeedbackModal,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -44,15 +45,6 @@ interface Request {
   created_at: string;
   reviewed_at: string | null;
   decision_reason: string | null;
-  metadata: Record<string, unknown> | null;
-}
-
-function getExternalContact(r: Request): { name: string; phone: string } | null {
-  const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
-  if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
-    return { name: ext.name, phone: ext.phone };
-  }
-  return null;
 }
 
 interface Props {
@@ -89,6 +81,8 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
   const [partnerFilter, setPartnerFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
 
   function handleRefresh() {
     if (refreshing) return;
@@ -167,14 +161,14 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     }
   }
 
-  async function handleReject(requestId: string) {
+  async function handleReject(requestId: string, reason: string) {
     if (anyBusy) return;
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(reason ? { reason } : {}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -190,6 +184,19 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     }
   }
 
+  function openRejectModal(requestId: string) {
+    setRejectRequestId(requestId);
+    setRejectModalOpen(true);
+  }
+
+  async function handleRejectModalConfirm(reason: string) {
+    if (rejectRequestId) {
+      await handleReject(rejectRequestId, reason);
+      setRejectModalOpen(false);
+      setRejectRequestId(null);
+    }
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
@@ -201,14 +208,10 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={async () => {
-                  const url = `${window.location.origin}/agendar`;
-                  try {
-                    await navigator.clipboard.writeText(url);
-                    toast.success('Link copiado!');
-                  } catch {
-                    toast.error('Não foi possível copiar. Link: ' + url);
-                  }
+                onClick={() => {
+                  const url = `${process.env.NEXT_PUBLIC_APP_URL}/agendar`;
+                  navigator.clipboard.writeText(url);
+                  toast.success('Link copiado!');
                 }}
                 className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 title="Copiar link do formulário"
@@ -311,7 +314,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                             {r.title}
                           </p>
                           <p className="text-text-muted text-xs mt-0.5 break-words">
-                            <span className="text-text-secondary">{getExternalContact(r)?.name ?? requester?.name ?? '?'}</span>{getExternalContact(r) && <span className="ml-1 text-[10px] uppercase tracking-wider text-accent bg-accent/10 px-1.5 py-0.5 rounded">externo</span>}
+                            <span className="text-text-secondary">{requester?.name ?? '?'}</span>
                             {' → '}
                             <span className="text-text-secondary">{partner?.name ?? '?'}</span>
                             {' · '}
@@ -340,7 +343,7 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
                             if (confirmApproveFor === r.id) void handleApprove(r.id);
                             else setConfirmApproveFor(r.id);
                           }}
-                          onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                          onReject={() => { setConfirmApproveFor(null); openRejectModal(r.id); }}
                           approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                           rejectLabel="Rejeitar"
                         />
@@ -353,6 +356,16 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
           )}
         </div>
       </div>
+
+      <RejectFeedbackModal
+        open={rejectModalOpen}
+        onClose={() => {
+          setRejectModalOpen(false);
+          setRejectRequestId(null);
+        }}
+        onConfirm={handleRejectModalConfirm}
+        meetingTitle={rejectRequestId ? requests.find((r) => r.id === rejectRequestId)?.title : undefined}
+      />
     </div>
   );
 }
