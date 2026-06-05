@@ -1,0 +1,70 @@
+{
+  "name": "07 — EQR Retry Failed Syncs",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "*/15 * * * *" }] }
+      },
+      "id": "cron-trigger",
+      "name": "Cron: Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/event_sync_log",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "=eq.failed" },
+            { "name": "attempt_count", "value": "=lt.5" },
+            { "name": "select", "value": "id,event_id,member_id,operation,attempt_count,payload" },
+            { "name": "order", "value": "created_at.asc" },
+            { "name": "limit", "value": "20" }
+          ]
+        }
+      },
+      "id": "load-failed-syncs",
+      "name": "Load Failed Syncs (< 5 attempts)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Exponential backoff: wait = 2^attempt_count minutes\nconst items = $input.all()[0].json;\nconst now = Date.now();\nconst eligible = Array.isArray(items) ? items.filter(item => {\n  const waitMs = Math.pow(2, item.attempt_count) * 60000;\n  const createdAt = new Date(item.created_at ?? now).getTime();\n  return (now - createdAt) >= waitMs;\n}) : [];\nreturn eligible.map(item => ({ json: item }));"
+      },
+      "id": "backoff-filter",
+      "name": "Exponential Backoff Filter",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/event_sync_log",
+        "requestMethod": "PATCH",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $json.id }}" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "status", "value": "retry" },
+            { "name": "attempt_count", "value": "={{ $json.attempt_count + 1 }}" }
+          ]
+        }
+      },
+      "id": "increment-attempt",
+      "name": "Increment Attempt Count",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Cron: Every 15 minutes": { "main": [[{ "node": "Load Failed Syncs (< 5 attempts)", "type": "main", "index": 0 }]] },
+    "Load Failed Syncs (< 5 attempts)": { "main": [[{ "node": "Exponential Backoff Filter", "type": "main", "index": 0 }]] },
+    "Exponential Backoff Filter": { "main": [[{ "node": "Increment Attempt Count", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "retry", "cron"]
+}

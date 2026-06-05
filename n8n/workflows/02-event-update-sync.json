@@ -1,0 +1,88 @@
+{
+  "name": "02 — EQR Event Update Sync (Outbound)",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "event-update", "responseMode": "responseNode" },
+      "id": "webhook-receiver",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.event.external_event_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "has-external-id",
+      "name": "Has External Event ID?",
+      "type": "n8n-nodes-base.if",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Se não tem external_event_id, delega para o workflow de criação\nconst event = $input.first().json.body.event;\n$execution.customData.set('shouldCreate', true);\nreturn [{ json: event }];"
+      },
+      "id": "route-to-create",
+      "name": "Route: No External ID → Create",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/me/calendars/{{ $('Webhook Receiver').first().json.body.calendar_account.calendar_id }}/events/{{ $('Webhook Receiver').first().json.body.event.external_event_id }}",
+        "requestMethod": "PATCH",
+        "authentication": "oAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=",
+              "value": "={{ { subject: $json.body.event.title, body: { contentType: 'HTML', content: $json.body.event.description ?? '' }, location: $json.body.event.location ? { displayName: $json.body.event.location } : null, start: { dateTime: $json.body.event.start_at, timeZone: 'America/Sao_Paulo' }, end: { dateTime: $json.body.event.end_at, timeZone: 'America/Sao_Paulo' } } }}"
+            }
+          ]
+        }
+      },
+      "id": "patch-graph-event",
+      "name": "Microsoft Graph: Patch Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=",
+              "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, externalProvider: 'microsoft', syncStatus: 'synced', event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}"
+            }
+          ]
+        }
+      },
+      "id": "update-synced",
+      "name": "Update Sync: Synced",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": { "main": [[{ "node": "Has External Event ID?", "type": "main", "index": 0 }]] },
+    "Has External Event ID?": {
+      "main": [
+        [{ "node": "Route: No External ID → Create", "type": "main", "index": 0 }],
+        [{ "node": "Microsoft Graph: Patch Event", "type": "main", "index": 0 }]
+      ]
+    },
+    "Microsoft Graph: Patch Event": { "main": [[{ "node": "Update Sync: Synced", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "calendar-sync", "outbound", "microsoft"]
+}

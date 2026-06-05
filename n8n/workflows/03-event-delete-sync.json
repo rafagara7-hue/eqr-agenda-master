@@ -1,0 +1,80 @@
+{
+  "name": "03 — EQR Event Delete Sync (Outbound)",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "event-delete", "responseMode": "responseNode" },
+      "id": "webhook-receiver",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.event.external_event_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "has-external-id",
+      "name": "Has External Event ID?",
+      "type": "n8n-nodes-base.if",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/me/calendars/{{ $('Webhook Receiver').first().json.body.calendar_account.calendar_id }}/events/{{ $json.body.event.external_event_id }}",
+        "requestMethod": "DELETE",
+        "authentication": "oAuth2Api",
+        "options": { "allowUnauthorizedCerts": false, "redirect": { "redirect": { "followRedirects": true } } }
+      },
+      "id": "delete-graph-event",
+      "name": "Microsoft Graph: Delete Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.statusCode ?? 200 }}",
+              "rightValue": 404,
+              "operator": { "type": "number", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "check-404",
+      "name": "Check 404 Not Found (OK)",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Insere tombstone no event_sync_log via Supabase REST\nconst event = $('Webhook Receiver').first().json.body.event;\nreturn [{ json: { event_id: event.id, member_id: event.member_id, operation: 'delete', direction: 'outbound', source: 'n8n', status: 'success' } }];"
+      },
+      "id": "log-deletion",
+      "name": "Log Deletion",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": { "main": [[{ "node": "Has External Event ID?", "type": "main", "index": 0 }]] },
+    "Has External Event ID?": {
+      "main": [
+        [],
+        [{ "node": "Microsoft Graph: Delete Event", "type": "main", "index": 0 }]
+      ]
+    },
+    "Microsoft Graph: Delete Event": { "main": [[{ "node": "Check 404 Not Found (OK)", "type": "main", "index": 0 }]] },
+    "Check 404 Not Found (OK)": { "main": [[{ "node": "Log Deletion", "type": "main", "index": 0 }], [{ "node": "Log Deletion", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "calendar-sync", "outbound", "microsoft"]
+}

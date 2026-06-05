@@ -1,0 +1,148 @@
+{
+  "name": "01 — EQR Event Create Sync (Outbound)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "event-create",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-receiver",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "eqr-event-create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sig = $input.first().json.headers['x-eqr-signature'];\nconst secret = $env['N8N_WEBHOOK_SECRET'];\nconst body = JSON.stringify($input.first().json.body);\nconst expected = await crypto.subtle.sign(\n  'HMAC',\n  await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']),\n  new TextEncoder().encode(body)\n);\nconst hex = Array.from(new Uint8Array(expected)).map(b => b.toString(16).padStart(2,'0')).join('');\nif ('sha256=' + hex !== sig) throw new Error('Invalid signature');\nreturn $input.all();"
+      },
+      "id": "verify-signature",
+      "name": "Verify HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/calendar_provider_accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "member_id", "value": "=eq.{{ $json.body.event.member_id }}" },
+            { "name": "provider", "value": "eq.microsoft" },
+            { "name": "is_primary", "value": "=eq.true" },
+            { "name": "sync_enabled", "value": "=eq.true" },
+            { "name": "select", "value": "id,calendar_id,provider_email,access_token,refresh_token,token_expires_at" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "load-calendar-account",
+      "name": "Load Outlook Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "no-account",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-calendar-account",
+      "name": "Has Outlook Account?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapeia campos EQR → Microsoft Graph Event\nconst event = $('Webhook Receiver').first().json.body.event;\nconst graphBody = {\n  subject: event.title,\n  body: { contentType: 'HTML', content: event.description ?? '' },\n  location: event.location ? { displayName: event.location } : undefined,\n  isAllDay: !!event.all_day,\n  start: event.all_day\n    ? { dateTime: event.start_at.split('T')[0] + 'T00:00:00', timeZone: 'America/Sao_Paulo' }\n    : { dateTime: event.start_at, timeZone: 'America/Sao_Paulo' },\n  end: event.all_day\n    ? { dateTime: event.end_at.split('T')[0] + 'T00:00:00', timeZone: 'America/Sao_Paulo' }\n    : { dateTime: event.end_at, timeZone: 'America/Sao_Paulo' },\n  showAs: event.status === 'tentative' ? 'tentative' : 'busy',\n  singleValueExtendedProperties: [\n    { id: 'String {66f5a359-4659-4830-9070-00047ec6ac6e} Name eqrEventId', value: event.id }\n  ]\n};\nreturn [{ json: graphBody }];"
+      },
+      "id": "map-to-graph",
+      "name": "Map EQR → Microsoft Graph Format",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/me/calendars/{{ $('Load Outlook Account').first().json.calendar_id }}/events",
+        "authentication": "oAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [{ "name": "=", "value": "={{ $json }}" }]
+        },
+        "options": {}
+      },
+      "id": "create-graph-event",
+      "name": "Microsoft Graph: Create Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-EQR-Signature", "value": "={{ $env['N8N_COMPUTED_SIGNATURE'] }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "=", "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, externalEventId: $json.id, externalProvider: 'microsoft', syncStatus: 'synced', event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-sync-status-success",
+      "name": "Update Sync Status: Synced",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['NEXT_PUBLIC_APP_URL'] }}/api/webhooks/n8n",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "=", "value": "={{ { operation: 'sync_status', eventId: $('Webhook Receiver').first().json.body.event.id, syncStatus: 'failed', syncError: $json.message, event: { member_id: $('Webhook Receiver').first().json.body.event.member_id } } }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-sync-status-failed",
+      "name": "Update Sync Status: Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": { "main": [[{ "node": "Verify HMAC Signature", "type": "main", "index": 0 }]] },
+    "Verify HMAC Signature": { "main": [[{ "node": "Load Outlook Account", "type": "main", "index": 0 }]] },
+    "Load Outlook Account": { "main": [[{ "node": "Has Outlook Account?", "type": "main", "index": 0 }]] },
+    "Has Outlook Account?": {
+      "main": [
+        [{ "node": "Update Sync Status: Failed", "type": "main", "index": 0 }],
+        [{ "node": "Map EQR → Microsoft Graph Format", "type": "main", "index": 0 }]
+      ]
+    },
+    "Map EQR → Microsoft Graph Format": { "main": [[{ "node": "Microsoft Graph: Create Event", "type": "main", "index": 0 }]] },
+    "Microsoft Graph: Create Event": { "main": [[{ "node": "Update Sync Status: Synced", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "calendar-sync", "outbound", "microsoft"]
+}

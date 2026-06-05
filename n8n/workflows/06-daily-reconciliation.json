@@ -1,0 +1,64 @@
+{
+  "name": "06 — EQR Daily Reconciliation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 3 * * *" }] }
+      },
+      "id": "cron-trigger",
+      "name": "Cron: 03:00 BRT Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/events",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "sync_status", "value": "=neq.synced" },
+            { "name": "status", "value": "=neq.cancelled" },
+            { "name": "select", "value": "id,member_id,external_event_id,external_provider,title,start_at,end_at,sync_status" },
+            { "name": "limit", "value": "200" }
+          ]
+        }
+      },
+      "id": "load-unsynced",
+      "name": "Load Unsynced Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Para cada evento não sincronizado, dispara workflow de criação ou atualização\nconst events = $input.all()[0].json;\nconst results = [];\nfor (const event of Array.isArray(events) ? events : []) {\n  const operation = event.external_event_id ? 'update' : 'create';\n  results.push({ json: { event, operation } });\n}\nreturn results;"
+      },
+      "id": "classify-repairs",
+      "name": "Classify Repair Actions",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/event_sync_log",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "=", "value": "={{ { event_id: $json.event.id, member_id: $json.event.member_id, operation: 'update', direction: 'outbound', source: 'n8n', status: 'pending', error_message: 'Daily reconciliation: re-queued' } }}" }
+          ]
+        }
+      },
+      "id": "log-reconciliation",
+      "name": "Log Reconciliation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Cron: 03:00 BRT Daily": { "main": [[{ "node": "Load Unsynced Events", "type": "main", "index": 0 }]] },
+    "Load Unsynced Events": { "main": [[{ "node": "Classify Repair Actions", "type": "main", "index": 0 }]] },
+    "Classify Repair Actions": { "main": [[{ "node": "Log Reconciliation", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "reconciliation", "cron"]
+}

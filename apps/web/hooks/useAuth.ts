@@ -1,0 +1,113 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
+import type { Member } from '@eqr/domain';
+
+interface AuthState {
+  user: User | null;
+  member: Member | null;
+  isLoading: boolean;
+  isAdmin: boolean;
+  refetch: () => Promise<void>;
+}
+
+export function useAuth(): AuthState {
+  const [state, setState] = useState<Omit<AuthState, 'refetch'>>({
+    user: null,
+    member: null,
+    isLoading: true,
+    isAdmin: false,
+  });
+  const supabase = getSupabaseBrowserClient();
+  const mountedRef = useRef(true);
+  const initRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    mountedRef.current = true;
+
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!mounted) return;
+
+      if (!user) {
+        setState({ user: null, member: null, isLoading: false, isAdmin: false });
+        return;
+      }
+
+      const { data: rawMemberRow } = await supabase
+        .from('members')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      const memberRow = rawMemberRow as {
+        id: string; user_id: string; name: string; slug: string; color: string; color_hex: string;
+        role: 'admin' | 'member'; is_active: boolean; avatar_url: string | null;
+        calendar_linked: boolean; created_at: string; updated_at: string;
+      } | null;
+
+      if (!mounted) return;
+
+      const member = memberRow
+        ? ({
+            id: memberRow.id,
+            userId: memberRow.user_id,
+            name: memberRow.name,
+            slug: memberRow.slug,
+            color: memberRow.color,
+            colorHex: memberRow.color_hex,
+            role: memberRow.role,
+            isActive: memberRow.is_active,
+            avatarUrl: memberRow.avatar_url,
+            calendarLinked: memberRow.calendar_linked,
+            createdAt: new Date(memberRow.created_at),
+            updatedAt: new Date(memberRow.updated_at),
+          } satisfies Member)
+        : null;
+
+      setState({
+        user,
+        member,
+        isLoading: false,
+        isAdmin: member?.role === 'admin',
+      });
+    }
+
+    initRef.current = init;
+    void init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (!session) {
+        setState({ user: null, member: null, isLoading: false, isAdmin: false });
+      } else {
+        void init();
+      }
+    });
+
+    return () => {
+      mounted = false;
+      mountedRef.current = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const refetch = useCallback(async () => {
+    if (initRef.current) await initRef.current();
+  }, []);
+
+  return { ...state, refetch };
+}
+
+export function useSignOut() {
+  const router = useRouter();
+  const supabase = getSupabaseBrowserClient();
+
+  return async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+}

@@ -1,0 +1,67 @@
+{
+  "name": "08 — EQR Reminder Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "* * * * *" }] }
+      },
+      "id": "cron-every-minute",
+      "name": "Cron: Every Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/events",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "=eq.confirmed" },
+            { "name": "start_at", "value": "=gte.{{ new Date().toISOString() }}" },
+            { "name": "start_at", "value": "=lte.{{ new Date(Date.now() + 65 * 60000).toISOString() }}" },
+            { "name": "select", "value": "id,member_id,title,start_at" }
+          ]
+        }
+      },
+      "id": "get-upcoming-events",
+      "name": "Get Events in Next 65 Minutes",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $input.all()[0].json;\nconst now = Date.now();\nconst notifications = [];\n\nfor (const event of Array.isArray(events) ? events : []) {\n  const startMs = new Date(event.start_at).getTime();\n  const diffMin = Math.round((startMs - now) / 60000);\n  \n  if (diffMin <= 15 && diffMin > 13) {\n    notifications.push({ json: { ...event, label: '15 minutos', minutesBefore: 15 } });\n  } else if (diffMin <= 60 && diffMin > 58) {\n    notifications.push({ json: { ...event, label: '1 hora', minutesBefore: 60 } });\n  }\n}\n\nreturn notifications;"
+      },
+      "id": "filter-by-time",
+      "name": "Filter by Reminder Windows",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env['SUPABASE_URL'] }}/rest/v1/notifications",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=",
+              "value": "={{ { member_id: $json.member_id, type: 'reminder', title: `Lembrete: ${$json.title}`, body: `Começa em ${$json.label}`, event_id: $json.id } }}"
+            }
+          ]
+        }
+      },
+      "id": "insert-reminder",
+      "name": "Insert Reminder Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Cron: Every Minute": { "main": [[{ "node": "Get Events in Next 65 Minutes", "type": "main", "index": 0 }]] },
+    "Get Events in Next 65 Minutes": { "main": [[{ "node": "Filter by Reminder Windows", "type": "main", "index": 0 }]] },
+    "Filter by Reminder Windows": { "main": [[{ "node": "Insert Reminder Notification", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["eqr", "notifications", "reminders"]
+}

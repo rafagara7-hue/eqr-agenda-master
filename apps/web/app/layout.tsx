@@ -1,0 +1,68 @@
+import type { Metadata, Viewport } from 'next';
+import { Inter, Fragment_Mono } from 'next/font/google';
+import './globals.css';
+import { Providers } from './providers';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const fragmentMono = Fragment_Mono({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-fragment-mono',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: 'EQR Agenda Master',
+    template: '%s | EQR Agenda Master',
+  },
+  description: 'Central corporativa inteligente de gerenciamento de agendas',
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: '/logo-eqr.png',
+  },
+  appleWebApp: {
+    statusBarStyle: 'black-translucent',
+    title: 'EQR Agenda',
+  },
+  other: {
+    // Chrome 132+ deprecou apple-mobile-web-app-capable; mantemos appleWebApp
+    // (iOS Safari ainda usa) e adicionamos o equivalente moderno via `other`.
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0A141F' },
+    { media: '(prefers-color-scheme: light)', color: '#EFE8DB' },
+  ],
+  colorScheme: 'dark light',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('eqr-theme');document.documentElement.classList.add(t==='light'?'light':'dark');})();`,
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${fragmentMono.variable} font-sans bg-surface-base text-text-primary antialiased`}>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
