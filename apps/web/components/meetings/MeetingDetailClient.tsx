@@ -287,7 +287,16 @@ export function MeetingDetailClient({
         <div className="bg-surface-elevated border border-surface-border rounded-xl p-5 mb-5">
           {/* Solicitante → Convidado */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <PersonChip label="Solicitante" member={requester} />
+            {externalContact ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30">
+                <span className="text-text-muted text-[10px] uppercase tracking-wider">Solicitante (externo)</span>
+                <span className="text-text-primary text-sm font-medium">{externalContact.name}</span>
+                <span className="text-text-muted text-xs">·</span>
+                <span className="text-text-secondary text-xs">{externalContact.phone}</span>
+              </div>
+            ) : (
+              <PersonChip label="Solicitante" member={requester} />
+            )}
             <span className="text-text-muted">→</span>
             <PersonChip label="Convidado" member={partner} />
           </div>
