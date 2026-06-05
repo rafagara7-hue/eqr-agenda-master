@@ -36,6 +36,7 @@ interface PendingRequest {
   title: string;
   description: string | null;
   requester_id: string;
+  target_partner_id: string;
   proposed_start: string;
   proposed_end: string;
   suggested_start: string | null;
@@ -80,6 +81,7 @@ interface UpcomingEvent {
 interface Props {
   member: { id: string; name: string };
   pendingRequests: PendingRequest[];
+  outgoingRequests: PendingRequest[];
   recentDecisions: RecentDecision[];
   upcomingEvents: UpcomingEvent[];
   members: MemberLite[];
@@ -89,7 +91,7 @@ interface Props {
 type BusyState = { id: string; action: DecisionAction } | null;
 
 export function PartnerMeetingsClient({
-  member, pendingRequests, recentDecisions, upcomingEvents, members, hasLoadError,
+  member, pendingRequests, outgoingRequests, recentDecisions, upcomingEvents, members,
 }: Props) {
   const router = useRouter();
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -381,6 +383,55 @@ export function PartnerMeetingsClient({
             </div>
           )}
         </div>
+
+        {/* Solicitei — requests que ESTE socio enviou pra outros, ainda pendentes */}
+        {outgoingRequests.length > 0 && (
+          <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
+            <div className="px-5 py-3 border-b border-surface-border flex items-center">
+              <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
+                Solicitei
+              </span>
+              <span className="text-accent font-semibold ml-2 text-xs">({outgoingRequests.length})</span>
+              <span className="text-text-muted text-xs ml-auto">aguardando resposta do destinatário</span>
+            </div>
+            <ul className="divide-y divide-surface-border">
+              {outgoingRequests.map((r) => {
+                const target = memberById.get(r.target_partner_id);
+                const useSuggested = !!(r.suggested_start && r.suggested_end);
+                const startIso = useSuggested ? (r.suggested_start as string) : r.proposed_start;
+                return (
+                  <li key={r.id}>
+                    <Link
+                      href={`/meetings/${r.id}`}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-surface-overlay transition-colors"
+                    >
+                      {target && (
+                        <MemberAvatar
+                          member={{ name: target.name, colorHex: target.color_hex, avatarUrl: target.avatar_url }}
+                          size="sm"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary text-sm font-medium truncate">{r.title}</p>
+                        <p className="text-text-muted text-xs mt-0.5">
+                          para <span className="text-text-secondary">{target?.name ?? '?'}</span>
+                          {' · '}
+                          {formatMeetingTime(startIso)}
+                          {useSuggested && <span className="text-info ml-1">(reagendado)</span>}
+                          {' · '}
+                          {meetingTimeAgo(r.created_at)}
+                        </p>
+                      </div>
+                      <span className="text-xs text-warning font-medium uppercase tracking-wider">
+                        Pendente
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {/* Próximas reuniões confirmadas */}
         {upcomingEvents.length > 0 && (

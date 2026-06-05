@@ -42,11 +42,19 @@ export default async function PartnerMeetingsPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const nowIso = new Date().toISOString();
 
-  const [pendingRes, recentRes, eventsRes] = await Promise.all([
+  const [pendingRes, outgoingRes, recentRes, eventsRes] = await Promise.all([
+    // INCOMING: requests targeting o sócio logado
     supabase
       .from('meeting_requests')
-      .select('id, title, description, requester_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, decision_reason, metadata')
+      .select('id, title, description, requester_id, target_partner_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, decision_reason, metadata')
       .eq('target_partner_id', member.id)
+      .in('status', ['pending', 'in_review'])
+      .order('created_at', { ascending: false }),
+    // OUTGOING: requests CRIADAS pelo sócio logado (que ele enviou pra outros)
+    supabase
+      .from('meeting_requests')
+      .select('id, title, description, requester_id, target_partner_id, proposed_start, proposed_end, suggested_start, suggested_end, status, priority, created_at, decision_reason, metadata')
+      .eq('requester_id', member.id)
       .in('status', ['pending', 'in_review'])
       .order('created_at', { ascending: false }),
     supabase
@@ -67,35 +75,39 @@ export default async function PartnerMeetingsPage() {
       .limit(8),
   ]);
 
-  const hasLoadError = !!(pendingRes.error || recentRes.error || eventsRes.error);
-  if (pendingRes.error) console.error('[partner/meetings] pending query failed', pendingRes.error);
-  if (recentRes.error)  console.error('[partner/meetings] recent query failed', recentRes.error);
-  if (eventsRes.error)  console.error('[partner/meetings] events query failed', eventsRes.error);
+  const hasLoadError = !!(pendingRes.error || outgoingRes.error || recentRes.error || eventsRes.error);
+  if (pendingRes.error)  console.error('[partner/meetings] pending query failed', pendingRes.error);
+  if (outgoingRes.error) console.error('[partner/meetings] outgoing query failed', outgoingRes.error);
+  if (recentRes.error)   console.error('[partner/meetings] recent query failed', recentRes.error);
+  if (eventsRes.error)   console.error('[partner/meetings] events query failed', eventsRes.error);
 
   const pendingRequests = (pendingRes.data ?? []) as PendingFields[];
+  const outgoingRequests = (outgoingRes.data ?? []) as PendingFields[];
   const recentDecisions = (recentRes.data ?? []) as RecentFields[];
   const upcomingEvents = (eventsRes.data ?? []) as EventFields[];
 
-  // Resolver nomes — busca somente os requesters necessarios
-  const requesterIds = Array.from(new Set([
+  // Resolver nomes — busca todos members envolvidos
+  const memberIds = Array.from(new Set([
     ...pendingRequests.map((r) => r.requester_id),
+    ...outgoingRequests.map((r) => r.target_partner_id),
     ...recentDecisions.map((r) => r.requester_id),
   ]));
-  const { data: rawRequesters, error: reqErr } = requesterIds.length > 0
+  const { data: rawMembers, error: reqErr } = memberIds.length > 0
     ? await supabase
         .from('members')
         .select('id, name, slug, color_hex, avatar_url, role')
-        .in('id', requesterIds)
+        .in('id', memberIds)
     : { data: [] as MemberFields[], error: null };
-  if (reqErr) console.error('[partner/meetings] requesters query failed', reqErr);
+  if (reqErr) console.error('[partner/meetings] members query failed', reqErr);
 
   return (
     <PartnerMeetingsClient
       member={{ id: member.id, name: member.name }}
       pendingRequests={pendingRequests as Array<PendingFields & { status: 'pending' | 'in_review'; priority: 'low' | 'normal' | 'high' | 'urgent' }>}
+      outgoingRequests={outgoingRequests as Array<PendingFields & { status: 'pending' | 'in_review'; priority: 'low' | 'normal' | 'high' | 'urgent' }>}
       recentDecisions={recentDecisions as Array<RecentFields & { status: 'approved' | 'rejected'; reviewed_at: string }>}
       upcomingEvents={upcomingEvents}
-      members={(rawRequesters ?? []) as MemberFields[]}
+      members={(rawMembers ?? []) as MemberFields[]}
       hasLoadError={hasLoadError}
     />
   );
