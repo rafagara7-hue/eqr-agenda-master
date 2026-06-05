@@ -3,7 +3,7 @@
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type DecisionAction = 'approve' | 'reject';
+export type DecisionAction = 'approve' | 'reject' | 'cancel';
 
 export interface MeetingDecisionActionsProps {
   busyAction: DecisionAction | null;
