@@ -48,26 +48,47 @@ function SettingRow({
 function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
   const { t } = useTranslation();
   const options: { value: Theme; label: string; Icon: React.ElementType }[] = [
-    { value: 'dark', label: t('settings.theme.dark'), Icon: Moon },
+    { value: 'dark',  label: t('settings.theme.dark'),  Icon: Moon },
     { value: 'light', label: t('settings.theme.light'), Icon: Sun },
   ];
 
   return (
-    <div className="flex gap-1 bg-surface-overlay rounded-lg p-1">
-      {options.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          onClick={() => onChange(value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            theme === value
-              ? 'bg-surface-elevated text-text-primary shadow-sm'
-              : 'text-text-muted hover:text-text-secondary'
-          }`}
-        >
-          <Icon className="w-3.5 h-3.5" />
-          {label}
-        </button>
-      ))}
+    <div className="flex items-center gap-2">
+      {options.map(({ value, label, Icon }) => {
+        const isActive = theme === value;
+        return (
+          <button
+            key={value}
+            onClick={() => onChange(value)}
+            title={label}
+            aria-label={label}
+            className={`relative w-14 h-11 rounded-lg border-2 transition-all flex flex-col items-center justify-end gap-0.5 pb-1 ${
+              isActive
+                ? 'border-member-blue bg-member-blue/10'
+                : 'border-surface-border hover:border-surface-muted bg-surface-overlay'
+            }`}
+          >
+            {/* Preview visual do tema (mesmo padrao do sidebar position picker) */}
+            <div className="absolute inset-1 flex overflow-hidden rounded-sm">
+              {value === 'dark' ? (
+                <div className="flex flex-col w-full h-full bg-[#0D1B2A]">
+                  <div className="w-full h-1.5 bg-[#1F3550] rounded-sm flex-shrink-0" />
+                  <div className="flex-1 w-full" />
+                  <div className="w-full h-1 bg-[#1F3550]/60 rounded-sm flex-shrink-0" />
+                </div>
+              ) : (
+                <div className="flex flex-col w-full h-full bg-[#F8FAFC]">
+                  <div className="w-full h-1.5 bg-[#CBD5E1] rounded-sm flex-shrink-0" />
+                  <div className="flex-1 w-full" />
+                  <div className="w-full h-1 bg-[#CBD5E1]/70 rounded-sm flex-shrink-0" />
+                </div>
+              )}
+            </div>
+            {/* Icon overlay no canto */}
+            <Icon className={`relative z-10 w-3 h-3 ${isActive ? 'text-member-blue' : 'text-text-muted'} drop-shadow`} />
+          </button>
+        );
+      })}
     </div>
   );
 }
