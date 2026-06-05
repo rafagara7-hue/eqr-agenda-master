@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Send, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Send, ChevronDown, ChevronUp, History, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -216,16 +216,35 @@ export function PartnerMeetingsClient({
           title={`Reuniões — ${member.name}`}
           showNewMeetingCta
           trailing={
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              title="Atualizar"
-              aria-label="Atualizar"
-            >
-              <RefreshCw className={`w-4 h-4 text-text-muted ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const url = `${window.location.origin}/agendar`;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    toast.success('Link copiado!');
+                  } catch {
+                    toast.error('Não foi possível copiar. Link: ' + url);
+                  }
+                }}
+                className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title="Copiar link do formulário"
+                aria-label="Copiar link do formulário"
+              >
+                <Copy className="w-4 h-4 text-text-muted" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title="Atualizar"
+                aria-label="Atualizar"
+              >
+                <RefreshCw className={`w-4 h-4 text-text-muted ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           }
         />
 
