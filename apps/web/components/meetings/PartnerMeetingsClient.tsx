@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Calendar as CalIcon, RefreshCw, Phone, UserCheck, Send, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -61,6 +61,20 @@ function getExternalContact(r: PendingRequest): ExternalContact | null {
   return null;
 }
 
+interface UpcomingApprovedRequest {
+  id: string;
+  title: string;
+  description: string | null;
+  requester_id: string;
+  target_partner_id: string;
+  proposed_start: string;
+  proposed_end: string;
+  suggested_start: string | null;
+  suggested_end: string | null;
+  decision_reason: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
 interface RecentDecision {
   id: string;
   title: string;
@@ -68,22 +82,15 @@ interface RecentDecision {
   proposed_start: string;
   status: 'approved' | 'rejected';
   reviewed_at: string;
-}
-
-interface UpcomingEvent {
-  id: string;
-  title: string;
-  start_at: string;
-  end_at: string;
-  status: string;
+  decision_reason: string | null;
 }
 
 interface Props {
   member: { id: string; name: string };
   pendingRequests: PendingRequest[];
   outgoingRequests: PendingRequest[];
+  upcomingApproved: UpcomingApprovedRequest[];
   recentDecisions: RecentDecision[];
-  upcomingEvents: UpcomingEvent[];
   members: MemberLite[];
   hasLoadError?: boolean;
 }
@@ -91,7 +98,7 @@ interface Props {
 type BusyState = { id: string; action: DecisionAction } | null;
 
 export function PartnerMeetingsClient({
-  member, pendingRequests, outgoingRequests, recentDecisions, upcomingEvents, members,
+  member, pendingRequests, outgoingRequests, upcomingApproved, recentDecisions, members,
 }: Props) {
   const router = useRouter();
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -99,6 +106,9 @@ export function PartnerMeetingsClient({
   const anyBusy = busy !== null;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmApproveFor, setConfirmApproveFor] = useState<string | null>(null);
+  const [expandedUpcoming, setExpandedUpcoming] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -128,10 +138,12 @@ export function PartnerMeetingsClient({
   }, [router]);
 
   const upcomingThisWeek = useMemo(() => {
-    const now = new Date();
-    const weekFromNow = new Date(); weekFromNow.setDate(now.getDate() + 7);
-    return upcomingEvents.filter((e) => new Date(e.start_at) <= weekFromNow).length;
-  }, [upcomingEvents]);
+    const weekFromNow = new Date(); weekFromNow.setDate(new Date().getDate() + 7);
+    return upcomingApproved.filter((r) => {
+      const start = new Date(r.suggested_start ?? r.proposed_start);
+      return start <= weekFromNow;
+    }).length;
+  }, [upcomingApproved]);
 
   // Separa pendentes em internas (sócio→sócio) e externas (/agendar)
   const externalPending = useMemo(
@@ -152,7 +164,7 @@ export function PartnerMeetingsClient({
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
-    if (!confirm('Aprovar esta solicitação? Será criado um evento no seu calendário.')) return;
+    setConfirmApproveFor(null);
     setBusy({ id: requestId, action: 'approve' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/approve`, {
@@ -176,14 +188,12 @@ export function PartnerMeetingsClient({
 
   async function handleReject(requestId: string) {
     if (anyBusy) return;
-    const reason = prompt('Motivo da rejeição (visível ao solicitante):');
-    if (!reason || reason.trim().length < 1) return;
     setBusy({ id: requestId, action: 'reject' });
     try {
       const res = await fetch(`/api/meetings/requests/${requestId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -221,10 +231,10 @@ export function PartnerMeetingsClient({
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <MeetingStatCard icon={<Clock className="w-4 h-4" />}        value={pendingRequests.length} label="Aguardam você" tone="amber" />
-          <MeetingStatCard icon={<CalIcon className="w-4 h-4" />}      value={upcomingThisWeek}       label="Próximas"      tone="gold" />
-          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />} value={recentDecisions.filter((d) => d.status === 'approved').length} label="Aprovadas"  tone="success" />
-          <MeetingStatCard icon={<XCircle className="w-4 h-4" />}      value={recentDecisions.filter((d) => d.status === 'rejected').length} label="Rejeitadas" tone="danger" />
+          <MeetingStatCard icon={<Clock className="w-4 h-4" />}        value={pendingRequests.length}   label="Aguardam você" tone="amber" />
+          <MeetingStatCard icon={<Send className="w-4 h-4" />}         value={outgoingRequests.length}  label="Solicitei"     tone="gold" />
+          <MeetingStatCard icon={<CalIcon className="w-4 h-4" />}      value={upcomingThisWeek}         label="Próximos 7d"   tone="success" />
+          <MeetingStatCard icon={<CheckCircle2 className="w-4 h-4" />} value={upcomingApproved.length}  label="Aprovadas"     tone="success" />
         </div>
 
         {/* Funcionários (solicitações externas via /agendar) */}
@@ -302,9 +312,12 @@ export function PartnerMeetingsClient({
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
                       disabled={anyBusy}
-                      onApprove={() => void handleApprove(r.id)}
-                      onReject={() => void handleReject(r.id)}
-                      approveLabel="Aprovar"
+                      onApprove={() => {
+                        if (confirmApproveFor === r.id) void handleApprove(r.id);
+                        else setConfirmApproveFor(r.id);
+                      }}
+                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                      approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
@@ -383,9 +396,12 @@ export function PartnerMeetingsClient({
                     <MeetingDecisionActions
                       busyAction={itemBusy ? busy?.action ?? null : null}
                       disabled={anyBusy}
-                      onApprove={() => void handleApprove(r.id)}
-                      onReject={() => void handleReject(r.id)}
-                      approveLabel="Aprovar"
+                      onApprove={() => {
+                        if (confirmApproveFor === r.id) void handleApprove(r.id);
+                        else setConfirmApproveFor(r.id);
+                      }}
+                      onReject={() => { setConfirmApproveFor(null); void handleReject(r.id); }}
+                      approveLabel={confirmApproveFor === r.id ? 'Confirmar aprovação' : 'Aprovar'}
                       rejectLabel="Recusar"
                       className="mt-3"
                     />
@@ -445,72 +461,188 @@ export function PartnerMeetingsClient({
           </div>
         )}
 
-        {/* Próximas reuniões confirmadas */}
-        {upcomingEvents.length > 0 && (
-          <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden mb-5">
-            <div className="px-5 py-3 border-b border-surface-border flex items-center">
-              <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-                Próximas reuniões
-              </span>
-              <span className="text-accent font-semibold ml-2 text-xs">({upcomingEvents.length})</span>
-            </div>
-            <ul className="divide-y divide-surface-border">
-              {upcomingEvents.map((e) => (
-                <li key={e.id} className="flex items-center gap-4 px-5 py-3">
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-accent text-lg font-bold leading-tight">
-                      {formatMeetingTime(e.start_at)}
-                    </div>
-                    <div className="text-text-muted text-[10px] uppercase tracking-wider">
-                      {meetingDateRelativeLabel(e.start_at)}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text-primary text-sm font-medium truncate">{e.title}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+        {/* Próximas reuniões — aprovadas e futuras, expansível ao clicar */}
+        <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-surface-border flex items-center">
+            <CheckCircle2 className="w-3.5 h-3.5 text-success mr-2" />
+            <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
+              Próximas reuniões
+            </span>
+            <span className="text-accent font-semibold ml-2 text-xs">({upcomingApproved.length})</span>
           </div>
-        )}
 
-        {/* Histórico recente */}
-        {recentDecisions.length > 0 && (
-          <div className="bg-surface-elevated border border-surface-border rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-surface-border">
-              <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-                Decisões recentes (30 dias)
-              </span>
+          {upcomingApproved.length === 0 ? (
+            <div className="px-5 py-8 text-center text-text-muted text-sm">
+              Nenhuma reunião aprovada no momento.
             </div>
-            <ul className="divide-y divide-surface-border text-sm">
-              {recentDecisions.map((d) => {
-                const requester = memberById.get(d.requester_id);
+          ) : (
+            <ul className="divide-y divide-surface-border">
+              {upcomingApproved.map((r) => {
+                const isExpanded = expandedUpcoming === r.id;
+                const startIso = r.suggested_start ?? r.proposed_start;
+                const endIso = r.suggested_end ?? r.proposed_end;
+                const isTarget = r.target_partner_id === member.id;
+                const counterpartId = isTarget ? r.requester_id : r.target_partner_id;
+                const counterpart = memberById.get(counterpartId);
+                const counterpartLabel = isTarget ? 'Solicitado por' : 'Reunião com';
+
                 return (
-                  <li key={d.id}>
-                    <Link
-                      href={`/meetings/${d.id}`}
-                      className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface-overlay transition-colors"
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedUpcoming(isExpanded ? null : r.id)}
+                      className="w-full flex items-center gap-4 px-5 py-3 hover:bg-surface-overlay transition-colors text-left"
+                      aria-expanded={isExpanded}
                     >
-                      {d.status === 'approved' ? (
-                        <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-danger flex-shrink-0" />
+                      <div className="text-center min-w-[60px]">
+                        <div className="text-accent text-lg font-bold leading-tight">
+                          {formatMeetingTime(startIso)}
+                        </div>
+                        <div className="text-text-muted text-[10px] uppercase tracking-wider">
+                          {meetingDateRelativeLabel(startIso)}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary text-sm font-medium truncate">{r.title}</p>
+                        <p className="text-text-muted text-xs truncate">
+                          {counterpartLabel} <span className="text-text-secondary">{counterpart?.name ?? '?'}</span>
+                        </p>
+                      </div>
+                      {counterpart && (
+                        <div
+                          className="flex-shrink-0"
+                          title={`${counterpartLabel}: ${counterpart.name}`}
+                          aria-label={`${counterpartLabel}: ${counterpart.name}`}
+                        >
+                          <MemberAvatar
+                            member={{ name: counterpart.name, colorHex: counterpart.color_hex, avatarUrl: counterpart.avatar_url }}
+                            size="sm"
+                          />
+                        </div>
                       )}
-                      <span className="text-text-primary text-xs flex-1 truncate">
-                        {d.title}
-                        <span className="text-text-muted"> · {requester?.name ?? '?'}</span>
-                      </span>
-                      <span className="text-text-muted text-[11px]">
-                        {meetingTimeAgo(d.reviewed_at)}
-                      </span>
-                    </Link>
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-text-muted flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-text-muted flex-shrink-0" />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="px-5 pb-4 space-y-3 border-t border-surface-border bg-surface-base/30"
+                      >
+                        <MeetingTimeBlock startIso={startIso} endIso={endIso} />
+
+                        {r.description && (
+                          <div className="space-y-1">
+                            <div className="text-text-muted text-[10px] uppercase tracking-wider">Assunto</div>
+                            <p className="text-text-primary text-sm whitespace-pre-wrap">{r.description}</p>
+                          </div>
+                        )}
+
+                        {counterpart && (
+                          <div className="flex items-center gap-2">
+                            <MemberAvatar
+                              member={{ name: counterpart.name, colorHex: counterpart.color_hex, avatarUrl: counterpart.avatar_url }}
+                              size="sm"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-text-primary text-sm font-medium truncate">{counterpart.name}</p>
+                              <p className="text-text-muted text-[11px] uppercase tracking-wider">{counterpartLabel}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {r.decision_reason && (
+                          <div className="rounded-md border border-success/30 bg-success/5 px-3 py-2">
+                            <div className="text-success text-[10px] uppercase tracking-wider mb-0.5">Nota da aprovação</div>
+                            <p className="text-text-primary text-xs whitespace-pre-wrap">{r.decision_reason}</p>
+                          </div>
+                        )}
+
+                        <div className="pt-1">
+                          <Link
+                            href={`/meetings/${r.id}`}
+                            className="text-accent text-xs font-medium hover:underline"
+                          >
+                            Abrir detalhes completos →
+                          </Link>
+                        </div>
+                      </motion.div>
+                    )}
                   </li>
                 );
               })}
             </ul>
+          )}
+        </div>
+
+        {/* Historico — colapsado por padrao, abre ao clicar no botao */}
+        {recentDecisions.length > 0 && (
+          <div className="mt-5 bg-surface-elevated border border-surface-border rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="w-full px-5 py-3 flex items-center hover:bg-surface-overlay transition-colors"
+              aria-expanded={showHistory}
+            >
+              <History className="w-3.5 h-3.5 text-text-muted mr-2" />
+              <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
+                Histórico
+              </span>
+              <span className="text-text-muted font-semibold ml-2 text-xs">
+                ({recentDecisions.length})
+              </span>
+              <span className="text-text-muted text-[11px] ml-2 normal-case tracking-normal">
+                últimos 30 dias
+              </span>
+              <span className="ml-auto">
+                {showHistory ? (
+                  <ChevronUp className="w-4 h-4 text-text-muted" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-text-muted" />
+                )}
+              </span>
+            </button>
+
+            {showHistory && (
+              <motion.ul
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="divide-y divide-surface-border text-sm border-t border-surface-border"
+              >
+                {recentDecisions.map((d) => {
+                  const requester = memberById.get(d.requester_id);
+                  return (
+                    <li key={d.id}>
+                      <Link
+                        href={`/meetings/${d.id}`}
+                        className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface-overlay transition-colors"
+                      >
+                        {d.status === 'approved' ? (
+                          <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-danger flex-shrink-0" />
+                        )}
+                        <span className="text-text-primary text-xs flex-1 truncate">
+                          {d.title}
+                          <span className="text-text-muted"> · {requester?.name ?? '?'}</span>
+                        </span>
+                        <span className="text-text-muted text-[11px]">
+                          {meetingTimeAgo(d.reviewed_at)}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </motion.ul>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
+
