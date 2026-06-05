@@ -97,6 +97,14 @@ export function MeetingDetailClient({
   const requester = memberById.get(request.requester_id);
   const partner = memberById.get(request.target_partner_id);
 
+  const externalContact = (() => {
+    const ext = (request.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
+    if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
+      return { name: ext.name, phone: ext.phone };
+    }
+    return null;
+  })();
+
   const isRequester = currentMember.id === request.requester_id;
   const isPartner = currentMember.id === request.target_partner_id;
   const isAdmin = currentMember.role === 'admin';
