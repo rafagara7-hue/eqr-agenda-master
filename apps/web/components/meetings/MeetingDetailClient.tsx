@@ -79,6 +79,14 @@ export function MeetingDetailClient({
     };
   }, [router]);
 
+  // Polling 20s skip-when-hidden — usuario parado no detail vendo comentarios novos
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const requester = memberById.get(request.requester_id);
   const partner = memberById.get(request.target_partner_id);
   const reviewer = request.reviewer_id ? memberById.get(request.reviewer_id) : null;

@@ -62,30 +62,24 @@ function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) =
             onClick={() => onChange(value)}
             title={label}
             aria-label={label}
-            className={`relative w-14 h-11 rounded-lg border-2 transition-all flex flex-col items-center justify-end gap-0.5 pb-1 ${
+            className={`relative w-[88px] h-11 rounded-lg border-2 transition-all flex items-center justify-center gap-1.5 px-2 overflow-hidden ${
               isActive
                 ? 'border-member-blue bg-member-blue/10'
                 : 'border-surface-border hover:border-surface-muted bg-surface-overlay'
             }`}
           >
-            {/* Preview visual do tema (mesmo padrao do sidebar position picker) */}
-            <div className="absolute inset-1 flex overflow-hidden rounded-sm">
+            {/* Preview visual do tema como background */}
+            <div className="absolute inset-0 opacity-20">
               {value === 'dark' ? (
-                <div className="flex flex-col w-full h-full bg-[#0D1B2A]">
-                  <div className="w-full h-1.5 bg-[#1F3550] rounded-sm flex-shrink-0" />
-                  <div className="flex-1 w-full" />
-                  <div className="w-full h-1 bg-[#1F3550]/60 rounded-sm flex-shrink-0" />
-                </div>
+                <div className="w-full h-full bg-[#0D1B2A]" />
               ) : (
-                <div className="flex flex-col w-full h-full bg-[#F8FAFC]">
-                  <div className="w-full h-1.5 bg-[#CBD5E1] rounded-sm flex-shrink-0" />
-                  <div className="flex-1 w-full" />
-                  <div className="w-full h-1 bg-[#CBD5E1]/70 rounded-sm flex-shrink-0" />
-                </div>
+                <div className="w-full h-full bg-[#F8FAFC]" />
               )}
             </div>
-            {/* Icon overlay no canto */}
-            <Icon className={`relative z-10 w-3 h-3 ${isActive ? 'text-member-blue' : 'text-text-muted'} drop-shadow`} />
+            <Icon className={`relative z-10 w-4 h-4 ${isActive ? 'text-member-blue' : 'text-text-secondary'}`} />
+            <span className={`relative z-10 text-xs font-medium ${isActive ? 'text-member-blue' : 'text-text-secondary'}`}>
+              {label}
+            </span>
           </button>
         );
       })}
