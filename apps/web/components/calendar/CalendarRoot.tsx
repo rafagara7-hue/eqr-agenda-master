@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TopBar } from '@/components/layout/TopBar';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
@@ -85,11 +85,22 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
   const [activeFilter, setActiveFilter] = useState<string | undefined>(initialFilter);
   const [showFilteredHours, setShowFilteredHours] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Volta para modo filtrado quando o usuário aplica novos horários
   useEffect(() => {
     setShowFilteredHours(true);
   }, [settings.workStart, settings.workEnd]);
+
+  // Polling 20s skip-when-hidden — calendar fica fresh sem precisar refresh manual
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      }
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [queryClient]);
 
   const { isAdmin, member } = useAuth();
   const supabase = getSupabaseBrowserClient();

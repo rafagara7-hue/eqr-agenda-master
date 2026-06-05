@@ -1,7 +1,9 @@
 'use client';
 
-import { SlidersHorizontal } from 'lucide-react';
+import { useState } from 'react';
+import { SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDate, startOfWeek, addDays, addWeeks } from '@/lib/calendar/dateUtils';
 import { NotificationBell } from './NotificationBell';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
@@ -47,6 +49,16 @@ export function TopBar({
 }: TopBarProps) {
   const { settings } = useAgendaSettings();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    void queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
+    setTimeout(() => setRefreshing(false), 800);
+  }
   const pos = settings.sidebarPosition;
   const isVertical = pos === 'left' || pos === 'right';
   // O sino sempre aparece no TopBar do calendário (cluster flutuante foi removido).
@@ -136,6 +148,17 @@ export function TopBar({
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0"
+        title="Atualizar"
+        aria-label="Atualizar"
+      >
+        <RefreshCw className={cn('w-4 h-4 text-text-muted', refreshing && 'animate-spin')} />
+      </button>
 
       {showBell && <NotificationBell />}
     </header>
