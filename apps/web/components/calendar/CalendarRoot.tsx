@@ -296,8 +296,9 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
       {/* Filtros de status — chips por tipo (Confirmado / Provisório / Cruzado).
           Mobile usa BottomSheet (botao SlidersHorizontal no TopBar), entao
           inline so em sm+ pra evitar duplicacao + economiza ~50px no mobile.
-          Cores inativas usam style inline para evitar Tailwind purge ou
-          override de specificity que tinham deixado os chips invisiveis (PR #42 nao bastou). */}
+          PR #43 tentou inline style com rgb(var(--x)) mas falhou: React serializa
+          a string e var() nao e resolvida em runtime. Voltamos pro padrao Tailwind
+          igual as member pills que ja funcionam (PR #44). */}
       <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
         <button
           onClick={() => setActiveFilter(undefined)}
@@ -305,13 +306,8 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
             !activeFilter
               ? 'bg-accent/15 border-accent/40 text-accent scale-105'
-              : 'border'
+              : 'border-surface-border bg-surface-overlay/60 text-text-primary hover:border-accent/40'
           }`}
-          style={!activeFilter ? {} : {
-            color: 'rgb(var(--text-primary-rgb))',
-            backgroundColor: 'rgb(var(--surface-overlay-rgb) / 0.6)',
-            borderColor: 'rgb(var(--surface-border-rgb))',
-          }}
         >
           {t('common.all')}
         </button>
@@ -325,13 +321,9 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
               className={`shrink-0 min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                 isActive
                   ? 'text-white border-transparent scale-105'
-                  : 'border'
+                  : 'border-surface-border bg-surface-overlay/60 text-text-primary hover:border-accent/40'
               }`}
-              style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : {
-                color: 'rgb(var(--text-primary-rgb))',
-                backgroundColor: 'rgb(var(--surface-overlay-rgb) / 0.6)',
-                borderColor: 'rgb(var(--surface-border-rgb))',
-              }}
+              style={isActive ? { backgroundColor: f.dotColor, borderColor: f.dotColor } : undefined}
             >
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'white' : f.dotColor }} />
               {t(f.labelKey)}
