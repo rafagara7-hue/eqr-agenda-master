@@ -101,7 +101,14 @@ export function MeetingDetailClient({
   const isPartner = currentMember.id === request.target_partner_id;
   const isAdmin = currentMember.role === 'admin';
   const canDecide = (isPartner || isAdmin) && isActiveStatus(request.status as MeetingStatus);
-  const canCancel = isRequester && isActiveStatus(request.status as MeetingStatus);
+  // Solicitante pode cancelar pending/in_review OU desmarcar reuniao aprovada
+  // (migration 0027 permite cancelar approved e deleta o evento vinculado).
+  const canCancel = isRequester && (
+    isActiveStatus(request.status as MeetingStatus) || request.status === 'approved'
+  );
+  const isUnscheduling = request.status === 'approved';
+  const cancelLabel = isUnscheduling ? 'Desmarcar reunião' : 'Cancelar solicitação';
+  const cancelConfirmLabel = isUnscheduling ? 'Confirmar desmarcação' : 'Confirmar cancelamento';
   const canComment = isRequester || isPartner || isAdmin;
   const rejectLabel = isAdmin && !isPartner ? 'Rejeitar' : 'Recusar';
 
@@ -207,7 +214,7 @@ export function MeetingDetailClient({
         toast.error(data.error ?? 'Erro ao cancelar');
         return;
       }
-      toast.success('Solicitação cancelada');
+      toast.success(isUnscheduling ? 'Reunião desmarcada — evento removido do calendário' : 'Solicitação cancelada');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
@@ -426,7 +433,7 @@ export function MeetingDetailClient({
                     className={`text-xs font-medium px-3 py-1.5 rounded-md border ${confirmCancel ? 'border-danger/60 text-danger bg-danger/10' : 'border-surface-border text-text-secondary hover:border-danger/40 hover:text-danger'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:min-h-0 min-h-[44px] inline-flex items-center gap-1.5`}
                   >
                     {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-                    {confirmCancel ? 'Confirmar cancelamento' : 'Cancelar solicitação'}
+                    {confirmCancel ? cancelConfirmLabel : cancelLabel}
                   </button>
                   {confirmCancel && !cancelling && (
                     <button
