@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar, RefreshCw, Copy } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar, RefreshCw, Copy, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -45,6 +45,27 @@ interface Request {
   created_at: string;
   reviewed_at: string | null;
   decision_reason: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface ExternalContact { name: string; phone: string }
+interface CancellationInfo { reason: string; cancelled_by_partner_id: string; cancelled_by_partner_name: string; cancelled_at: number }
+
+function getExternalContact(r: Request): ExternalContact | null {
+  const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
+  if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') return { name: ext.name, phone: ext.phone };
+  return null;
+}
+
+function isPendingNotification(r: Request): boolean {
+  const m = r.metadata as { notification_pending?: boolean; external?: unknown } | null;
+  return r.status === 'cancelled' && !!m?.external && m?.notification_pending === true;
+}
+
+function getCancellation(r: Request): CancellationInfo | null {
+  const c = (r.metadata as { cancellation?: CancellationInfo } | null)?.cancellation;
+  if (c && typeof c.reason === 'string') return c;
+  return null;
 }
 
 interface Props {
@@ -136,6 +157,29 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
     () => members.filter((m) => m.role === 'member' || m.role === 'admin'),
     [members],
   );
+
+  // Cancelamentos pendentes de notificacao — socio cancelou reuniao externa,
+  // admin precisa avisar o solicitante externo (telefone do form).
+  const pendingNotifications = useMemo(
+    () => requests.filter(isPendingNotification),
+    [requests],
+  );
+
+  async function handleMarkNotified(requestId: string) {
+    if (anyBusy) return;
+    setBusy({ id: requestId, action: 'approve' });
+    try {
+      const res = await fetch(`/api/meetings/requests/${requestId}/notify-external`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { toast.error(data.error ?? 'Erro'); return; }
+      toast.success('Marcado como notificado');
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro de rede');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function handleApprove(requestId: string) {
     if (anyBusy) return;
@@ -241,6 +285,60 @@ export function AdminMeetingsClient({ member, requests, members }: Props) {
           <MeetingStatCard icon={<XCircle className="w-4 h-4" />}       value={stats.rejected} label="Rejeitadas" tone="dim" />
           <MeetingStatCard icon={<Calendar className="w-4 h-4" />}      value={stats.total}    label="Ativos"     tone="gold" />
         </div>
+
+        {/* Cancelamentos pendentes de notificacao — socio cancelou reuniao externa, admin precisa avisar o externo */}
+        {pendingNotifications.length > 0 && (
+          <div className="mb-5 bg-danger/5 border border-danger/40 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-danger/30 flex items-center">
+              <AlertTriangle className="w-3.5 h-3.5 text-danger mr-2" />
+              <span className="text-danger text-xs uppercase tracking-wider font-medium">
+                Cancelamentos a notificar
+              </span>
+              <span className="text-danger font-semibold ml-2 text-xs">({pendingNotifications.length})</span>
+              <span className="ml-auto text-text-muted text-[11px]">Avisar o funcionário externamente</span>
+            </div>
+            <div className="divide-y divide-danger/20">
+              {pendingNotifications.map((r) => {
+                const contact = getExternalContact(r)!;
+                const cancellation = getCancellation(r);
+                return (
+                  <div key={r.id} className="px-5 py-4">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary font-medium text-sm">{contact.name}</p>
+                        <p className="text-text-muted text-xs mt-0.5">
+                          <a href={`tel:${contact.phone.replace(/\D/g, '')}`} className="text-accent hover:underline">
+                            <Phone className="inline w-3 h-3" /> {contact.phone}
+                          </a>
+                          {' · '}<span>Reunião: {r.title}</span>
+                        </p>
+                        {cancellation && (
+                          <>
+                            <p className="text-text-muted text-xs mt-1.5">
+                              Cancelado por <span className="text-text-secondary">{cancellation.cancelled_by_partner_name}</span>
+                            </p>
+                            {cancellation.reason && (
+                              <p className="text-text-secondary text-xs mt-1 italic">"{cancellation.reason}"</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleMarkNotified(r.id)}
+                        disabled={anyBusy}
+                        className="text-xs font-medium px-3 py-2 rounded-lg bg-success/15 text-success border border-success/40 hover:bg-success/25 transition-colors disabled:opacity-50 min-h-[36px] inline-flex items-center gap-1.5 flex-shrink-0"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Marcar como notificado
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="bg-surface-elevated border border-surface-border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
