@@ -55,7 +55,7 @@ interface ExternalContact {
   phone: string;
 }
 
-function getExternalContact(r: PendingRequest): ExternalContact | null {
+function getExternalContact(r: { metadata: Record<string, unknown> | null }): ExternalContact | null {
   const ext = (r.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
   if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
     return { name: ext.name, phone: ext.phone };
@@ -115,9 +115,6 @@ export function PartnerMeetingsClient({
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelRequestId, setCancelRequestId] = useState<string | null>(null);
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelRequestId, setCancelRequestId] = useState<string | null>(null);
-  const [confirmCancelFor, setConfirmCancelFor] = useState<string | null>(null);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -644,10 +641,7 @@ export function PartnerMeetingsClient({
                           <div className="pt-2 border-t border-surface-border">
                             <button
                               type="button"
-                              onClick={() => {
-                                setConfirmCancelFor(null);
-                                openCancelModal(r.id);
-                              }}
+                              onClick={() => openCancelModal(r.id)}
                               disabled={anyBusy}
                               className="text-xs font-medium px-3 py-2 rounded-lg bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full"
                             >
