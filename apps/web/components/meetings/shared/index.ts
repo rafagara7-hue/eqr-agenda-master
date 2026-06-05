@@ -5,5 +5,6 @@ export { MeetingStatCard } from './MeetingStatCard';
 export { MeetingDecisionActions } from './MeetingDecisionActions';
 export { MeetingPageHeader } from './MeetingPageHeader';
 export { MeetingErrorBanner } from './MeetingErrorBanner';
+export { RejectFeedbackModal } from './RejectFeedbackModal';
 export type { DecisionAction } from './MeetingDecisionActions';
 export type { MeetingStatTone } from './MeetingStatCard';
