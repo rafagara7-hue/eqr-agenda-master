@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle2, XCircle, Calendar, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -13,7 +13,6 @@ import {
   MeetingStatCard,
   MeetingDecisionActions,
   MeetingPageHeader,
-  MeetingErrorBanner,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -72,13 +71,21 @@ function isFilter(v: string): v is Filter {
 
 type BusyState = { id: string; action: DecisionAction } | null;
 
-export function AdminMeetingsClient({ member, requests, members, hasLoadError }: Props) {
+export function AdminMeetingsClient({ member, requests, members }: Props) {
   const router = useRouter();
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const [busy, setBusy] = useState<BusyState>(null);
   const anyBusy = busy !== null;
   const [filter, setFilter] = useState<Filter>('all');
   const [partnerFilter, setPartnerFilter] = useState<string>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    router.refresh();
+    setTimeout(() => setRefreshing(false), 800);
+  }
 
   const filtered = useMemo(() => {
     return requests.filter((r) => {
@@ -160,9 +167,19 @@ export function AdminMeetingsClient({ member, requests, members, hasLoadError }:
           title="Reuniões — Admin"
           subtitle={`Painel de ${member.name}. Aprove ou rejeite pedidos.`}
           showNewMeetingCta
+          trailing={
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              title="Atualizar"
+              aria-label="Atualizar"
+            >
+              <RefreshCw className={`w-4 h-4 text-text-muted ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          }
         />
-
-        <MeetingErrorBanner visible={!!hasLoadError} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">

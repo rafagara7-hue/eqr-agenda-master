@@ -13,7 +13,6 @@ import {
   MeetingStatCard,
   MeetingDecisionActions,
   MeetingPageHeader,
-  MeetingErrorBanner,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -190,8 +189,6 @@ export function PartnerMeetingsClient({
             </button>
           }
         />
-
-        <MeetingErrorBanner visible={!!hasLoadError} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
