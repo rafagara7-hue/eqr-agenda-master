@@ -268,7 +268,7 @@ export function PartnerMeetingsClient({
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <MeetingPageHeader
-          title={`Reuniões — ${member.name}`}
+          title="Reuniões"
           showNewMeetingCta
           trailing={
             <div className="flex items-center gap-2">
