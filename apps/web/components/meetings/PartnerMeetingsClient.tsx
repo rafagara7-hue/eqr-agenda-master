@@ -294,11 +294,12 @@ export function PartnerMeetingsClient({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-text-primary font-medium text-sm group-hover:text-accent transition-colors">
+                            {contact.name}
+                          </p>
+                          <p className="text-text-secondary text-xs mt-0.5 truncate">
                             {r.title}
                           </p>
-                          <p className="text-text-muted text-xs mt-0.5">
-                            <span className="text-text-secondary">{contact.name}</span>
-                            {' · '}
+                          <p className="text-text-muted text-xs mt-1">
                             <a
                               href={`tel:${contact.phone.replace(/\D/g, '')}`}
                               onClick={(e) => e.stopPropagation()}
