@@ -75,7 +75,7 @@ export function TopBar({
 
   return (
     <header className={cn(
-      'relative h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky z-10',
+      'h-14 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 border-b border-surface-border bg-surface-elevated/80 backdrop-blur-sm sticky z-10',
       stickyTop,
       edgePadding
     )}>
