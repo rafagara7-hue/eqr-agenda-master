@@ -14,6 +14,7 @@ import {
   MeetingDecisionActions,
   MeetingPageHeader,
   RejectFeedbackModal,
+  CancelFeedbackModal,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -112,6 +113,11 @@ export function PartnerMeetingsClient({
   const [showHistory, setShowHistory] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelRequestId, setCancelRequestId] = useState<string | null>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelRequestId, setCancelRequestId] = useState<string | null>(null);
+  const [confirmCancelFor, setConfirmCancelFor] = useState<string | null>(null);
 
   // Auto-refresh quando o user volta pra aba/janela.
   // Resolve "criei reuniao mas a pessoa nao ve" — outro sócio cria em outra aba,
@@ -215,6 +221,42 @@ export function PartnerMeetingsClient({
   function openRejectModal(requestId: string) {
     setRejectRequestId(requestId);
     setRejectModalOpen(true);
+  }
+
+  function openCancelModal(requestId: string) {
+    setCancelRequestId(requestId);
+    setCancelModalOpen(true);
+  }
+
+  async function handleCancel(requestId: string, reason: string) {
+    if (anyBusy) return;
+    setBusy({ id: requestId, action: 'cancel' });
+    try {
+      const res = await fetch(`/api/meetings/requests/${requestId}/cancel-as-partner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reason ? { reason } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Erro ao cancelar');
+        return;
+      }
+      toast.success('Reunião cancelada — funcionário será notificado via admin');
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro de rede');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleCancelModalConfirm(reason: string) {
+    if (cancelRequestId) {
+      await handleCancel(cancelRequestId, reason);
+      setCancelModalOpen(false);
+      setCancelRequestId(null);
+    }
   }
 
   async function handleRejectModalConfirm(reason: string) {
@@ -594,6 +636,23 @@ export function PartnerMeetingsClient({
                           <div className="rounded-md border border-success/30 bg-success/5 px-3 py-2">
                             <div className="text-success text-[10px] uppercase tracking-wider mb-0.5">Nota da aprovação</div>
                             <p className="text-text-primary text-xs whitespace-pre-wrap">{r.decision_reason}</p>
+                          </div>
+                        )}
+
+                        {/* Botão para cancelar (apenas para reuniões externas) */}
+                        {isTarget && getExternalContact(r) && (
+                          <div className="pt-2 border-t border-surface-border">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmCancelFor(null);
+                                openCancelModal(r.id);
+                              }}
+                              disabled={anyBusy}
+                              className="text-xs font-medium px-3 py-2 rounded-lg bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full"
+                            >
+                              Cancelar com funcionário
+                            </button>
                           </div>
                         )}
 
