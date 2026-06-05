@@ -16,6 +16,7 @@ import {
   MeetingTimeBlock,
   MeetingDecisionActions,
   MeetingPageHeader,
+  RejectFeedbackModal,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -73,6 +74,7 @@ export function MeetingDetailClient({
   const [suggestMessage, setSuggestMessage] = useState('');
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
   useEffect(() => {
     const onVisible = () => {
@@ -96,14 +98,6 @@ export function MeetingDetailClient({
 
   const requester = memberById.get(request.requester_id);
   const partner = memberById.get(request.target_partner_id);
-
-  const externalContact = (() => {
-    const ext = (request.metadata as { external?: { name?: string; phone?: string } } | null)?.external;
-    if (ext && typeof ext.name === 'string' && typeof ext.phone === 'string') {
-      return { name: ext.name, phone: ext.phone };
-    }
-    return null;
-  })();
 
   const isRequester = currentMember.id === request.requester_id;
   const isPartner = currentMember.id === request.target_partner_id;
@@ -148,14 +142,14 @@ export function MeetingDetailClient({
     }
   }
 
-  async function handleReject() {
+  async function handleReject(reason: string) {
     if (busyAction !== null || cancelling) return;
     setBusyAction('reject');
     try {
       const res = await fetch(`/api/meetings/requests/${request.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(reason ? { reason } : {}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -287,16 +281,7 @@ export function MeetingDetailClient({
         <div className="bg-surface-elevated border border-surface-border rounded-xl p-5 mb-5">
           {/* Solicitante → Convidado */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            {externalContact ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30">
-                <span className="text-text-muted text-[10px] uppercase tracking-wider">Solicitante (externo)</span>
-                <span className="text-text-primary text-sm font-medium">{externalContact.name}</span>
-                <span className="text-text-muted text-xs">·</span>
-                <span className="text-text-secondary text-xs">{externalContact.phone}</span>
-              </div>
-            ) : (
-              <PersonChip label="Solicitante" member={requester} />
-            )}
+            <PersonChip label="Solicitante" member={requester} />
             <span className="text-text-muted">→</span>
             <PersonChip label="Convidado" member={partner} />
           </div>
@@ -337,7 +322,7 @@ export function MeetingDetailClient({
                       if (confirmApprove) void handleApprove();
                       else setConfirmApprove(true);
                     }}
-                    onReject={() => void handleReject()}
+                    onReject={() => setRejectModalOpen(true)}
                     approveLabel={confirmApprove ? 'Confirmar aprovação' : 'Aprovar'}
                     rejectLabel={rejectLabel}
                   />
@@ -577,6 +562,13 @@ export function MeetingDetailClient({
           )}
         </div>
       </div>
+
+      <RejectFeedbackModal
+        open={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        onConfirm={handleReject}
+        meetingTitle={request.title}
+      />
     </div>
   );
 }
