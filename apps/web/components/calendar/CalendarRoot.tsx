@@ -253,7 +253,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+        <div className="hidden sm:flex relative z-20 items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-elevated overflow-x-auto shrink-0">
           <button
             onClick={() => setActiveMemberIds([])}
             aria-pressed={activeMemberIds.length === 0}
@@ -298,8 +298,11 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
           inline so em sm+ pra evitar duplicacao + economiza ~50px no mobile.
           PR #43 tentou inline style com rgb(var(--x)) mas falhou: React serializa
           a string e var() nao e resolvida em runtime. Voltamos pro padrao Tailwind
-          igual as member pills que ja funcionam (PR #44). */}
-      <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base overflow-x-auto shrink-0">
+          igual as member pills que ja funcionam (PR #44). PR #45 adiciona
+          relative z-20 + bg-surface-elevated porque o user reportou que os
+          chips estavam ATRAS do TopBar sticky z-10 (clicaveis mas escondidos
+          quando a pagina rola). */}
+      <div className="hidden sm:flex relative z-20 items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-elevated overflow-x-auto shrink-0">
         <button
           onClick={() => setActiveFilter(undefined)}
           aria-pressed={!activeFilter}
@@ -334,7 +337,7 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
       {/* Toggle de faixa de horário — apenas DESKTOP. Mobile usa BottomSheet. */}
       {view !== 'month' && (
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-base shrink-0">
+        <div className="hidden sm:flex relative z-20 items-center gap-2 px-4 py-2 border-b border-surface-border bg-surface-elevated shrink-0">
           <span className="text-text-muted text-xs shrink-0">{t('calendar.filters.hourLabel')}</span>
           <div className="flex items-center bg-surface-overlay rounded-lg p-0.5 gap-0.5">
             <button
