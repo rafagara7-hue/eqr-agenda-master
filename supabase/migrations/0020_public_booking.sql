@@ -6,7 +6,7 @@
 -- direto e envia.
 --
 -- Estrategia:
--- - 1 placeholder member 'Solicitação Externa' (role='employee',
+-- - 1 placeholder member 'Colaboradores' (role='employee',
 --   user_id=NULL). Todas requests externas usam ele como requester.
 -- - Nome+telefone gravados em meeting_requests.metadata->'external'
 --   e prefixados em observations pra surfaces sem mexer no UI atual.
@@ -23,7 +23,7 @@
 ALTER TABLE public.members ALTER COLUMN user_id DROP NOT NULL;
 
 COMMENT ON COLUMN public.members.user_id IS
-  'auth.users link. NULL para membros placeholder (ex.: Solicitação Externa) que nao logam.';
+  'auth.users link. NULL para membros placeholder (ex.: Colaboradores) que nao logam.';
 
 -- ────────────────────────────────────────────────────────────
 -- 2) Placeholder member
