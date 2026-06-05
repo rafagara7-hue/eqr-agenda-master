@@ -1,15 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Clock, Eye, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Clock, Eye, CheckCircle2, BarChart3, RefreshCw } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
   MeetingStatusBadge,
   MeetingStatCard,
   MeetingPageHeader,
-  MeetingErrorBanner,
 } from '@/components/meetings/shared';
 import {
   formatMeetingDateTime,
@@ -45,8 +45,17 @@ interface Props {
   hasLoadError?: boolean;
 }
 
-export function MeetingsListClient({ requests, partners, hasLoadError }: Props) {
+export function MeetingsListClient({ requests, partners }: Props) {
+  const router = useRouter();
   const partnerById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    router.refresh();
+    setTimeout(() => setRefreshing(false), 800);
+  }
 
   const stats = useMemo(() => ({
     pending: requests.filter((r) => r.status === 'pending').length,
@@ -62,9 +71,19 @@ export function MeetingsListClient({ requests, partners, hasLoadError }: Props) 
           title="Reuniões"
           subtitle="Solicite uma conversa com um sócio. Acompanhe o status."
           showNewMeetingCta
+          trailing={
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              title="Atualizar"
+              aria-label="Atualizar"
+            >
+              <RefreshCw className={`w-4 h-4 text-text-muted ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          }
         />
-
-        <MeetingErrorBanner visible={!!hasLoadError} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

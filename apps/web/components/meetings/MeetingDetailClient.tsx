@@ -16,7 +16,6 @@ import {
   MeetingTimeBlock,
   MeetingDecisionActions,
   MeetingPageHeader,
-  MeetingErrorBanner,
   type DecisionAction,
 } from '@/components/meetings/shared';
 import {
@@ -197,8 +196,6 @@ export function MeetingDetailClient({
           <ChevronLeft className="w-4 h-4" />
           Voltar
         </Link>
-
-        <MeetingErrorBanner visible={!!hasLoadError} />
 
         <MeetingPageHeader
           title={request.title}
