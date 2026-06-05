@@ -239,7 +239,7 @@ export function PartnerMeetingsClient({
         toast.error(data.error ?? 'Erro ao cancelar');
         return;
       }
-      toast.success('Reunião cancelada — funcionário será notificado via admin');
+      toast.success('Reunião cancelada — colaborador será notificado via admin');
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro de rede');
@@ -316,14 +316,14 @@ export function PartnerMeetingsClient({
           <div className="px-5 py-3 border-b border-surface-border flex items-center">
             <UserCheck className="w-3.5 h-3.5 text-accent mr-2" />
             <span className="text-text-secondary text-xs uppercase tracking-wider font-medium">
-              Funcionários
+              Colaboradores
             </span>
             <span className="text-accent font-semibold ml-2 text-xs">({externalPending.length})</span>
           </div>
 
           {externalPending.length === 0 ? (
             <div className="px-5 py-8 text-center text-text-muted text-sm">
-              Nenhuma solicitação de funcionário no momento.
+              Nenhuma solicitação de colaborador no momento.
             </div>
           ) : (
             <div className="divide-y divide-surface-border">
@@ -645,7 +645,7 @@ export function PartnerMeetingsClient({
                               disabled={anyBusy}
                               className="text-xs font-medium px-3 py-2 rounded-lg bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full"
                             >
-                              Cancelar com funcionário
+                              Cancelar com colaborador
                             </button>
                           </div>
                         )}
