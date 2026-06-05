@@ -65,6 +65,7 @@ export function Sidebar({ position = 'left', isOpen = true, onClose }: SidebarPr
         .select('id, name, color_hex, avatar_url')
         .eq('is_active', true)
         .neq('slug', 'admin')
+        .neq('slug', 'external')
         .order('name');
       return data ?? [];
     },
