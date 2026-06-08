@@ -14,15 +14,18 @@ import type { Database } from '@eqr/database';
  * caso contrário a request seria redirecionada pra /login (e calendar apps
  * receberiam HTML em vez de text/calendar).
  *
- * O token funciona como segredo da URL — quem tem o link vê os eventos do member.
- * Sócio pode revogar regenerando o token via /api/calendar/share.
+ * O token funciona como segredo da URL — quem tem o link vê os eventos do member
+ * com detalhes completos. Privacidade é controlada inteiramente pela posse do
+ * token: sócio gera URL pra si mesmo, adiciona no calendar app dele; se a URL
+ * vazar, regenera o token (revoga a antiga). Não redactamos eventos visibility=
+ * 'private' aqui porque a visibility era pra esconder eventos de OUTROS members
+ * dentro do EQR, não do próprio dono do calendar — e o dono é o único alvo
+ * legítimo dessa URL.
  *
  * Notas:
  * - Aceita também URL sem .ics (Next.js casa /[token] e /[token].ics no mesmo handler
  *   porque .ics não é route segment; o param vira "abc123.ics" e a gente tira o sufixo)
  * - Janela: passado 30 dias + futuro 365 dias (boa pra Google/Apple polling)
- * - Eventos com visibility='private': título substituído por "[Privado]",
- *   description/location omitidos. Calendar app mostra como "Ocupado [Privado]".
  * - Cache: 5min via Cache-Control (calendar apps já pollam em janela maior)
  */
 
@@ -93,22 +96,19 @@ export async function GET(
   // Host pra UID estável (mesmo evento sempre tem o mesmo UID — calendar apps usam pra dedup)
   const host = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
 
-  const icsEvents: IcsEvent[] = events.map((ev) => {
-    const isPrivate = ev.visibility === 'private';
-    return {
-      uid: `${ev.id}@${host}`,
-      title: isPrivate ? '[Privado]' : ev.title,
-      description: isPrivate ? null : ev.description,
-      location: isPrivate ? null : ev.location,
-      startAt: ev.start_at,
-      endAt: ev.end_at,
-      allDay: ev.all_day,
-      status: ev.status as 'confirmed' | 'tentative' | 'cancelled',
-      visibility: ev.visibility as 'public' | 'private',
-      createdAt: ev.created_at,
-      updatedAt: ev.updated_at,
-    };
-  });
+  const icsEvents: IcsEvent[] = events.map((ev) => ({
+    uid: `${ev.id}@${host}`,
+    title: ev.title,
+    description: ev.description,
+    location: ev.location,
+    startAt: ev.start_at,
+    endAt: ev.end_at,
+    allDay: ev.all_day,
+    status: ev.status as 'confirmed' | 'tentative' | 'cancelled',
+    visibility: ev.visibility as 'public' | 'private',
+    createdAt: ev.created_at,
+    updatedAt: ev.updated_at,
+  }));
 
   const ics = generateIcs({
     calendarName: `EQR Agenda — ${member.name}`,
