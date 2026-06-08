@@ -9,6 +9,7 @@ import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { formatPhone, maskPhoneInput, validatePhone } from '@/lib/phone';
+import { CalendarShareSection } from './CalendarShareSection';
 
 interface MemberData {
   id: string;
@@ -18,6 +19,7 @@ interface MemberData {
   avatar_url: string | null;
   role: string;
   calendar_linked: boolean;
+  calendar_share_token: string | null;
   phone: string | null;
   created_at: string;
 }
@@ -420,6 +422,13 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
             </>
           )}
         </motion.div>
+
+        {/* Subscription URL — compartilhar agenda em qualquer calendar app */}
+        <CalendarShareSection
+          memberId={member.id}
+          initialToken={member.calendar_share_token}
+          canManage={canEdit}
+        />
 
         {/* Atalho para ver no calendário */}
         <button
