@@ -18,9 +18,21 @@ interface Props {
   memberId: string;
   hasExternalCalendar: boolean; // true se já existe row iCal no DB pro member
   canManage: boolean;            // próprio member OU admin
+  lastSyncedAt: string | null;
 }
 
-export function ExternalCalendarSection({ memberId, hasExternalCalendar, canManage }: Props) {
+function formatRelative(iso: string | null): string {
+  if (!iso) return 'ainda não sincronizou';
+  const last = new Date(iso).getTime();
+  if (Number.isNaN(last)) return 'ainda não sincronizou';
+  const diffMs = Date.now() - last;
+  if (diffMs < 60_000) return 'agora há pouco';
+  if (diffMs < 3_600_000) return `há ${Math.floor(diffMs / 60_000)}min`;
+  if (diffMs < 86_400_000) return `há ${Math.floor(diffMs / 3_600_000)}h`;
+  return `há ${Math.floor(diffMs / 86_400_000)} dias`;
+}
+
+export function ExternalCalendarSection({ memberId, hasExternalCalendar, canManage, lastSyncedAt }: Props) {
   const router = useRouter();
   const [icalUrl, setIcalUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -97,13 +109,19 @@ export function ExternalCalendarSection({ memberId, hasExternalCalendar, canMana
   if (hasExternalCalendar) {
     return (
       <div className="bg-surface-elevated border border-surface-border rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-success" />
-          <h3 className="text-sm font-medium text-text-primary">Calendar externo conectado</h3>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            <h3 className="text-sm font-medium text-text-primary">Calendar externo conectado</h3>
+          </div>
+          <span className="text-[10px] text-text-muted whitespace-nowrap">
+            atualizado {formatRelative(lastSyncedAt)}
+          </span>
         </div>
         <p className="text-xs text-text-muted leading-relaxed">
-          Seus eventos são sincronizados a cada 30 minutos (cron). Eventos criados na EQR
-          Agenda não vão pro seu calendar externo — sync é read-only.
+          Sync automático: cron a cada 6h + atualização imediata quando alguém abre seu
+          perfil ou calendário (throttle 5min). Read-only — eventos criados na EQR Agenda
+          não vão pro seu calendar externo.
         </p>
         <button
           type="button"
