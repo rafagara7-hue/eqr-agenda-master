@@ -17,19 +17,72 @@ import type { Database } from '@eqr/database';
 type ServiceDb = SupabaseClient<Database>;
 
 // ---------------------------------------------------------------------------
-// Validação de URL
+// Validação de URL — aceita qualquer URL HTTPS que sirva iCal/.ics
+// (Google Calendar, Apple iCloud, Outlook.com, Outlook corporativo, etc.)
 // ---------------------------------------------------------------------------
 
-const OUTLOOK_ICAL_PATTERNS = [
-  /^https:\/\/outlook\.live\.com\/owa\/calendar\/[^/]+\/[^/]+\/calendar\.ics$/,
-  /^https:\/\/outlook\.office365\.com\/owa\/calendar\/[^/]+\/[^/]+\/calendar\.ics$/,
-  /^https:\/\/outlook\.office\.com\/owa\/calendar\/[^/]+\/[^/]+\/calendar\.ics$/,
-];
+const KNOWN_ICAL_HOSTS = [
+  // Google Calendar
+  'calendar.google.com',
+  // Apple iCloud
+  'p01-caldav.icloud.com', 'p02-caldav.icloud.com', 'p03-caldav.icloud.com',
+  'p04-caldav.icloud.com', 'p05-caldav.icloud.com',
+  // Microsoft Outlook (corporativo + pessoal)
+  'outlook.live.com', 'outlook.office.com', 'outlook.office365.com',
+  // Genericos que muitos providers usam
+] as const;
 
-export function isValidOutlookIcalUrl(url: string): boolean {
+/**
+ * Aceita qualquer URL HTTPS. Validação real (é .ics mesmo?) acontece no fetch
+ * — só confirmamos VCALENDAR no corpo. Aqui só barramos esquemas perigosos
+ * (file://, javascript:) e URLs claramente lixo.
+ *
+ * Mantemos export `isValidOutlookIcalUrl` como alias por compat até remover
+ * referências antigas.
+ */
+export function isValidIcalUrl(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
-  return OUTLOOK_ICAL_PATTERNS.some((p) => p.test(trimmed));
+  if (trimmed.length === 0 || trimmed.length > 2048) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return false;
+  }
+  // Só HTTPS (HTTP seria leak de credentials embutidas em URLs Google/Apple)
+  if (parsed.protocol !== 'https:') return false;
+  // Bloqueia loopback/private (evita SSRF pra metadata internas)
+  const host = parsed.hostname.toLowerCase();
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host === '169.254.169.254' // AWS/GCP metadata
+  ) {
+    return false;
+  }
+  return true;
+}
+
+// Alias mantido pra compatibilidade — DEPRECATED, use isValidIcalUrl.
+export const isValidOutlookIcalUrl = isValidIcalUrl;
+
+/**
+ * Detecta qual provedor pela URL (só pra UX/labels — não muda comportamento).
+ */
+export function detectIcalProvider(url: string): 'google' | 'apple' | 'outlook' | 'other' {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith('google.com')) return 'google';
+    if (host.endsWith('icloud.com')) return 'apple';
+    if (host.endsWith('outlook.com') || host.endsWith('office.com') || host.endsWith('office365.com')) return 'outlook';
+    return 'other';
+  } catch {
+    return 'other';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -171,8 +224,8 @@ const FETCH_TIMEOUT_MS = 15_000;
 const MAX_ICAL_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB — proteção contra payload abusivo
 
 export async function fetchIcal(url: string): Promise<IcalFetchResult> {
-  if (!isValidOutlookIcalUrl(url)) {
-    return { ok: false, error: 'URL inválida — não parece ser iCal do Outlook' };
+  if (!isValidIcalUrl(url)) {
+    return { ok: false, error: 'URL inválida — precisa ser https://...' };
   }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
