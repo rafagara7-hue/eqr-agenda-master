@@ -31,6 +31,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
   const member = rawMember as {
     id: string; name: string; slug: string; color_hex: string;
     avatar_url: string | null; role: string; calendar_linked: boolean;
+    calendar_share_token: string | null;
     phone: string | null; created_at: string;
   } | null;
 
@@ -46,6 +47,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
         avatar_url: member.avatar_url,
         role: member.role,
         calendar_linked: member.calendar_linked,
+        calendar_share_token: member.calendar_share_token,
         phone: member.phone,
         created_at: member.created_at,
       }}
