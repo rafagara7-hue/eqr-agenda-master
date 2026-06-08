@@ -28,11 +28,12 @@ interface MemberProfileClientProps {
   isOwnProfile: boolean;
   isAdmin: boolean;
   hasExternalCalendar: boolean;
+  lastSyncedAt: string | null;
 }
 
 const PRESET_COLORS = ['#3B82F6', '#22C55E', '#A855F7', '#F97316'];
 
-export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternalCalendar }: MemberProfileClientProps) {
+export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternalCalendar, lastSyncedAt }: MemberProfileClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const canEdit = isOwnProfile || isAdmin;
@@ -428,6 +429,7 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
           memberId={member.id}
           hasExternalCalendar={hasExternalCalendar}
           canManage={canEdit}
+          lastSyncedAt={lastSyncedAt}
         />
 
         {/* Atalho para ver no calendário */}
