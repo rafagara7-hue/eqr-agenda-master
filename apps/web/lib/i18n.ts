@@ -170,9 +170,9 @@ const PT_BR: Dict = {
   'participants.removeAllHide': 'Remover todos e ocultar',
 
   // ── BANNER CALENDÁRIO ──
-  'banner.connectCalendar.title': 'Conecte seu Outlook Calendar',
-  'banner.connectCalendar.body': 'Suas reuniões viram eventos no Outlook automaticamente, com lembrete antes de cada uma.',
-  'banner.connectCalendar.cta': 'Conectar agora',
+  'banner.connectCalendar.title': 'Compartilhe sua agenda em outros calendars',
+  'banner.connectCalendar.body': 'Gere uma URL pra adicionar a agenda EQR no Google Calendar, Apple, Outlook ou qualquer app.',
+  'banner.connectCalendar.cta': 'Configurar URL',
   'banner.connectCalendar.dismiss': 'Dispensar por algumas horas',
   'banner.connectCalendar.dismissHint': 'Dispensar (volta em 12h)',
 
@@ -608,10 +608,10 @@ const EN_US: Dict = {
   'participants.markOthers': "Mark other members. Conflicts won't be flagged between you in this event.",
   'participants.removeAllHide': 'Remove all and hide',
 
-  // ── GOOGLE BANNER ──
-  'banner.connectCalendar.title': 'Connect your Outlook Calendar',
-  'banner.connectCalendar.body': 'Your meetings automatically become Outlook events with reminders before each one.',
-  'banner.connectCalendar.cta': 'Connect now',
+  // ── CALENDAR BANNER ──
+  'banner.connectCalendar.title': 'Share your calendar in other apps',
+  'banner.connectCalendar.body': 'Generate a URL to add the EQR calendar to Google Calendar, Apple, Outlook or any calendar app.',
+  'banner.connectCalendar.cta': 'Set up URL',
   'banner.connectCalendar.dismiss': 'Dismiss for a few hours',
   'banner.connectCalendar.dismissHint': 'Dismiss (back in 12h)',
 
