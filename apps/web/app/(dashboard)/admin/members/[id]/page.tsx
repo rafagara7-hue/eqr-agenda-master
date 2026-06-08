@@ -36,6 +36,18 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
 
   if (!member) notFound();
 
+  // Detecta se já existe row iCal external pro member (pra UI saber se mostra
+  // "Conectar" ou "Conectado/Desconectar")
+  const { data: rawExternal } = await supabase
+    .from('calendar_provider_accounts')
+    .select('id')
+    .eq('member_id', member.id)
+    .eq('provider', 'microsoft')
+    .not('ical_url', 'is', null)
+    .limit(1)
+    .maybeSingle();
+  const hasExternalCalendar = !!rawExternal;
+
   return (
     <MemberProfileClient
       member={{
@@ -51,6 +63,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
       }}
       isOwnProfile={currentMember.id === params.id}
       isAdmin={currentMember.role === 'admin'}
+      hasExternalCalendar={hasExternalCalendar}
     />
   );
 }
