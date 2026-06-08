@@ -21,6 +21,7 @@ export interface Database {
           is_active: boolean;
           avatar_url: string | null;
           calendar_linked: boolean;
+          calendar_share_token: string | null;
           phone: string | null;
           created_at: string;
           updated_at: string;
@@ -36,6 +37,7 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           calendar_linked?: boolean;
+          calendar_share_token?: string | null;
           phone?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -51,6 +53,7 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           calendar_linked?: boolean;
+          calendar_share_token?: string | null;
           phone?: string | null;
           updated_at?: string;
         };
