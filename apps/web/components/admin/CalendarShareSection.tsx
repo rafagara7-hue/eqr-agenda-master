@@ -27,7 +27,7 @@ interface Props {
 function buildShareUrl(token: string): string {
   if (typeof window === 'undefined') return '';
   const host = window.location.origin;
-  return `${host}/api/calendar/${token}.ics`;
+  return `${host}/api/public/calendar/${token}.ics`;
 }
 
 export function CalendarShareSection({ memberId, initialToken, canManage }: Props) {
