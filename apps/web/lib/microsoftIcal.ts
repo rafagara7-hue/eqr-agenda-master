@@ -286,6 +286,16 @@ export async function syncIcalToEvents(
   opts: { memberId: string; icalUrl: string }
 ): Promise<{ ok: true; synced: number; errors: number } | { ok: false; error: string }> {
   const fetched = await fetchIcal(opts.icalUrl);
+
+  // Sempre carimba last_synced_at independente do fetch ter dado ok — assim o
+  // throttle do lazy sync funciona mesmo quando o feed externo está fora do ar
+  // (não tenta re-fetchar a cada page-load).
+  await db
+    .from('calendar_provider_accounts')
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq('member_id', opts.memberId)
+    .eq('ical_url', opts.icalUrl);
+
   if (!fetched.ok) return { ok: false, error: fetched.error };
 
   let synced = 0;
