@@ -1,6 +1,7 @@
-import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { MemberProfileClient } from '@/components/admin/MemberProfileClient';
+import { triggerLazyResyncForMember } from '@/lib/lazyIcalSync';
 
 export const metadata = { title: 'Perfil do membro' };
 
@@ -36,17 +37,28 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
 
   if (!member) notFound();
 
-  // Detecta se já existe row iCal external pro member (pra UI saber se mostra
-  // "Conectar" ou "Conectado/Desconectar")
+  // Detecta se já existe row iCal external pro member + last_synced_at pra UI
+  // mostrar "Atualizado X min atrás".
   const { data: rawExternal } = await supabase
     .from('calendar_provider_accounts')
-    .select('id')
+    .select('id, last_synced_at')
     .eq('member_id', member.id)
     .eq('provider', 'microsoft')
     .not('ical_url', 'is', null)
     .limit(1)
     .maybeSingle();
-  const hasExternalCalendar = !!rawExternal;
+  const externalRow = rawExternal as { id: string; last_synced_at: string | null } | null;
+  const hasExternalCalendar = !!externalRow;
+  const lastSyncedAt = externalRow?.last_synced_at ?? null;
+
+  // Lazy sync: dispara fetch+upsert em background se feed externo está stale.
+  // Não bloqueia render — próximo refresh (ou revalidação Next.js) mostra dados
+  // atualizados. Usa service client porque syncIcalToEvents precisa bypassar
+  // RLS em events/calendar_provider_accounts.
+  if (hasExternalCalendar) {
+    const serviceDb = await getSupabaseServiceClient();
+    void triggerLazyResyncForMember(serviceDb, member.id);
+  }
 
   return (
     <MemberProfileClient
@@ -64,6 +76,7 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
       isOwnProfile={currentMember.id === params.id}
       isAdmin={currentMember.role === 'admin'}
       hasExternalCalendar={hasExternalCalendar}
+      lastSyncedAt={lastSyncedAt}
     />
   );
 }
