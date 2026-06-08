@@ -9,6 +9,7 @@ import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/calendar/dateUtils';
 import { formatPhone, maskPhoneInput, validatePhone } from '@/lib/phone';
+import { ExternalCalendarSection } from './ExternalCalendarSection';
 
 interface MemberData {
   id: string;
@@ -26,11 +27,12 @@ interface MemberProfileClientProps {
   member: MemberData;
   isOwnProfile: boolean;
   isAdmin: boolean;
+  hasExternalCalendar: boolean;
 }
 
 const PRESET_COLORS = ['#3B82F6', '#22C55E', '#A855F7', '#F97316'];
 
-export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberProfileClientProps) {
+export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternalCalendar }: MemberProfileClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const canEdit = isOwnProfile || isAdmin;
@@ -420,6 +422,13 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin }: MemberPro
             </>
           )}
         </motion.div>
+
+        {/* Calendar externo (Google/Apple/Outlook URL .ics → EQR Agenda read-only) */}
+        <ExternalCalendarSection
+          memberId={member.id}
+          hasExternalCalendar={hasExternalCalendar}
+          canManage={canEdit}
+        />
 
         {/* Atalho para ver no calendário */}
         <button
