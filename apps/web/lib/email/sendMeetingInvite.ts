@@ -40,7 +40,14 @@ export interface SendMeetingInviteOpts {
 
 const RESEND_API = 'https://api.resend.com/emails';
 const FETCH_TIMEOUT_MS = 15_000;
-const DEFAULT_FROM = 'EQR Agenda <agenda@eqr.com.br>';
+
+/**
+ * Default sender — usa onboarding@resend.dev (sandbox grátis) por enquanto.
+ * Quando dominio eqr.com.br for verificado no Resend, trocar pra
+ * `'EQR Agenda <agenda@eqr.com.br>'`. Override via env EMAIL_FROM se quiser.
+ */
+const DEFAULT_FROM = process.env['EMAIL_FROM']
+  ?? 'EQR Agenda <onboarding@resend.dev>';
 
 function formatDateTimePtBr(d: Date): string {
   // Ex: "sexta, 12 de jun · 14:00–15:00"
