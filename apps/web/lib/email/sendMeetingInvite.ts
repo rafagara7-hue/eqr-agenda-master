@@ -1,56 +1,54 @@
 /**
- * Envia convite de reunião via Resend API.
+ * Envia convite de reunião (.ics).
  *
- * Resend REST endpoint: https://api.resend.com/emails
- * Auth: Bearer token (RESEND_API_KEY env)
+ * Transporte é selecionado por `getEmailTransport`:
+ *   1. SMTP do admin (config em admin_email_smtp_settings com verified_at) → nodemailer
+ *   2. Fallback Resend REST API (sandbox onboarding@resend.dev)
  *
- * Estratégia:
- *   - Email contém HTML legível (resumo + data + organizador) — funciona mesmo se
- *     o cliente ignorar o anexo .ics
+ * Estratégia do email:
+ *   - HTML legível (resumo + data + organizador) — funciona mesmo se cliente
+ *     ignorar o anexo .ics
  *   - Anexo .ics permite clique pra adicionar ao calendar (Apple Mail, Outlook,
  *     Gmail Web etc.)
  *   - Mensagem em PT-BR, tom corporativo neutro
  *
  * Falhas tratadas:
- *   - RESEND_API_KEY ausente → erro claro
- *   - Resposta não-2xx → propaga mensagem do Resend
- *   - Timeout 15s — evita travar request principal
+ *   - Sem transporte configurado → erro claro
+ *   - SMTP recusa → propaga mensagem
+ *   - Resend não-2xx → propaga mensagem
+ *   - Timeout 15s
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@eqr/database';
 import { generateMeetingIcs, type MeetingInviteIcs } from './generateMeetingIcs';
+import { getEmailTransport } from './getEmailTransport';
+import { sendViaSmtp } from './smtpTransport';
 
-export interface SendInviteResult {
-  ok: true;
-  id: string;
-} | {
-  ok: false;
-  error: string;
-}
+type ServiceDb = SupabaseClient<Database>;
+
+export type SendInviteResult =
+  | { ok: true; id: string; via: 'smtp' | 'resend' }
+  | { ok: false; error: string };
 
 export interface SendMeetingInviteOpts {
   /** Email destinatário (sócio, cliente externo, etc). */
   to: string;
   /** Nome amigável do destinatário pra cabeçalho "To". */
-  toName?: string;
+  toName?: string | null;
   /** Dados do invite — vira tanto .ics quanto corpo do email. */
   invite: MeetingInviteIcs;
-  /** Endereço "from" — precisa de dominio verificado no Resend. */
+  /** Override do "from" (só Resend; SMTP usa from da config admin). */
   from?: string;
 }
 
 const RESEND_API = 'https://api.resend.com/emails';
 const FETCH_TIMEOUT_MS = 15_000;
 
-/**
- * Default sender — usa onboarding@resend.dev (sandbox grátis) por enquanto.
- * Quando dominio eqr.com.br for verificado no Resend, trocar pra
- * `'EQR Agenda <agenda@eqr.com.br>'`. Override via env EMAIL_FROM se quiser.
- */
-const DEFAULT_FROM = process.env['EMAIL_FROM']
-  ?? 'EQR Agenda <onboarding@resend.dev>';
+const RESEND_DEFAULT_FROM =
+  process.env['EMAIL_FROM'] ?? 'EQR Agenda <onboarding@resend.dev>';
 
 function formatDateTimePtBr(d: Date): string {
-  // Ex: "sexta, 12 de jun · 14:00–15:00"
   return d.toLocaleString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
@@ -61,10 +59,17 @@ function formatDateTimePtBr(d: Date): string {
   });
 }
 
-function htmlBody(invite: MeetingInviteIcs, toName?: string): string {
-  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}`;
-  const safeTitle = invite.title.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c);
-  const safeDesc = (invite.description ?? '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c);
+function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
+  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString(
+    'pt-BR',
+    { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }
+  )}`;
+  const safeTitle = invite.title.replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c
+  );
+  const safeDesc = (invite.description ?? '').replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c
+  );
   const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
 
   return `
@@ -88,8 +93,11 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string): string {
   `.trim();
 }
 
-function plainBody(invite: MeetingInviteIcs, toName?: string): string {
-  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}`;
+function plainBody(invite: MeetingInviteIcs, toName?: string | null): string {
+  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString(
+    'pt-BR',
+    { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }
+  )}`;
   const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
   return [
     greeting,
@@ -111,17 +119,14 @@ function plainBody(invite: MeetingInviteIcs, toName?: string): string {
     .join('\n');
 }
 
-export async function sendMeetingInvite(opts: SendMeetingInviteOpts): Promise<SendInviteResult> {
+async function sendViaResend(opts: SendMeetingInviteOpts, icsBase64: string): Promise<SendInviteResult> {
   const apiKey = process.env['RESEND_API_KEY'];
   if (!apiKey) {
     return { ok: false, error: 'RESEND_API_KEY não configurada' };
   }
 
-  const ics = generateMeetingIcs(opts.invite);
-  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
-
   const payload = {
-    from: opts.from ?? DEFAULT_FROM,
+    from: opts.from ?? RESEND_DEFAULT_FROM,
     to: opts.toName ? `${opts.toName} <${opts.to}>` : opts.to,
     subject: `Convite: ${opts.invite.title}`,
     html: htmlBody(opts.invite, opts.toName),
@@ -151,7 +156,7 @@ export async function sendMeetingInvite(opts: SendMeetingInviteOpts): Promise<Se
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('[sendMeetingInvite] resend error', {
+      console.error('[sendMeetingInvite/resend] error', {
         status: res.status,
         to: opts.to,
         body: errText,
@@ -160,14 +165,52 @@ export async function sendMeetingInvite(opts: SendMeetingInviteOpts): Promise<Se
     }
 
     const data = (await res.json()) as { id?: string };
-    return { ok: true, id: data.id ?? 'unknown' };
+    return { ok: true, id: data.id ?? 'unknown', via: 'resend' };
   } catch (err) {
-    const msg = err instanceof Error
-      ? (err.name === 'AbortError' ? 'Timeout ao enviar convite' : err.message)
-      : 'Erro desconhecido';
-    console.error('[sendMeetingInvite] exception', { to: opts.to, error: msg });
+    const msg =
+      err instanceof Error
+        ? err.name === 'AbortError'
+          ? 'Timeout ao enviar convite'
+          : err.message
+        : 'Erro desconhecido';
+    console.error('[sendMeetingInvite/resend] exception', { to: opts.to, error: msg });
     return { ok: false, error: msg };
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Decide transporte (SMTP admin vs Resend fallback) e envia.
+ *
+ * Recebe `serviceDb` pra consultar a config SMTP. Caller deve usar service
+ * client (não user client) porque RLS da tabela exige role='admin' e isso
+ * pode rodar em contexto de webhook/cron sem sessão.
+ */
+export async function sendMeetingInvite(
+  serviceDb: ServiceDb,
+  opts: SendMeetingInviteOpts
+): Promise<SendInviteResult> {
+  const ics = generateMeetingIcs(opts.invite);
+  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
+
+  const transport = await getEmailTransport(serviceDb);
+
+  if (transport.kind === 'smtp') {
+    const result = await sendViaSmtp(transport.config, {
+      to: opts.to,
+      toName: opts.toName ?? undefined,
+      subject: `Convite: ${opts.invite.title}`,
+      html: htmlBody(opts.invite, opts.toName),
+      text: plainBody(opts.invite, opts.toName),
+      icsBase64,
+    });
+    if (!result.ok) {
+      console.error('[sendMeetingInvite/smtp] failed', { to: opts.to, error: result.error });
+      return { ok: false, error: `SMTP: ${result.error}` };
+    }
+    return { ok: true, id: result.messageId, via: 'smtp' };
+  }
+
+  return sendViaResend(opts, icsBase64);
 }
