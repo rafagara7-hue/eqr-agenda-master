@@ -87,7 +87,7 @@ async function sendInviteAfterApprove(
 
     // Envia pro sócio
     if (partnerEmail) {
-      const r = await sendMeetingInvite({
+      const r = await sendMeetingInvite(serviceDb, {
         to: partnerEmail,
         toName: partner.name,
         invite,
@@ -100,7 +100,7 @@ async function sendInviteAfterApprove(
     // Envia pro externo se houver email no metadata (form /agendar atualmente só
     // captura name+phone — adicionar email é enhancement futuro)
     if (external?.email) {
-      const r = await sendMeetingInvite({
+      const r = await sendMeetingInvite(serviceDb, {
         to: external.email,
         toName: external.name,
         invite,
