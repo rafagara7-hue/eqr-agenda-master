@@ -11,6 +11,7 @@ import { useTranslation } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { EmailConnectorSection } from '@/components/admin/EmailConnectorSection';
+import { MemberEmailSection } from '@/components/member/MemberEmailSection';
 
 type Theme = 'dark' | 'light';
 type NotifPermission = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -541,6 +542,9 @@ export default function SettingsPage() {
 
       {/* Outlook Calendar (Sócio) — desvincular o próprio calendar */}
       <MemberCalendarSection />
+
+      {/* Email do sócio — confirmar/trocar onde recebe convites */}
+      <MemberEmailSectionWrapper />
     </div>
   );
 }
@@ -548,6 +552,11 @@ export default function SettingsPage() {
 function AdminEmailConnectorWrapper() {
   const { isAdmin } = useAuth();
   return <EmailConnectorSection isAdmin={isAdmin} />;
+}
+
+function MemberEmailSectionWrapper() {
+  const { isAdmin, member } = useAuth();
+  return <MemberEmailSection isMember={Boolean(member)} isAdmin={isAdmin} />;
 }
 
 function AdminCalendarSection() {
