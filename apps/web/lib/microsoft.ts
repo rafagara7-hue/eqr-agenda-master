@@ -384,3 +384,200 @@ export async function deleteCalendarEvent(
   });
   return { refreshed };
 }
+
+// ---------------------------------------------------------------------------
+// Subscriptions (webhooks Graph API pra real-time Outlook → EQR Agenda)
+//
+// Microsoft Graph permite TTL até 4230min (~3 dias) pra calendar events.
+// Renovamos via cron quando < 24h pra expirar. Webhook entrega:
+//   - validation handshake na criação (sync, deadline 10s)
+//   - notifications quando evento muda no Outlook do sócio
+// ---------------------------------------------------------------------------
+
+export const SUBSCRIPTION_TTL_MINUTES = 4230;
+export const SUBSCRIPTION_RENEW_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24h
+
+export interface MicrosoftSubscription {
+  id: string;
+  resource: string;
+  changeType: string;
+  expirationDateTime: string;
+  clientState: string;
+}
+
+function subscriptionExpiryISO(minutesFromNow: number = SUBSCRIPTION_TTL_MINUTES): string {
+  return new Date(Date.now() + minutesFromNow * 60_000).toISOString();
+}
+
+export async function createCalendarSubscription(
+  account: MicrosoftAccountRecord,
+  opts: { notificationUrl: string; clientState: string }
+): Promise<{
+  subscription: MicrosoftSubscription;
+  refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null;
+}> {
+  const { result, refreshed } = await withFreshToken(account, async (token) => {
+    const body = {
+      changeType: 'created,updated,deleted',
+      notificationUrl: opts.notificationUrl,
+      resource: '/me/events',
+      expirationDateTime: subscriptionExpiryISO(),
+      clientState: opts.clientState,
+    };
+    const sub = (await graphFetch(`${MS_GRAPH_API}/subscriptions`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      accessToken: token,
+    })) as MicrosoftSubscription;
+    return sub;
+  });
+  return { subscription: result, refreshed };
+}
+
+export async function renewCalendarSubscription(
+  account: MicrosoftAccountRecord,
+  subscriptionId: string
+): Promise<{
+  subscription: MicrosoftSubscription;
+  refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null;
+}> {
+  const { result, refreshed } = await withFreshToken(account, async (token) => {
+    const body = { expirationDateTime: subscriptionExpiryISO() };
+    const sub = (await graphFetch(
+      `${MS_GRAPH_API}/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      { method: 'PATCH', body: JSON.stringify(body), accessToken: token }
+    )) as MicrosoftSubscription;
+    return sub;
+  });
+  return { subscription: result, refreshed };
+}
+
+export async function deleteCalendarSubscription(
+  account: MicrosoftAccountRecord,
+  subscriptionId: string
+): Promise<{ refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null }> {
+  const { refreshed } = await withFreshToken(account, async (token) => {
+    await graphFetch(
+      `${MS_GRAPH_API}/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      { method: 'DELETE', accessToken: token }
+    );
+    return null;
+  });
+  return { refreshed };
+}
+
+// ---------------------------------------------------------------------------
+// Free/busy — pra detecção de conflito ao criar evento (slide da apresentação)
+// Endpoint /me/calendar/getSchedule aceita N emails em batch, retorna availability
+// ---------------------------------------------------------------------------
+
+export interface FreeBusyResult {
+  email: string;
+  availabilityView: string; // string de chars 0=free, 1=tentative, 2=busy, 3=oof, 4=workingElsewhere
+  scheduleItems: Array<{
+    status: string;
+    start: { dateTime: string; timeZone: string };
+    end: { dateTime: string; timeZone: string };
+    subject?: string;
+  }>;
+}
+
+export async function getFreeBusy(
+  account: MicrosoftAccountRecord,
+  opts: { emails: string[]; startAt: Date; endAt: Date; intervalMinutes?: number }
+): Promise<{
+  schedules: FreeBusyResult[];
+  refreshed: { accessToken: string; refreshToken: string; expiresAt: Date } | null;
+}> {
+  const { result, refreshed } = await withFreshToken(account, async (token) => {
+    const body = {
+      schedules: opts.emails,
+      startTime: { dateTime: opts.startAt.toISOString(), timeZone: 'America/Sao_Paulo' },
+      endTime: { dateTime: opts.endAt.toISOString(), timeZone: 'America/Sao_Paulo' },
+      availabilityViewInterval: opts.intervalMinutes ?? 30,
+    };
+    const out = (await graphFetch(`${MS_GRAPH_API}/me/calendar/getSchedule`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      accessToken: token,
+    })) as { value: Array<{ scheduleId: string; availabilityView: string; scheduleItems: FreeBusyResult['scheduleItems'] }> };
+    return out.value.map((v) => ({
+      email: v.scheduleId,
+      availabilityView: v.availabilityView,
+      scheduleItems: v.scheduleItems,
+    }));
+  });
+  return { schedules: result, refreshed };
+}
+
+// ---------------------------------------------------------------------------
+// App-only auth (client_credentials) — pra application permissions
+// Permite ler/escrever em qualquer mailbox do tenant SEM precisar OAuth per-user.
+// Requer admin consent prévio pras app permissions (Calendars.Read.All etc).
+// ---------------------------------------------------------------------------
+
+let appOnlyTokenCache: { token: string; expiresAt: number } | null = null;
+
+export async function getAppOnlyAccessToken(): Promise<string> {
+  // Cache em memória por instância — reusa token enquanto válido (60min)
+  if (appOnlyTokenCache && appOnlyTokenCache.expiresAt > Date.now() + 60_000) {
+    return appOnlyTokenCache.token;
+  }
+
+  const body = new URLSearchParams({
+    client_id: requireEnv('MICROSOFT_CLIENT_ID'),
+    client_secret: requireEnv('MICROSOFT_CLIENT_SECRET'),
+    grant_type: 'client_credentials',
+    scope: 'https://graph.microsoft.com/.default',
+  });
+
+  const res = await fetch(MS_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Microsoft app-only token falhou (${res.status}): ${txt}`);
+  }
+  const tok = (await res.json()) as { access_token: string; expires_in: number };
+  appOnlyTokenCache = {
+    token: tok.access_token,
+    expiresAt: Date.now() + tok.expires_in * 1000,
+  };
+  return tok.access_token;
+}
+
+/**
+ * Lê eventos de QUALQUER mailbox do tenant (requer Calendars.Read.All application permission).
+ * Não usa OAuth per-user — usa o token app-only.
+ */
+export async function getEventsAsApp(opts: {
+  userEmail: string;
+  startAt: Date;
+  endAt: Date;
+}): Promise<Array<{
+  id: string;
+  subject: string;
+  start: string;
+  end: string;
+  showAs: string;
+}>> {
+  const token = await getAppOnlyAccessToken();
+  const url = `${MS_GRAPH_API}/users/${encodeURIComponent(opts.userEmail)}/calendarView?startDateTime=${encodeURIComponent(opts.startAt.toISOString())}&endDateTime=${encodeURIComponent(opts.endAt.toISOString())}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Microsoft Graph ${res.status}: ${text}`);
+  }
+  const data = (await res.json()) as { value: Array<{ id: string; subject: string; start: { dateTime: string }; end: { dateTime: string }; showAs: string }> };
+  return data.value.map((ev) => ({
+    id: ev.id,
+    subject: ev.subject,
+    start: ev.start.dateTime,
+    end: ev.end.dateTime,
+    showAs: ev.showAs,
+  }));
+}
