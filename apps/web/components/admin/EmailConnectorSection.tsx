@@ -6,20 +6,26 @@ import { Mail, Link2, Trash2, AlertCircle, CheckCircle2, Send, Eye, EyeOff } fro
 import { toast } from 'sonner';
 
 /**
- * Conector de SMTP do admin — análogo ao conector de calendar externo dos
- * sócios, mas pra envio de convites .ics.
+ * Conector de SMTP simplificado pro admin.
+ *
+ * Server fixo (atlanta.meuemail.net.br:465 SSL) porque todo @eqr.com.br mora lá.
+ * Admin só preenche: usuário (email) + senha. Tudo o resto é constante.
+ *
+ * Se um dia precisar mudar provider SMTP (ex: M365, Gmail), edita as
+ * SERVER_* constantes ou adiciona toggle pra modo avançado.
  *
  * Fluxo:
- *   1. Admin preenche host/port/user/senha + remetente
- *   2. POST /api/admin/email-smtp salva (encripta senha)
- *   3. POST /api/admin/email-smtp/test verifica conexão + envia teste pro próprio admin
+ *   1. Admin preenche email + senha
+ *   2. POST /api/admin/email-smtp envia tudo (server fixo + email/senha)
+ *   3. POST /api/admin/email-smtp/test valida conexão + envia teste pro próprio admin
  *   4. Se passou, marca verified_at — sistema usa SMTP em vez de Resend
- *
- * Renderização:
- *   - Não-admin: invisível
- *   - Sem config: form completo (host, port, user, senha, remetente)
- *   - Com config: resumo + opção de editar + testar + desconectar
  */
+
+// === Constantes hardcoded do servidor meuemail.net.br ===
+const SERVER_HOST = 'atlanta.meuemail.net.br';
+const SERVER_PORT = 465;
+const SERVER_SECURE = true; // SSL/TLS
+const DEFAULT_FROM_NAME = 'EQR Agenda';
 
 interface SmtpStatus {
   configured: boolean;
@@ -55,14 +61,10 @@ export function EmailConnectorSection({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
 
-  const [host, setHost] = useState('');
-  const [port, setPort] = useState(587);
-  const [secure, setSecure] = useState(false);
+  // Apenas 2 campos editáveis pelo admin
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fromAddress, setFromAddress] = useState('');
-  const [fromName, setFromName] = useState('EQR Agenda');
 
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -85,12 +87,7 @@ export function EmailConnectorSection({ isAdmin }: Props) {
       const data = (await res.json()) as SmtpStatus;
       setStatus(data);
       if (data.configured) {
-        setHost(data.host ?? '');
-        setPort(data.port ?? 587);
-        setSecure(data.secure ?? false);
         setUsername(data.username ?? '');
-        setFromAddress(data.fromAddress ?? '');
-        setFromName(data.fromName ?? 'EQR Agenda');
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro de rede');
@@ -101,8 +98,13 @@ export function EmailConnectorSection({ isAdmin }: Props) {
 
   async function handleSave() {
     setError(null);
-    if (!host.trim() || !username.trim() || !fromAddress.trim() || !fromName.trim()) {
-      setError('Preencha todos os campos obrigatórios');
+    const u = username.trim();
+    if (!u) {
+      setError('Preencha o email');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u)) {
+      setError('Email inválido');
       return;
     }
     if (!status?.configured && !password) {
@@ -112,12 +114,12 @@ export function EmailConnectorSection({ isAdmin }: Props) {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
-        host: host.trim(),
-        port: Number(port),
-        secure,
-        username: username.trim(),
-        fromAddress: fromAddress.trim(),
-        fromName: fromName.trim(),
+        host: SERVER_HOST,
+        port: SERVER_PORT,
+        secure: SERVER_SECURE,
+        username: u,
+        fromAddress: u, // self-relay: from = user
+        fromName: DEFAULT_FROM_NAME,
       };
       if (password) payload.password = password;
 
@@ -131,7 +133,7 @@ export function EmailConnectorSection({ isAdmin }: Props) {
         setError(data.error ?? 'Erro ao salvar');
         return;
       }
-      toast.success('SMTP salvo. Clique em "Testar" pra validar.');
+      toast.success('Salvo. Clique em "Testar" pra validar.');
       setPassword('');
       setEditing(false);
       await load();
@@ -154,7 +156,8 @@ export function EmailConnectorSection({ isAdmin }: Props) {
         sentTo?: string;
       };
       if (!res.ok || !data.ok) {
-        const stageLabel = data.stage === 'verify' ? 'conexão' : data.stage === 'send' ? 'envio' : 'teste';
+        const stageLabel =
+          data.stage === 'verify' ? 'conexão' : data.stage === 'send' ? 'envio' : 'teste';
         const msg = `Falha no ${stageLabel}: ${data.error ?? 'erro desconhecido'}`;
         setError(msg);
         toast.error(msg);
@@ -183,13 +186,8 @@ export function EmailConnectorSection({ isAdmin }: Props) {
       toast.success('SMTP removido');
       setStatus({ configured: false });
       setEditing(false);
-      setHost('');
-      setPort(587);
-      setSecure(false);
       setUsername('');
       setPassword('');
-      setFromAddress('');
-      setFromName('EQR Agenda');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro de rede');
     } finally {
@@ -226,23 +224,13 @@ export function EmailConnectorSection({ isAdmin }: Props) {
             disconnecting={disconnecting}
           />
         ) : (
-          <EditForm
-            host={host}
-            setHost={setHost}
-            port={port}
-            setPort={setPort}
-            secure={secure}
-            setSecure={setSecure}
+          <SimpleForm
             username={username}
             setUsername={setUsername}
             password={password}
             setPassword={setPassword}
             showPassword={showPassword}
             setShowPassword={setShowPassword}
-            fromAddress={fromAddress}
-            setFromAddress={setFromAddress}
-            fromName={fromName}
-            setFromName={setFromName}
             saving={saving}
             error={error}
             isEdit={Boolean(status?.configured)}
@@ -254,12 +242,7 @@ export function EmailConnectorSection({ isAdmin }: Props) {
                     setError(null);
                     setPassword('');
                     if (status) {
-                      setHost(status.host ?? '');
-                      setPort(status.port ?? 587);
-                      setSecure(status.secure ?? false);
                       setUsername(status.username ?? '');
-                      setFromAddress(status.fromAddress ?? '');
-                      setFromName(status.fromName ?? 'EQR Agenda');
                     }
                   }
                 : null
@@ -307,14 +290,11 @@ function ConnectedView({
 
       <div className="text-xs text-text-muted space-y-1 pl-1">
         <div>
-          <span className="text-text-secondary">Servidor:</span> {status.host}:{status.port}
-          {status.secure ? ' (SSL/TLS)' : ' (STARTTLS)'}
+          <span className="text-text-secondary">Email:</span> {status.username}
         </div>
         <div>
-          <span className="text-text-secondary">Remetente:</span> {status.fromName} &lt;{status.fromAddress}&gt;
-        </div>
-        <div>
-          <span className="text-text-secondary">Usuário SMTP:</span> {status.username}
+          <span className="text-text-secondary">Remetente:</span> {status.fromName} &lt;
+          {status.fromAddress}&gt;
         </div>
       </div>
 
@@ -327,8 +307,8 @@ function ConnectedView({
 
       {!verified && (
         <p className="text-[11px] text-text-muted leading-relaxed">
-          Enquanto não passar no teste, os convites continuam saindo pelo Resend (sandbox).
-          Clique em <strong>Testar conexão</strong> pra ativar.
+          Enquanto não passar no teste, os convites continuam saindo pelo Resend (sandbox). Clique
+          em <strong>Testar conexão</strong> pra ativar.
         </p>
       )}
 
@@ -361,27 +341,24 @@ function ConnectedView({
           {disconnecting ? 'Removendo…' : 'Remover'}
         </button>
       </div>
+
+      <details className="text-[10px] text-text-muted/70 pt-1">
+        <summary className="cursor-pointer hover:text-text-muted">Configuração do servidor</summary>
+        <div className="mt-1 pl-2 font-mono">
+          {SERVER_HOST}:{SERVER_PORT} · SSL/TLS
+        </div>
+      </details>
     </div>
   );
 }
 
-interface EditFormProps {
-  host: string;
-  setHost: (v: string) => void;
-  port: number;
-  setPort: (v: number) => void;
-  secure: boolean;
-  setSecure: (v: boolean) => void;
+interface SimpleFormProps {
   username: string;
   setUsername: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
   showPassword: boolean;
   setShowPassword: (v: boolean) => void;
-  fromAddress: string;
-  setFromAddress: (v: string) => void;
-  fromName: string;
-  setFromName: (v: string) => void;
   saving: boolean;
   error: string | null;
   isEdit: boolean;
@@ -389,66 +366,23 @@ interface EditFormProps {
   onCancel: (() => void) | null;
 }
 
-function EditForm(p: EditFormProps) {
+function SimpleForm(p: SimpleFormProps) {
   const inputClass =
-    'w-full px-3 py-2 bg-surface-base border border-surface-border rounded-lg text-text-primary text-xs placeholder:text-text-muted/60 focus:outline-none focus:border-accent transition-colors';
+    'w-full px-3 py-2 bg-surface-base border border-surface-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:outline-none focus:border-accent transition-colors';
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-text-muted leading-relaxed">
-        Configure um email @eqr.com.br pra usar como remetente dos convites de reunião.
-        Os convites serão enviados via SMTP direto (não passa por Resend).
+        Use seu email @eqr.com.br pra enviar convites de reunião automaticamente.
       </p>
 
       <div className="space-y-2">
-        <label className="text-[11px] text-text-secondary font-medium">Servidor SMTP</label>
-        <input
-          type="text"
-          value={p.host}
-          onChange={(e) => p.setHost(e.target.value)}
-          placeholder="smtp.meuemail.net.br"
-          className={inputClass}
-          disabled={p.saving}
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-2">
-          <label className="text-[11px] text-text-secondary font-medium">Porta</label>
-          <input
-            type="number"
-            value={p.port}
-            onChange={(e) => p.setPort(Number(e.target.value))}
-            placeholder="587"
-            min={1}
-            max={65535}
-            className={inputClass}
-            disabled={p.saving}
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-[11px] text-text-secondary font-medium">Segurança</label>
-          <select
-            value={p.secure ? 'ssl' : 'starttls'}
-            onChange={(e) => p.setSecure(e.target.value === 'ssl')}
-            className={inputClass + ' cursor-pointer'}
-            disabled={p.saving}
-          >
-            <option value="starttls">STARTTLS (587)</option>
-            <option value="ssl">SSL/TLS (465)</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-[11px] text-text-secondary font-medium">Usuário (email completo)</label>
+        <label className="text-[11px] text-text-secondary font-medium">Usuário</label>
         <input
           type="email"
           value={p.username}
           onChange={(e) => p.setUsername(e.target.value)}
-          placeholder="agenda@eqr.com.br"
+          placeholder="seu@eqr.com.br"
           className={inputClass}
           disabled={p.saving}
           autoComplete="off"
@@ -458,14 +392,14 @@ function EditForm(p: EditFormProps) {
 
       <div className="space-y-2">
         <label className="text-[11px] text-text-secondary font-medium">
-          Senha {p.isEdit && <span className="text-text-muted">(deixe em branco pra manter)</span>}
+          Senha {p.isEdit && <span className="text-text-muted">(em branco mantém a atual)</span>}
         </label>
         <div className="relative">
           <input
             type={p.showPassword ? 'text' : 'password'}
             value={p.password}
             onChange={(e) => p.setPassword(e.target.value)}
-            placeholder={p.isEdit ? '••••••••• (sem alterar)' : 'senha da conta'}
+            placeholder={p.isEdit ? '••••••••• (sem alterar)' : 'senha do email'}
             className={inputClass + ' pr-10'}
             disabled={p.saving}
             autoComplete="new-password"
@@ -478,34 +412,6 @@ function EditForm(p: EditFormProps) {
           >
             {p.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-2">
-          <label className="text-[11px] text-text-secondary font-medium">Nome remetente</label>
-          <input
-            type="text"
-            value={p.fromName}
-            onChange={(e) => p.setFromName(e.target.value)}
-            placeholder="EQR Agenda"
-            className={inputClass}
-            disabled={p.saving}
-            maxLength={100}
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-[11px] text-text-secondary font-medium">Email remetente</label>
-          <input
-            type="email"
-            value={p.fromAddress}
-            onChange={(e) => p.setFromAddress(e.target.value)}
-            placeholder="agenda@eqr.com.br"
-            className={inputClass}
-            disabled={p.saving}
-            autoComplete="off"
-            spellCheck={false}
-          />
         </div>
       </div>
 
@@ -539,25 +445,12 @@ function EditForm(p: EditFormProps) {
         )}
       </div>
 
-      <details className="text-xs text-text-muted pt-1">
-        <summary className="cursor-pointer hover:text-text-secondary font-medium">
-          Onde achar essas informações?
+      <details className="text-[10px] text-text-muted/70 pt-1">
+        <summary className="cursor-pointer hover:text-text-muted">
+          Servidor pré-configurado
         </summary>
-        <div className="mt-2 space-y-2 pl-2">
-          <div>
-            <strong className="text-text-secondary">meuemail.net.br (provedor da EQR):</strong>
-            <ul className="list-disc list-inside mt-0.5 pl-2 space-y-0.5">
-              <li>Servidor: tipicamente <code>smtp.meuemail.net.br</code> ou <code>mail.meuemail.net.br</code></li>
-              <li>Porta 587 (STARTTLS) é o padrão</li>
-              <li>Usuário: seu email completo (ex: <code>agenda@eqr.com.br</code>)</li>
-              <li>Senha: a mesma do webmail</li>
-            </ul>
-          </div>
-          <div className="text-warning">
-            <strong>Importante:</strong> a senha fica encriptada no banco (AES-256-GCM).
-            Mas se a conta vazar, atacante pode mandar emails como você. Use uma conta
-            dedicada (ex: <code>agenda@eqr.com.br</code>) em vez da sua pessoal.
-          </div>
+        <div className="mt-1 pl-2 font-mono">
+          {SERVER_HOST}:{SERVER_PORT} · SSL/TLS
         </div>
       </details>
     </div>
