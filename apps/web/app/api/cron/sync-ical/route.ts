@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import crypto from 'node:crypto';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { syncAllIcalSubscriptions } from '@/lib/microsoftIcal';
+import { renewExpiringMicrosoftSubscriptions } from '@/lib/microsoftSubscriptions';
 
 // Permite cron rodar até 5 minutos (Vercel default é 10s no Hobby).
 // Necessário pra sync de 5+ sócios com Outlook lento (até 15s cada).
@@ -14,14 +15,17 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Cron Vercel: roda a cada 30min e sincroniza todos sócios com iCal URL.
+ * Cron Vercel: a cada 6h sincroniza iCal subscriptions + renova webhooks Microsoft.
+ *
+ * Dois caminhos rodam em paralelo:
+ *   1. syncAllIcalSubscriptions — pulls .ics de Google/Apple/Outlook publicado
+ *   2. renewExpiringMicrosoftSubscriptions — renova Graph subscriptions <24h
+ *      de expirar (TTL Microsoft = 3 dias)
  *
  * Segurança:
  *   - Em produção, CRON_SECRET é OBRIGATÓRIO (fail-closed). Sem ele, endpoint 503.
  *   - Vercel injeta header "Authorization: Bearer <CRON_SECRET>" automaticamente.
  *   - Comparação constant-time (crypto.timingSafeEqual).
- *
- * Configuração: vercel.json define o schedule.
  */
 export async function GET(req: NextRequest) {
   const cronSecret = process.env['CRON_SECRET'];
@@ -45,13 +49,26 @@ export async function GET(req: NextRequest) {
   }
 
   const serviceDb = await getSupabaseServiceClient();
-  const result = await syncAllIcalSubscriptions(serviceDb);
+
+  // Roda iCal sync + Microsoft subscription renewal em paralelo.
+  // Se um falhar, o outro segue — Promise.allSettled isola falhas.
+  const [icalResult, msResult] = await Promise.allSettled([
+    syncAllIcalSubscriptions(serviceDb),
+    renewExpiringMicrosoftSubscriptions(serviceDb),
+  ]);
+
+  const ical = icalResult.status === 'fulfilled'
+    ? { processed: icalResult.value.processed, synced: icalResult.value.totalSynced, errors: icalResult.value.totalErrors }
+    : { processed: 0, synced: 0, errors: 1, fail: (icalResult.reason as Error)?.message };
+
+  const microsoft = msResult.status === 'fulfilled'
+    ? { renewed: msResult.value.renewed, errors: msResult.value.errors, skipped: msResult.value.skipped }
+    : { renewed: 0, errors: 1, skipped: 0, fail: (msResult.reason as Error)?.message };
 
   return NextResponse.json({
     ok: true,
-    processed: result.processed,
-    totalSynced: result.totalSynced,
-    totalErrors: result.totalErrors,
+    ical,
+    microsoft,
     timestamp: new Date().toISOString(),
   });
 }
