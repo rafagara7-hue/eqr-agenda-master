@@ -592,6 +592,52 @@ export interface Database {
           is_active?: boolean;
         };
       };
+      admin_email_smtp_settings: {
+        Row: {
+          id: string;
+          created_by: string | null;
+          smtp_host: string;
+          smtp_port: number;
+          smtp_secure: boolean;
+          smtp_username: string;
+          smtp_password_encrypted: string;
+          from_address: string;
+          from_name: string;
+          verified_at: string | null;
+          last_test_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          created_by?: string | null;
+          smtp_host: string;
+          smtp_port: number;
+          smtp_secure?: boolean;
+          smtp_username: string;
+          smtp_password_encrypted: string;
+          from_address: string;
+          from_name: string;
+          verified_at?: string | null;
+          last_test_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          created_by?: string | null;
+          smtp_host?: string;
+          smtp_port?: number;
+          smtp_secure?: boolean;
+          smtp_username?: string;
+          smtp_password_encrypted?: string;
+          from_address?: string;
+          from_name?: string;
+          verified_at?: string | null;
+          last_test_error?: string | null;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       v_availability_busy_slots: {
