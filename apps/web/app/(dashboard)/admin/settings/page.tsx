@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { EmailConnectorSection } from '@/components/admin/EmailConnectorSection';
 
 type Theme = 'dark' | 'light';
 type NotifPermission = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -535,10 +536,18 @@ export default function SettingsPage() {
       {/* Outlook Calendar (Admin) — gerenciar vínculos dos sócios */}
       <AdminCalendarSection />
 
+      {/* Email connector (Admin) — SMTP relay pra convites .ics */}
+      <AdminEmailConnectorWrapper />
+
       {/* Outlook Calendar (Sócio) — desvincular o próprio calendar */}
       <MemberCalendarSection />
     </div>
   );
+}
+
+function AdminEmailConnectorWrapper() {
+  const { isAdmin } = useAuth();
+  return <EmailConnectorSection isAdmin={isAdmin} />;
 }
 
 function AdminCalendarSection() {
