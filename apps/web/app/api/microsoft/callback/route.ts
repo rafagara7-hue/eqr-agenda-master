@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import crypto from 'node:crypto';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { exchangeCodeForTokens, encryptToken } from '@/lib/microsoft';
+import {
+  exchangeCodeForTokens,
+  encryptToken,
+  createCalendarSubscription,
+  type MicrosoftAccountRecord,
+} from '@/lib/microsoft';
 
 // Callback do OAuth Microsoft Entra ID. Recebe ?code & ?state, valida state via cookie,
 // troca code por tokens, criptografa e persiste em calendar_provider_accounts (provider='microsoft').
@@ -43,21 +49,73 @@ export async function GET(req: NextRequest) {
   }
 
   const serviceDb = await getSupabaseServiceClient();
-  const { error: upsertErr } = await serviceDb.from('calendar_provider_accounts').upsert(
-    {
-      member_id: member.id,
-      provider: 'microsoft',
-      provider_email: tokens.email,
-      calendar_id: 'primary',
-      access_token: encryptToken(tokens.accessToken),
-      refresh_token: encryptToken(tokens.refreshToken),
-      token_expires_at: tokens.expiresAt.toISOString(),
-      sync_enabled: true,
-      is_primary: true,
-    },
-    { onConflict: 'member_id,provider,provider_email' }
-  );
-  if (upsertErr) return back(`microsoft=db-error&reason=${encodeURIComponent(upsertErr.message)}`);
+
+  // Gera clientState secreto pra validar notifications do webhook
+  // (defesa contra notifications forjadas)
+  const clientState = crypto.randomBytes(24).toString('hex');
+
+  const { data: rawUpsert, error: upsertErr } = await serviceDb
+    .from('calendar_provider_accounts')
+    .upsert(
+      {
+        member_id: member.id,
+        provider: 'microsoft',
+        provider_email: tokens.email,
+        calendar_id: 'primary',
+        access_token: encryptToken(tokens.accessToken),
+        refresh_token: encryptToken(tokens.refreshToken),
+        token_expires_at: tokens.expiresAt.toISOString(),
+        sync_enabled: true,
+        is_primary: true,
+        metadata: { microsoftClientState: clientState },
+      },
+      { onConflict: 'member_id,provider,provider_email' }
+    )
+    .select('id')
+    .single();
+
+  if (upsertErr || !rawUpsert) return back(`microsoft=db-error&reason=${encodeURIComponent(upsertErr?.message ?? 'no-row')}`);
+
+  const account: MicrosoftAccountRecord = {
+    id: (rawUpsert as { id: string }).id,
+    member_id: member.id,
+    provider_email: tokens.email,
+    calendar_id: 'primary',
+    access_token: encryptToken(tokens.accessToken),
+    refresh_token: encryptToken(tokens.refreshToken),
+    token_expires_at: tokens.expiresAt.toISOString(),
+  };
+
+  // Cria subscription Graph (webhook) — fire-and-forget mas com log de erro.
+  // Real-time não bloqueia o "Conectar". Se falhar, o cron renova/recria no próximo ciclo.
+  try {
+    const host = process.env['NEXT_PUBLIC_APP_HOST']
+      ? `https://${process.env['NEXT_PUBLIC_APP_HOST']}`
+      : new URL(req.url).origin;
+    const notificationUrl = `${host}/api/webhooks/microsoft/calendar`;
+
+    const { subscription, refreshed } = await createCalendarSubscription(account, {
+      notificationUrl,
+      clientState,
+    });
+
+    const update: Record<string, string | null> = {
+      subscription_id: subscription.id,
+      subscription_expiry: subscription.expirationDateTime,
+    };
+    if (refreshed) {
+      update['access_token'] = encryptToken(refreshed.accessToken);
+      update['refresh_token'] = encryptToken(refreshed.refreshToken);
+      update['token_expires_at'] = refreshed.expiresAt.toISOString();
+    }
+    await serviceDb.from('calendar_provider_accounts').update(update).eq('id', account.id);
+  } catch (err) {
+    // Subscription falhou mas conexão OK — sem real-time, mas dá pra usar sync polling.
+    console.error('[microsoft/callback] subscription create failed (non-fatal)', {
+      memberId: member.id,
+      error: err instanceof Error ? err.message : err,
+    });
+  }
 
   await serviceDb.from('members').update({ calendar_linked: true }).eq('id', member.id);
 
