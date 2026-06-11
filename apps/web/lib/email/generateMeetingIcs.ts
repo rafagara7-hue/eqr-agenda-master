@@ -1,25 +1,31 @@
 /**
- * Gerador de VCALENDAR pra meeting INVITE (RFC 5545 com METHOD:REQUEST).
+ * Gerador de VCALENDAR (RFC 5545 + RFC 5546) pra meeting invite.
  *
- * Diferença vs subscription publish:
- *   - METHOD:REQUEST → email client mostra "Aceitar/Recusar/Talvez"
- *   - ATTENDEE com RSVP=TRUE → calendar app espera resposta
- *   - ORGANIZER → quem fez o convite
+ * Princípios:
+ *   - METHOD:REQUEST sinaliza pro cliente "isso é convite, mostre Accept/Decline"
+ *   - ORGANIZER deve bater com o email FROM (senão Outlook desconfia e suprime UI)
+ *   - ATTENDEE precisa incluir o destinatário (Apple Mail só mostra Accept se for attendee)
+ *   - Datas em UTC com sufixo Z (timezone explícito; evita ambiguidade)
+ *   - Sem extensões proprietárias X-MICROSOFT-* (Apple Mail tem bug com algumas)
+ *   - Line folding RFC 5545 §3.1 (max 75 octetos por linha)
+ *   - UID estável (clientes deduplicam pelo UID)
  *
- * Compatibilidade testada:
- *   - Apple Mail (iOS + macOS): aceita/recusa via botão nativo
- *   - Outlook (web + desktop): mesmo
- *   - Gmail: extrai evento, oferece adicionar ao Google Calendar
- *   - Outros clientes IMAP simples: anexo .ics baixável
+ * Campos extras adicionados pra melhor compatibilidade:
+ *   - CREATED: quando event foi criado (Outlook quer)
+ *   - LAST-MODIFIED: quando foi atualizado (Outlook quer pra updates)
+ *   - TRANSP:OPAQUE: bloqueia o tempo no calendar (default mas explícito)
+ *   - PRIORITY: prioridade do evento (5 = normal)
  *
- * Caveats pra evitar o problema que Kadu reportou:
- *   - NÃO usa extensões Microsoft proprietárias (X-MICROSOFT-*)
- *   - Timezone explícito em DTSTART/DTEND como UTC (Z suffix)
- *   - Line folding RFC 5545 (75 chars max + CRLF + space)
- *   - UID estável baseado em event id
+ * Compatibilidade validada:
+ *   - Outlook desktop (Word renderer): mostra toolbar Accept/Decline
+ *   - Outlook web: mesmo
+ *   - Apple Mail (macOS/iOS): banner "Add to Calendar" + Accept/Decline
+ *   - Gmail: extrai evento, oferece "Add to Google Calendar"
+ *   - Webmail meuemail: mostra anexo .ics baixável
  */
 
 export interface MeetingInviteIcs {
+  /** UID estável do evento (ex: "uuid@host"). Clientes deduplicam por isso. */
   uid: string;
   title: string;
   description?: string | null;
@@ -27,20 +33,27 @@ export interface MeetingInviteIcs {
   startAt: Date;
   endAt: Date;
   organizer: { name: string; email: string };
-  attendees: Array<{ name?: string; email: string; rsvp?: boolean }>;
-  /** Status do evento. CONFIRMED é o normal pra invite. CANCELLED notifica cancelamento. */
+  attendees: Array<{ name?: string | null; email: string; rsvp?: boolean }>;
+  /** Status do evento. CONFIRMED é o normal. CANCELLED muda METHOD pra CANCEL. */
   status?: 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE';
-  /** Sequência do evento — incrementa quando edita um já enviado (RFC 5545). */
+  /** Sequência — incrementa quando edita um já enviado (RFC 5545 §3.8.7.4). */
   sequence?: number;
+  /** Quando o event foi criado originalmente (default: now). */
+  createdAt?: Date;
+  /** Quando foi atualizado pela última vez (default: now). */
+  lastModified?: Date;
   /** URL clicável (ex: link pra abrir reunião no EQR Agenda). */
   url?: string;
 }
 
 const CRLF = '\r\n';
-const PRODID = '-//EQR Capital//EQR Agenda Master//PT-BR';
+const PRODID = '-//EQR Capital//EQR Agenda Master 1.0//PT-BR';
 
-/** Escapa caracteres especiais TEXT (RFC 5545 §3.3.11). */
-function esc(s: string): string {
+/**
+ * Escapa caracteres especiais em TEXT (RFC 5545 §3.3.11).
+ * Ordem importa: backslash primeiro, depois ; , \n.
+ */
+function escText(s: string): string {
   return s
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
@@ -48,19 +61,42 @@ function esc(s: string): string {
     .replace(/\r\n|\r|\n/g, '\\n');
 }
 
-/** Folding RFC 5545 §3.1 — quebra linhas > 75 chars com CRLF + space. */
-function fold(line: string): string {
-  if (line.length <= 75) return line;
-  const out: string[] = [line.slice(0, 75)];
-  let rem = line.slice(75);
-  while (rem.length > 0) {
-    out.push(' ' + rem.slice(0, 74));
-    rem = rem.slice(74);
-  }
-  return out.join(CRLF);
+/**
+ * Sanitiza email: lowercase + trim. Alguns clientes são case-sensitive
+ * em comparações mailto:.
+ */
+function safeEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
-/** Date → "YYYYMMDDTHHMMSSZ" (UTC). */
+/**
+ * Folding RFC 5545 §3.1: linhas > 75 octetos quebram com CRLF + space.
+ * Trabalha em octetos (UTF-8 bytes), não caracteres — importante pra
+ * conteúdo com acentos PT-BR.
+ */
+function fold(line: string): string {
+  // Converte pra bytes pra contar octetos
+  const enc = new TextEncoder();
+  const bytes = enc.encode(line);
+  if (bytes.length <= 75) return line;
+
+  const dec = new TextDecoder('utf-8');
+  const parts: string[] = [];
+  let i = 0;
+  let chunkSize = 75; // primeira linha sem space prefix
+  while (i < bytes.length) {
+    // Pega até `chunkSize` bytes, mas garante que não corta no meio de char UTF-8
+    let end = Math.min(i + chunkSize, bytes.length);
+    // Reverte se o último byte é continuation byte (10xxxxxx)
+    while (end > i && (bytes[end - 1]! & 0xc0) === 0x80) end--;
+    parts.push(dec.decode(bytes.slice(i, end)));
+    i = end;
+    chunkSize = 74; // próximas linhas com 1 byte de space prefix → 74 livres
+  }
+  return parts.join(CRLF + ' ');
+}
+
+/** Date → "YYYYMMDDTHHMMSSZ" (UTC, RFC 5545 §3.3.5 form #2). */
 function utc(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
@@ -76,10 +112,26 @@ function utc(d: Date): string {
 }
 
 export function generateMeetingIcs(invite: MeetingInviteIcs): string {
-  const dtstamp = utc(new Date());
+  if (invite.endAt.getTime() <= invite.startAt.getTime()) {
+    throw new Error('generateMeetingIcs: endAt deve ser depois de startAt');
+  }
+  if (!invite.uid) {
+    throw new Error('generateMeetingIcs: uid é obrigatório');
+  }
+  if (!invite.organizer?.email) {
+    throw new Error('generateMeetingIcs: organizer.email é obrigatório');
+  }
+
+  const now = new Date();
+  const dtstamp = utc(now);
+  const created = utc(invite.createdAt ?? now);
+  const lastModified = utc(invite.lastModified ?? now);
   const status = invite.status ?? 'CONFIRMED';
   const method = status === 'CANCELLED' ? 'CANCEL' : 'REQUEST';
   const sequence = invite.sequence ?? 0;
+
+  const organizerEmail = safeEmail(invite.organizer.email);
+  const organizerName = invite.organizer.name?.trim() || invite.organizer.email;
 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -90,27 +142,34 @@ export function generateMeetingIcs(invite: MeetingInviteIcs): string {
     'BEGIN:VEVENT',
     `UID:${invite.uid}`,
     `DTSTAMP:${dtstamp}`,
+    `CREATED:${created}`,
+    `LAST-MODIFIED:${lastModified}`,
     `SEQUENCE:${sequence}`,
     `DTSTART:${utc(invite.startAt)}`,
     `DTEND:${utc(invite.endAt)}`,
-    `SUMMARY:${esc(invite.title)}`,
+    `SUMMARY:${escText(invite.title)}`,
     `STATUS:${status}`,
-    `ORGANIZER;CN=${esc(invite.organizer.name)}:mailto:${invite.organizer.email}`,
+    'TRANSP:OPAQUE',
+    'PRIORITY:5',
+    'CLASS:PUBLIC',
+    `ORGANIZER;CN="${escText(organizerName)}":mailto:${organizerEmail}`,
   ];
 
-  if (invite.description) lines.push(`DESCRIPTION:${esc(invite.description)}`);
-  if (invite.location)    lines.push(`LOCATION:${esc(invite.location)}`);
-  if (invite.url)         lines.push(`URL:${invite.url}`);
+  if (invite.description) lines.push(`DESCRIPTION:${escText(invite.description)}`);
+  if (invite.location) lines.push(`LOCATION:${escText(invite.location)}`);
+  if (invite.url) lines.push(`URL:${invite.url}`);
 
-  // Attendees — cada um vira ATTENDEE line
+  // Attendees — cada um vira uma ATTENDEE line
   for (const a of invite.attendees) {
+    if (!a.email) continue;
+    const email = safeEmail(a.email);
     const params: string[] = [];
-    if (a.name) params.push(`CN=${esc(a.name)}`);
+    if (a.name) params.push(`CN="${escText(a.name)}"`);
     params.push('CUTYPE=INDIVIDUAL');
     params.push('ROLE=REQ-PARTICIPANT');
-    params.push('PARTSTAT=NEEDS-ACTION');
-    if (a.rsvp !== false) params.push('RSVP=TRUE');
-    lines.push(`ATTENDEE;${params.join(';')}:mailto:${a.email}`);
+    params.push(status === 'CANCELLED' ? 'PARTSTAT=DECLINED' : 'PARTSTAT=NEEDS-ACTION');
+    if (a.rsvp !== false && status !== 'CANCELLED') params.push('RSVP=TRUE');
+    lines.push(`ATTENDEE;${params.join(';')}:mailto:${email}`);
   }
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
