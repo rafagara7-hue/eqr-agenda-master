@@ -94,11 +94,14 @@ export function CalDAVConnectBanner() {
     setDismissed(true);
   }
 
-  // Mostra banner se não conectou + não é admin + é member + não dispensou
+  // Mostra banner OTIMISTICAMENTE — exibe assim que sabe que é sócio
+  // (sem esperar a API de caldav). Só esconde se confirmar que JÁ tá conectado.
+  // Antes esperava 3 estados resolverem (isLoading, dismissed, caldavConnected)
+  // — daí a demora visual pra aparecer o botão.
   const showBanner =
     !isLoading &&
-    dismissed === false &&
-    caldavConnected === false &&
+    dismissed !== true &&  // só esconde se confirmou dispensado
+    caldavConnected !== true && // só esconde se confirmou conectado
     Boolean(member) &&
     !isAdmin;
 
@@ -110,6 +113,7 @@ export function CalDAVConnectBanner() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             className="relative z-20 bg-surface-elevated border-b border-surface-border overflow-hidden shrink-0"
           >
             <div className="flex items-center gap-3 px-4 sm:px-6 py-5 max-w-7xl mx-auto">
