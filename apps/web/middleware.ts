@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
     || pathname.startsWith('/agendar/')
     || pathname === '/privacidade'
     || pathname.startsWith('/privacidade/')
+    || pathname.startsWith('/convite/')
     || pathname.startsWith('/api/public/');
 
   // Nao precisamos getUser() pra rotas publicas — evita chamada ao GoTrue
