@@ -191,7 +191,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         sync_status: finalStatus,
         last_synced_at: new Date().toISOString(),
       };
-      if (finalStatus === 'synced') update['sync_error'] = null;
+      if (finalStatus === 'synced' || finalStatus === 'local_only') {
+        update['sync_error'] = null;
+      } else if (caldavResult.attempted) {
+        update['sync_error'] = 'Push pro Apple Calendar (CalDAV) falhou';
+      }
       await serviceDb.from('events').update(update).eq('id', eventId);
     }
 
