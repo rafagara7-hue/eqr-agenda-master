@@ -22,6 +22,24 @@ const MS_AUTH_URL = `https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/
 const MS_TOKEN_URL = `https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/token`;
 const MS_GRAPH_API = 'https://graph.microsoft.com/v1.0';
 
+// Timeout default em todos os fetches pro Microsoft Graph / Entra ID. Sem
+// isso, um endpoint MS lento pendura o handler Vercel até o maxDuration.
+const MS_FETCH_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs: number = MS_FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const SCOPES = [
   'offline_access',
   'User.Read',
@@ -116,7 +134,7 @@ export async function exchangeCodeForTokens(code: string): Promise<MicrosoftToke
     scope: SCOPES.join(' '),
   });
 
-  const res = await fetch(MS_TOKEN_URL, {
+  const res = await fetchWithTimeout(MS_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -153,7 +171,7 @@ export async function exchangeCodeForTokens(code: string): Promise<MicrosoftToke
   }
   if (!email) {
     // Fallback via Graph /me
-    const profile = await fetch(`${MS_GRAPH_API}/me`, {
+    const profile = await fetchWithTimeout(`${MS_GRAPH_API}/me`, {
       headers: { Authorization: `Bearer ${tok.access_token}` },
     });
     if (profile.ok) {
@@ -182,7 +200,7 @@ async function refreshAccessToken(refreshToken: string): Promise<{
     grant_type: 'refresh_token',
     scope: SCOPES.join(' '),
   });
-  const res = await fetch(MS_TOKEN_URL, {
+  const res = await fetchWithTimeout(MS_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -314,7 +332,7 @@ async function withFreshToken<T>(
 
 async function graphFetch(url: string, opts: RequestInit & { accessToken: string }): Promise<unknown> {
   const { accessToken, ...rest } = opts;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     ...rest,
     headers: {
       ...rest.headers,
@@ -531,7 +549,7 @@ export async function getAppOnlyAccessToken(): Promise<string> {
     scope: 'https://graph.microsoft.com/.default',
   });
 
-  const res = await fetch(MS_TOKEN_URL, {
+  const res = await fetchWithTimeout(MS_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -565,7 +583,7 @@ export async function getEventsAsApp(opts: {
 }>> {
   const token = await getAppOnlyAccessToken();
   const url = `${MS_GRAPH_API}/users/${encodeURIComponent(opts.userEmail)}/calendarView?startDateTime=${encodeURIComponent(opts.startAt.toISOString())}&endDateTime=${encodeURIComponent(opts.endAt.toISOString())}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
