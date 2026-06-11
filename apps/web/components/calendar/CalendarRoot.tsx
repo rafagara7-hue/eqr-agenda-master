@@ -17,6 +17,7 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay,
 import type { CalendarEvent } from '@eqr/domain';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { BottomSheet } from '@/components/shared/BottomSheet';
+import { CalDAVConnectBanner } from '@/components/shared/CalDAVConnectBanner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useTranslation } from '@/lib/i18n';
@@ -250,6 +251,8 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         onOpenMobileFilters={() => setMobileFiltersOpen(true)}
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
+
+      <CalDAVConnectBanner />
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
