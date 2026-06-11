@@ -3,6 +3,7 @@ import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabas
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
 import { syncUpdateToMicrosoft, syncDeleteFromMicrosoft } from '@/lib/microsoftSync';
+import { pushEventToCaldavConnections } from '@/lib/caldav/pushEventToCaldav';
 
 const reminderSchema = z.object({
   method: z.enum(['popup', 'email']),
@@ -150,21 +151,52 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       endAt: parsed.data.endAt ? new Date(parsed.data.endAt) : undefined,
     });
 
-    await syncUpdateToMicrosoft(serviceDb, {
-      eventId: event.id,
-      memberId: event.memberId,
-      externalEventId: event.externalEventId,
-      data: {
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        startAt: event.startAt,
-        endAt: event.endAt,
-        allDay: event.allDay,
-        status: event.status === 'tentative' ? 'tentative' : event.status === 'cancelled' ? 'cancelled' : 'confirmed',
-        reminders: event.reminders,
-      },
-    });
+    // Microsoft Graph sync (Outlook OAuth, parqueado) + CalDAV push (Apple).
+    // Em paralelo: Microsoft via OAuth e CalDAV pra cada participante conectado.
+    const participantsAndHost = Array.from(new Set([event.memberId, ...event.participantIds]));
+    const [msResult, caldavResult] = await Promise.all([
+      syncUpdateToMicrosoft(serviceDb, {
+        eventId: event.id,
+        memberId: event.memberId,
+        externalEventId: event.externalEventId,
+        data: {
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          startAt: event.startAt,
+          endAt: event.endAt,
+          allDay: event.allDay,
+          status: event.status === 'tentative' ? 'tentative' : event.status === 'cancelled' ? 'cancelled' : 'confirmed',
+          reminders: event.reminders,
+        },
+      }),
+      pushEventToCaldavConnections(serviceDb, {
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        eventLocation: event.location,
+        eventStartAt: event.startAt,
+        eventEndAt: event.endAt,
+        participantMemberIds: participantsAndHost,
+        actorMemberId: member.id,
+        organizerName: 'EQR Agenda',
+        organizerEmail: 'agenda@eqr.com.br',
+      }).catch(() => ({ attempted: false, anySuccess: false, anyFailure: false })),
+    ]);
+
+    // Mesma lógica combinada do POST: se MS não marcou synced, combinar resultados.
+    if (!msResult.succeeded) {
+      const finalStatus =
+        caldavResult.anySuccess ? 'synced' :
+        msResult.attempted || caldavResult.attempted ? 'failed' :
+        'local_only';
+      const update: Record<string, unknown> = {
+        sync_status: finalStatus,
+        last_synced_at: new Date().toISOString(),
+      };
+      if (finalStatus === 'synced') update['sync_error'] = null;
+      await serviceDb.from('events').update(update).eq('id', event.id);
+    }
 
     return NextResponse.json({ event, hasConflict });
   } catch (err) {
