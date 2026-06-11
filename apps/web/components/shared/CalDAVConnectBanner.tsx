@@ -95,29 +95,30 @@ export function CalDAVConnectBanner() {
         initial={{ opacity: 0, height: 0 }}
         animate={{ opacity: 1, height: 'auto' }}
         exit={{ opacity: 0, height: 0 }}
-        // relative z-20 (igual ao filter pills) + bg sólido pra não ficar
-        // atrás da TopBar quando rolar (TopBar é sticky z-10 com backdrop-blur)
         className="relative z-20 bg-surface-elevated border-b border-surface-border overflow-hidden shrink-0"
       >
-        <div className="flex items-center gap-3 px-4 py-3 max-w-7xl mx-auto">
+        {/* py-5 (em vez de py-3) pra ocupar a faixa visual entre o nav e o
+            calendar grid — evita parecer um banner "fininho" e perdido */}
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-5 max-w-7xl mx-auto">
           <div
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center"
+            className="flex-shrink-0 w-10 h-10 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center"
             aria-hidden
           >
-            <CalendarHeart className="w-4 h-4 text-accent" />
+            <CalendarHeart className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-text-primary text-sm font-medium leading-tight">
+            <p className="text-text-primary text-base font-semibold leading-tight">
               Sincronize sua agenda com o Apple Calendar
             </p>
-            <p className="text-text-muted text-xs mt-0.5 leading-snug truncate">
-              Receba reuniões em segundos, sem abrir email.
+            <p className="text-text-muted text-xs mt-1 leading-snug">
+              Receba reuniões em segundos, sem abrir email — funciona no Mac, iPhone e iPad
+              automaticamente.
             </p>
           </div>
           <button
             type="button"
             onClick={() => router.push('/admin/settings#caldav')}
-            className="flex-shrink-0 px-4 py-2 rounded-lg bg-accent text-brand font-medium text-sm hover:bg-accent-bright transition-colors"
+            className="flex-shrink-0 px-5 py-2.5 rounded-lg bg-accent text-brand font-semibold text-sm hover:bg-accent-bright transition-colors"
             style={{ color: '#0D1B2A' }}
           >
             Conectar
