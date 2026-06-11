@@ -95,7 +95,9 @@ export function CalDAVConnectBanner() {
         initial={{ opacity: 0, height: 0 }}
         animate={{ opacity: 1, height: 'auto' }}
         exit={{ opacity: 0, height: 0 }}
-        className="bg-surface-elevated border-b border-surface-border overflow-hidden"
+        // relative z-20 (igual ao filter pills) + bg sólido pra não ficar
+        // atrás da TopBar quando rolar (TopBar é sticky z-10 com backdrop-blur)
+        className="relative z-20 bg-surface-elevated border-b border-surface-border overflow-hidden shrink-0"
       >
         <div className="flex items-center gap-3 px-4 py-3 max-w-7xl mx-auto">
           <div
