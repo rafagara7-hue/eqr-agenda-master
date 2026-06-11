@@ -3,6 +3,7 @@ import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabas
 import { EventService } from '@eqr/services';
 import { z } from 'zod';
 import { syncCreateToMicrosoft } from '@/lib/microsoftSync';
+import { sendMeetingInvite } from '@/lib/email/sendMeetingInvite';
 
 const reminderSchema = z.object({
   method: z.enum(['popup', 'email']),
@@ -72,6 +73,114 @@ async function insertCreatedNotifications(
 
   if (rows.length > 0) {
     await serviceDb.from('notifications').insert(rows);
+  }
+}
+
+/**
+ * Envia convite .ics pra cada participante do evento (exceto o ator que criou).
+ *
+ * Diferença vs approve flow:
+ *   - approve manda pro sócio único + cliente externo
+ *   - aqui pode haver múltiplos participantes (joint meeting)
+ *   - cada um recebe convite individualizado
+ *
+ * Tratamento de falha:
+ *   - Falhas por participante são logadas mas não interrompem o resto
+ *   - Promise.allSettled garante que 1 falha não cancela os outros envios
+ *   - Outer try/catch evita derrubar a criação do event
+ */
+async function sendInvitesForCreatedEvent(
+  serviceDb: ServiceDb,
+  opts: {
+    eventId: string;
+    eventTitle: string;
+    eventDescription: string | null;
+    eventLocation: string | null;
+    eventStartAt: Date;
+    eventEndAt: Date;
+    memberId: string; // host (sócio dono do calendar)
+    participantIds: string[];
+    actorMemberId: string;
+    actorUserEmail: string | null;
+  }
+): Promise<void> {
+  try {
+    // Participantes únicos (memberId + extras), excluindo o ator
+    const recipientIds = Array.from(
+      new Set([opts.memberId, ...opts.participantIds])
+    ).filter((id) => id !== opts.actorMemberId);
+    if (recipientIds.length === 0) return;
+
+    const { data: rawMembers } = await serviceDb
+      .from('members')
+      .select('id, name, user_id')
+      .in('id', recipientIds);
+    const recipients = (rawMembers ?? []) as Array<{
+      id: string;
+      name: string;
+      user_id: string | null;
+    }>;
+
+    // Busca info do ator (organizer)
+    const { data: rawActor } = await serviceDb
+      .from('members')
+      .select('name')
+      .eq('id', opts.actorMemberId)
+      .single();
+    const actor = rawActor as { name: string } | null;
+    const organizerName = actor?.name ?? 'EQR Agenda';
+    const organizerEmail = opts.actorUserEmail ?? 'agenda@eqr.com.br';
+
+    const host = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
+
+    await Promise.allSettled(
+      recipients
+        .filter((m) => m.user_id)
+        .map(async (m) => {
+          try {
+            const userResp = await serviceDb.auth.admin.getUserById(m.user_id!);
+            const email = userResp.data.user?.email;
+            if (!email) {
+              console.warn('[events/create/sendInvite] no email for member', { memberId: m.id });
+              return;
+            }
+            const invite = {
+              uid: `${opts.eventId}@${host}`,
+              title: opts.eventTitle,
+              description: opts.eventDescription,
+              location: opts.eventLocation,
+              startAt: opts.eventStartAt,
+              endAt: opts.eventEndAt,
+              organizer: { name: organizerName, email: organizerEmail },
+              attendees: [{ name: m.name, email, rsvp: true }],
+              status: 'CONFIRMED' as const,
+              url: `https://${host}/meetings/${opts.eventId}`,
+            };
+            const result = await sendMeetingInvite(serviceDb, {
+              to: email,
+              toName: m.name,
+              invite,
+            });
+            if (!result.ok) {
+              console.warn('[events/create/sendInvite] failed', {
+                eventId: opts.eventId,
+                memberId: m.id,
+                error: result.error,
+              });
+            }
+          } catch (err) {
+            console.error('[events/create/sendInvite] exception per recipient', {
+              memberId: m.id,
+              error: err instanceof Error ? err.message : err,
+            });
+          }
+        })
+    );
+  } catch (err) {
+    console.error('[events/create/sendInvitesForCreatedEvent] outer error', {
+      eventId: opts.eventId,
+      error: err instanceof Error ? err.message : err,
+    });
   }
 }
 
@@ -160,6 +269,21 @@ export async function POST(req: NextRequest) {
       participantIds: event.participantIds,
       actorMemberId: member.id,
       actorRole: member.role,
+    });
+
+    // Awaitado pra Vercel não cortar a function — falha interna é logada mas
+    // não interrompe a resposta de criação do evento
+    await sendInvitesForCreatedEvent(serviceDb, {
+      eventId: event.id,
+      eventTitle: event.title,
+      eventDescription: event.description,
+      eventLocation: event.location,
+      eventStartAt: event.startAt,
+      eventEndAt: event.endAt,
+      memberId: event.memberId,
+      participantIds: event.participantIds,
+      actorMemberId: member.id,
+      actorUserEmail: user.email ?? null,
     });
 
     // Awaitamos o sync com o Microsoft Graph: em serverless da Vercel, fire-and-forget
