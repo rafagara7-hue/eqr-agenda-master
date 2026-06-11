@@ -4,6 +4,7 @@ import { EventService } from '@eqr/services';
 import { z } from 'zod';
 import { syncCreateToMicrosoft } from '@/lib/microsoftSync';
 import { sendMeetingInvite } from '@/lib/email/sendMeetingInvite';
+import { pushEventToCaldavConnections } from '@/lib/caldav/pushEventToCaldav';
 
 const reminderSchema = z.object({
   method: z.enum(['popup', 'email']),
@@ -271,20 +272,35 @@ export async function POST(req: NextRequest) {
       actorRole: member.role,
     });
 
-    // Awaitado pra Vercel não cortar a function — falha interna é logada mas
-    // não interrompe a resposta de criação do evento
-    await sendInvitesForCreatedEvent(serviceDb, {
-      eventId: event.id,
-      eventTitle: event.title,
-      eventDescription: event.description,
-      eventLocation: event.location,
-      eventStartAt: event.startAt,
-      eventEndAt: event.endAt,
-      memberId: event.memberId,
-      participantIds: event.participantIds,
-      actorMemberId: member.id,
-      actorUserEmail: user.email ?? null,
-    });
+    // Email + CalDAV em paralelo — ambos awaitados pra Vercel não cortar a function
+    const participantsAndHost = Array.from(new Set([event.memberId, ...event.participantIds]));
+    await Promise.allSettled([
+      sendInvitesForCreatedEvent(serviceDb, {
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        eventLocation: event.location,
+        eventStartAt: event.startAt,
+        eventEndAt: event.endAt,
+        memberId: event.memberId,
+        participantIds: event.participantIds,
+        actorMemberId: member.id,
+        actorUserEmail: user.email ?? null,
+      }),
+      // Push direto pro Apple Calendar dos participantes via CalDAV (real-time)
+      pushEventToCaldavConnections(serviceDb, {
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        eventLocation: event.location,
+        eventStartAt: event.startAt,
+        eventEndAt: event.endAt,
+        participantMemberIds: participantsAndHost,
+        actorMemberId: member.id,
+        organizerName: 'EQR Agenda',
+        organizerEmail: user.email ?? 'agenda@eqr.com.br',
+      }),
+    ]);
 
     // Awaitamos o sync com o Microsoft Graph: em serverless da Vercel, fire-and-forget
     // (void) é cortado quando o handler retorna. Esperar 1-2s garante que o
