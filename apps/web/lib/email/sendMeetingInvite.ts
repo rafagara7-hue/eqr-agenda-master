@@ -75,7 +75,9 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   // UID tem formato "eventId@host" → extrai só o eventId pro link público
   const eventId = invite.uid.split('@')[0];
   const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
-  const icsUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
+  // Link "Sim" → página /convite/[id] (mais confiável que link direto pro .ics,
+  // que dependia de file-association no OS do destinatário)
+  const acceptUrl = `https://${appHost}/convite/${eventId}`;
   const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
     `Recuso: ${invite.title}`
   )}&body=${encodeURIComponent(
@@ -105,7 +107,7 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
           <tr>
             <td style="padding: 0 6px;">
-              <a href="${icsUrl}" style="display: inline-block; padding: 14px 28px; background: #16A34A; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
+              <a href="${acceptUrl}" style="display: inline-block; padding: 14px 28px; background: #16A34A; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
                 ✓ SIM, aceitar
               </a>
             </td>
