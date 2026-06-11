@@ -37,7 +37,9 @@ export async function middleware(request: NextRequest) {
     || pathname === '/privacidade'
     || pathname.startsWith('/privacidade/')
     || pathname.startsWith('/convite/')
-    || pathname.startsWith('/api/public/');
+    || pathname.startsWith('/api/public/')
+    // Endpoint temporario de diagnostico — handles own auth via DEBUG_TOKEN
+    || pathname.startsWith('/api/admin/debug/');
 
   // Nao precisamos getUser() pra rotas publicas — evita chamada ao GoTrue
   if (isPublicPath) {
