@@ -48,12 +48,15 @@ export class ConflictService {
       const overlapStart = new Date(Math.max(startAt.getTime(), new Date(other.start_at).getTime()));
       const overlapEnd = new Date(Math.min(endAt.getTime(), new Date(other.end_at).getTime()));
 
-      const [idA, idB] = [eventId, other.id].sort();
+      // Ordena pra ter id_a < id_b sempre (idempotência do UPSERT por par).
+      const sorted: readonly [string, string] = eventId < other.id
+        ? [eventId, other.id]
+        : [other.id, eventId];
 
       return {
         member_id: memberId,
-        event_id_a: idA!,
-        event_id_b: idB!,
+        event_id_a: sorted[0],
+        event_id_b: sorted[1],
         overlap_start: overlapStart.toISOString(),
         overlap_end: overlapEnd.toISOString(),
         resolved: false,
