@@ -72,26 +72,21 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   );
   const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
 
-  // UID tem formato "eventId@host" → extrai só o eventId pro link público
-  const eventId = invite.uid.split('@')[0];
-  const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
-  // Link "Sim" → página /convite/[id] (mais confiável que link direto pro .ics,
-  // que dependia de file-association no OS do destinatário)
-  const acceptUrl = `https://${appHost}/convite/${eventId}`;
-  const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
-    `Recuso: ${invite.title}`
-  )}&body=${encodeURIComponent(
-    `Olá,\n\nNão poderei participar da reunião "${invite.title}" em ${when}.\n\n`
-  )}`;
-
   return `
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"></head>
 <body style="font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #0D1B2A; max-width: 600px; margin: 0 auto; padding: 24px; background: #FAFAFA;">
+  <!-- Aviso topo: usar botões nativos do email -->
+  <div style="background: #F4ECD0; border-left: 4px solid #D4AF37; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
+    <p style="margin: 0; font-size: 13px; color: #0D1B2A;">
+      <strong>👆 Use os botões "Aceitar / Recusar / Talvez"</strong> que aparecem no topo deste email (acima do remetente). 1 clique adiciona ao seu calendar.
+    </p>
+  </div>
+
   <p style="font-size: 15px;">${greeting}</p>
   <p style="font-size: 15px;">Você foi convidado(a) para uma reunião:</p>
 
-  <table style="margin: 16px 0; padding: 16px; background: #F4ECD0; border-radius: 8px; border-left: 4px solid #D4AF37; width: 100%;">
+  <table style="margin: 16px 0; padding: 16px; background: #FFFFFF; border-radius: 8px; border-left: 4px solid #D4AF37; width: 100%; border: 1px solid #E5E7EB;">
     <tr><td style="font-size: 18px; font-weight: 700; padding-bottom: 8px; color: #0D1B2A;">${safeTitle}</td></tr>
     <tr><td style="color: #555; padding-bottom: 4px;"><strong>Quando:</strong> ${when}</td></tr>
     ${invite.location ? `<tr><td style="color: #555; padding-bottom: 4px;"><strong>Onde:</strong> ${invite.location.replace(/[<>&]/g, '')}</td></tr>` : ''}
@@ -100,38 +95,12 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 
   ${safeDesc ? `<p style="color: #555; font-size: 14px;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
 
-  <!-- Botões grandes Sim/Não -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 24px auto; width: 100%;">
-    <tr>
-      <td align="center" style="padding: 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td style="padding: 0 6px;">
-              <a href="${acceptUrl}" style="display: inline-block; padding: 14px 28px; background: #16A34A; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
-                ✓ SIM, aceitar
-              </a>
-            </td>
-            <td style="padding: 0 6px;">
-              <a href="${declineMailto}" style="display: inline-block; padding: 14px 28px; background: #DC2626; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
-                ✗ NÃO posso
-              </a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-
-  <p style="text-align: center; color: #888; font-size: 12px; margin: 8px 0 24px;">
-    Clicando em <strong style="color: #16A34A;">SIM</strong>, o arquivo de calendar é baixado e seu app abre pra confirmar.<br>
-    Clicando em <strong style="color: #DC2626;">NÃO</strong>, um email de recusa é aberto.
-  </p>
-
-  ${invite.url ? `<p style="text-align: center;"><a href="${invite.url}" style="color: #D4AF37; font-weight: 600; font-size: 14px;">Ver detalhes na EQR Agenda →</a></p>` : ''}
+  ${invite.url ? `<p style="font-size: 13px;"><a href="${invite.url}" style="color: #D4AF37; font-weight: 600;">Ver detalhes na EQR Agenda →</a></p>` : ''}
 
   <hr style="border: 0; border-top: 1px solid #DDD; margin: 24px 0 16px;">
   <p style="color: #888; font-size: 11px; text-align: center;">
-    O arquivo .ics também está anexado a este email — seu app de calendar pode oferecer botões nativos de Aceitar/Recusar.<br>
+    Os botões "Aceitar / Recusar" aparecem nativamente no Outlook, Apple Mail e Gmail.<br>
+    Se não vir, o arquivo <strong>invite.ics</strong> está anexado e pode ser aberto manualmente.<br>
     EQR Agenda Master · Convite automático.
   </p>
 </body></html>
@@ -236,18 +205,30 @@ export async function sendMeetingInvite(
   serviceDb: ServiceDb,
   opts: SendMeetingInviteOpts
 ): Promise<SendInviteResult> {
-  const ics = generateMeetingIcs(opts.invite);
-  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
-
   const transport = await getEmailTransport(serviceDb);
 
   if (transport.kind === 'smtp') {
+    // CRITICAL: Outlook só mostra botões nativos Aceitar/Recusar se o ORGANIZER
+    // do .ics bater com o sender do email. Quando sender é o SMTP fromAddress,
+    // organizer também precisa ser. Senão Outlook desconfia e suprime os botões.
+    //
+    // Mantém o nome original do organizer se diferente (ex: "Amina EQR criou em
+    // nome de scarparo@..."), mas o email vai pro SMTP fromAddress.
+    const inviteForSmtp = {
+      ...opts.invite,
+      organizer: {
+        name: opts.invite.organizer.name,
+        email: transport.config.fromAddress,
+      },
+    };
+    const ics = generateMeetingIcs(inviteForSmtp);
+    const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
     const result = await sendViaSmtp(transport.config, {
       to: opts.to,
       toName: opts.toName ?? undefined,
       subject: `Convite: ${opts.invite.title}`,
-      html: htmlBody(opts.invite, opts.toName),
-      text: plainBody(opts.invite, opts.toName),
+      html: htmlBody(inviteForSmtp, opts.toName),
+      text: plainBody(inviteForSmtp, opts.toName),
       icsBase64,
     });
     if (!result.ok) {
@@ -257,5 +238,8 @@ export async function sendMeetingInvite(
     return { ok: true, id: result.messageId, via: 'smtp' };
   }
 
+  // Resend fallback — gera .ics com organizer original
+  const ics = generateMeetingIcs(opts.invite);
+  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
   return sendViaResend(opts, icsBase64);
 }
