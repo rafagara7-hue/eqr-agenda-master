@@ -171,7 +171,7 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td bgcolor="#16A34A" style="background-color:#16A34A;border-radius:6px;">
-                          <a href="${icsAcceptUrl}" style="display:block;padding:15px 34px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
+                          <a href="${icsAcceptUrl}" style="display:block;padding:17px 38px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;text-decoration:none;line-height:1;">
                             &#10003; Adicionar &agrave; minha agenda
                           </a>
                         </td>
@@ -181,9 +181,23 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
                 </tr>
               </table>
 
+              <!-- Instrução iPhone-específica: o passo crítico que muitos esquecem -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#FFF8E1" style="margin:0 0 16px;background-color:#FFF8E1;border-left:3px solid #F59E0B;border-radius:4px;">
+                <tr>
+                  <td style="padding:12px 14px;">
+                    <p style="margin:0 0 4px;color:#92400E;font-size:13px;font-weight:bold;">&#128241; No iPhone / iPad:</p>
+                    <p style="margin:0;color:#78350F;font-size:12px;line-height:1.5;">
+                      Toque no bot&atilde;o verde acima OU no anexo <strong>invite.ics</strong>.
+                      Quando o card do evento abrir, toque em <strong>ADICIONAR</strong> no canto superior direito.
+                      <br><span style="color:#9A6610;">N&atilde;o feche o card antes de tocar em ADICIONAR &mdash; o evento n&atilde;o salva.</span>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
               <p style="margin:0 0 16px;text-align:center;color:#888888;font-size:12px;line-height:1.6;">
-                No Apple Mail, Gmail ou Outlook, o bot&atilde;o <strong style="color:#16A34A;">Aceitar</strong>
-                no topo do email adiciona sem baixar nada.<br>
+                No Mac, Gmail ou Outlook, o bot&atilde;o <strong style="color:#16A34A;">Aceitar</strong>
+                pode aparecer no topo do email &mdash; ele tamb&eacute;m funciona.<br>
                 <a href="${declineMailto}" style="color:#888888;text-decoration:underline;">N&atilde;o poderei ir</a>
               </p>
 
@@ -193,7 +207,6 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
           <tr>
             <td bgcolor="#F5F5F5" style="background-color:#F5F5F5;padding:14px 24px;border-top:1px solid #E5E5E5;">
               <p style="margin:0;color:#888888;font-size:11px;text-align:center;line-height:1.5;">
-                O bot&atilde;o <strong>Aceitar</strong> aparece no topo do email no Apple Mail (Mac e iPhone).<br>
                 EQR Agenda Master &middot; convite autom&aacute;tico
               </p>
             </td>
