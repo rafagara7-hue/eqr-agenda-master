@@ -11,11 +11,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: rawCurrentMember } = await supabase
+  const { data: rawCurrentMember, error: meErr } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  if (meErr && meErr.code !== 'PGRST116') {
+    console.error('[api/members/[id]/avatar/POST] me lookup failed', { userId: user.id, code: meErr.code });
+    return NextResponse.json({ error: 'Erro ao validar permissão' }, { status: 500 });
+  }
   const currentMember = rawCurrentMember as { id: string; role: string } | null;
 
   if (!currentMember) return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
@@ -50,7 +54,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
   // Adiciona cache-buster para forçar recarga da imagem no browser
-  const { data: { publicUrl } } = service.storage.from(BUCKET).getPublicUrl(upload.path);
+  const pubResult = service.storage.from(BUCKET).getPublicUrl(upload.path);
+  const publicUrl = pubResult.data?.publicUrl;
+  if (!publicUrl) {
+    console.error('[api/members/[id]/avatar/POST] getPublicUrl returned no url', { memberId: id, path: upload.path });
+    return NextResponse.json({ error: 'Erro ao gerar URL do avatar' }, { status: 500 });
+  }
   const url = `${publicUrl}?t=${Date.now()}`;
 
   return NextResponse.json({ url });
