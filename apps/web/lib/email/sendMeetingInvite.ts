@@ -107,13 +107,17 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 
   const eventId = invite.uid.split('@')[0];
   const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
-  // webcal:// protocolo nativo de calendar do OS:
-  //   - Mac/iPhone (sócios): abre Calendar.app direto → prompt "Adicionar?"
-  //   - Windows + Outlook como default: abre Outlook → prompt "Add calendar?"
-  //   - Sem download visível, sem prompt "abrir com qual app?", smooth UX
-  const icsAcceptUrl = `webcal://${appHost}/api/public/events/${eventId}/ics`;
-  // Fallback https:// caso webcal:// não esteja registrado no OS (raro)
-  const icsHttpsUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
+  // https:// (NÃO webcal://): Outlook desktop strippa links webcal:// como
+  // protocolo suspeito — junto com o styling do botão. https:// é universal.
+  //
+  // Comportamento no clique:
+  //   - Mac (Safari/Chrome): auto-abre .ics em Calendar.app → prompt "Add?"
+  //     Sem download visível, smooth UX.
+  //   - iPhone: idem, abre Calendar app.
+  //   - Windows (Edge/Chrome) + Outlook: baixa .ics, OS abre no Outlook
+  //     Calendar pra adicionar.
+  //   - Webmail (Gmail web): oferece "Add to Google Calendar"
+  const icsAcceptUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
   const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
     `Recuso: ${invite.title}`
   )}&body=${encodeURIComponent(
@@ -179,12 +183,9 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
                 </tr>
               </table>
 
-              <p style="margin:0 0 8px;text-align:center;color:#888888;font-size:12px;line-height:1.5;">
-                <strong style="color:#16A34A;">SIM</strong> abre seu calendar direto pra confirmar a reuni&atilde;o.<br>
+              <p style="margin:0 0 16px;text-align:center;color:#888888;font-size:12px;line-height:1.5;">
+                <strong style="color:#16A34A;">SIM</strong> abre seu calendar pra confirmar a reuni&atilde;o.<br>
                 <strong style="color:#DC2626;">N&Atilde;O</strong> abre email de recusa pra responder.
-              </p>
-              <p style="margin:0 0 16px;text-align:center;color:#AAAAAA;font-size:10px;">
-                <a href="${icsHttpsUrl}" style="color:#AAAAAA;text-decoration:underline;">se o SIM n&atilde;o abrir, clique aqui pra baixar o arquivo .ics</a>
               </p>
 
               ${invite.url ? `<p style="margin:0;font-size:13px;text-align:center;"><a href="${invite.url}" style="color:#D4AF37;font-weight:bold;text-decoration:none;">Ver detalhes na EQR Agenda &rarr;</a></p>` : ''}
