@@ -59,13 +59,17 @@ export async function GET(req: NextRequest) {
     reverseSyncDeletesForAll(serviceDb),
   ]);
 
+  // Helper: Promise.allSettled.reason pode ser qualquer coisa (não só Error).
+  const reasonMsg = (r: unknown) =>
+    r instanceof Error ? r.message : typeof r === 'string' ? r : 'unknown error';
+
   const ical = icalResult.status === 'fulfilled'
     ? { processed: icalResult.value.processed, synced: icalResult.value.totalSynced, errors: icalResult.value.totalErrors }
-    : { processed: 0, synced: 0, errors: 1, fail: (icalResult.reason as Error)?.message };
+    : { processed: 0, synced: 0, errors: 1, fail: reasonMsg(icalResult.reason) };
 
   const microsoft = msResult.status === 'fulfilled'
     ? { renewed: msResult.value.renewed, errors: msResult.value.errors, skipped: msResult.value.skipped }
-    : { renewed: 0, errors: 1, skipped: 0, fail: (msResult.reason as Error)?.message };
+    : { renewed: 0, errors: 1, skipped: 0, fail: reasonMsg(msResult.reason) };
 
   const caldavReverse = caldavReverseResult.status === 'fulfilled'
     ? {
@@ -74,7 +78,7 @@ export async function GET(req: NextRequest) {
         skipped: caldavReverseResult.value.reduce((acc, r) => acc + r.skipped, 0),
         aborted: caldavReverseResult.value.filter((r) => r.reason?.startsWith('sanity-check-aborted')).length,
       }
-    : { processed: 0, deleted: 0, skipped: 0, aborted: 0, fail: (caldavReverseResult.reason as Error)?.message };
+    : { processed: 0, deleted: 0, skipped: 0, aborted: 0, fail: reasonMsg(caldavReverseResult.reason) };
 
   return NextResponse.json({
     ok: true,
