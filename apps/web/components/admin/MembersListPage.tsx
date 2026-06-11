@@ -26,16 +26,19 @@ interface MembersListPageProps {
   events?: Array<{ member_id: string; sync_status: string; status: string }>;
   /** Conflitos não resolvidos. */
   conflicts?: Array<{ member_id: string }>;
+  /** member_ids que têm CalDAV (Apple Calendar) verified_at IS NOT NULL. */
+  caldavConnectedIds?: string[];
   currentMemberId: string;
   isAdmin: boolean;
 }
 
-export function MembersListPage({ members, events = [], conflicts = [], currentMemberId, isAdmin }: MembersListPageProps) {
+export function MembersListPage({ members, events = [], conflicts = [], caldavConnectedIds = [], currentMemberId, isAdmin }: MembersListPageProps) {
   const router = useRouter();
   const { onlineMemberIds } = usePresenceContext();
   const { t } = useTranslation();
+  const caldavSet = new Set(caldavConnectedIds);
 
-  const active = members.filter((m) => m.slug !== 'admin' && m.slug !== 'external');
+  const active = members.filter((m) => m.slug !== 'admin');
   const adminMember = members.find((m) => m.slug === 'admin');
 
   return (
@@ -106,10 +109,15 @@ export function MembersListPage({ members, events = [], conflicts = [], currentM
                     {formatPhone(m.phone)}
                   </span>
                 )}
-                <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${m.calendar_linked ? 'text-success' : 'text-text-muted'}`}>
-                  {m.calendar_linked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
-                  {m.calendar_linked ? t('members.calendarLinked') : t('members.calendarNotLinked')}
-                </span>
+                {(() => {
+                  const caldavOn = caldavSet.has(m.id);
+                  return (
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${caldavOn ? 'text-success' : 'text-text-muted'}`}>
+                      {caldavOn ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3" />}
+                      {caldavOn ? t('members.appleCalendarConnected') : t('members.appleCalendarNotConnected')}
+                    </span>
+                  );
+                })()}
               </div>
 
               {/* Indicadores (admin only) — desktop em 3 colunas, mobile em lista vertical */}
