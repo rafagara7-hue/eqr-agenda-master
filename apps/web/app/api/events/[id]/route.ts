@@ -264,6 +264,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         participantIds: partIds.length > 0 ? partIds : [eventSnapshot.member_id],
         actorMemberId: member.id,
         actorRole: member.role,
+      }).catch((err) => {
+        console.error('[events/delete] insertDeletedNotifications failed', {
+          eventId: id,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
       await syncDeleteFromMicrosoft(serviceDb, {
