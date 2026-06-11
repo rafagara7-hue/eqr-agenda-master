@@ -196,6 +196,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       };
       if (finalStatus === 'synced') update['sync_error'] = null;
       await serviceDb.from('events').update(update).eq('id', event.id);
+
+      // Reflete o status final no payload retornado pro cliente (mesma razão
+      // do POST: React Query usa esse objeto pra atualizar o cache).
+      (event as { syncStatus: typeof finalStatus }).syncStatus = finalStatus;
+      if (finalStatus === 'synced') {
+        (event as { syncError: string | null }).syncError = null;
+      }
     }
 
     return NextResponse.json({ event, hasConflict });
