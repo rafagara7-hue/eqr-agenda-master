@@ -55,7 +55,12 @@ export async function pushEventToCaldavConnections(
   opts: PushOpts
 ): Promise<void> {
   try {
-    const recipientIds = opts.participantMemberIds.filter((id) => id !== opts.actorMemberId);
+    // Diferença importante vs email: aqui NÃO filtramos o actor.
+    // Email .ics: não notifica o próprio criador (faz sentido — ele sabe).
+    // CalDAV: empurra pra calendar de TODOS os participantes (host + extras),
+    // inclusive se for o próprio criador. O Apple Calendar do sócio é o
+    // calendário-fonte-da-verdade dele — quer ver tudo que tá na EQR Agenda.
+    const recipientIds = Array.from(new Set(opts.participantMemberIds));
     if (recipientIds.length === 0) return;
 
     // Busca conexões CalDAV verificadas dos recipients
