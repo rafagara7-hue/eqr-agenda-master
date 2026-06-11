@@ -160,8 +160,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       member_id: string;
     } | null;
 
-    await Promise.allSettled([
-      sendInviteAfterApprove(serviceDb, eventId, id, member.id),
+    const [, caldavResult] = await Promise.all([
+      sendInviteAfterApprove(serviceDb, eventId, id, member.id).catch(() => undefined),
       // Push CalDAV pro sócio host (e participantes adicionais via meeting_request_participants
       // ficam de fora aqui — V1, expandir se necessário). Exclui o ator (admin que aprovou).
       ev
@@ -176,9 +176,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             actorMemberId: member.id,
             organizerName: 'EQR Agenda',
             organizerEmail: user.email ?? 'agenda@eqr.com.br',
-          })
-        : Promise.resolve(),
+          }).catch(() => ({ attempted: false, anySuccess: false, anyFailure: false }))
+        : Promise.resolve({ attempted: false, anySuccess: false, anyFailure: false }),
     ]);
+
+    // Atualiza sync_status pra não ficar preso em 'pending' (badge "Sincronizando").
+    // Evento criado via approve_meeting_request usa apenas CalDAV (sem Microsoft sync).
+    {
+      const finalStatus =
+        caldavResult.anySuccess ? 'synced' :
+        caldavResult.attempted ? 'failed' :
+        'local_only';
+      const update: Record<string, unknown> = {
+        sync_status: finalStatus,
+        last_synced_at: new Date().toISOString(),
+      };
+      if (finalStatus === 'synced') update['sync_error'] = null;
+      await serviceDb.from('events').update(update).eq('id', eventId);
+    }
 
     return NextResponse.json({ ok: true, eventId });
   } catch (err) {
