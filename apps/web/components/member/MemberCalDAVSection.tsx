@@ -124,11 +124,13 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
         if (user?.email) setAppleId(user.email);
       } catch {}
     }
-    // OTIMIZAÇÃO 1: já abre Apple ID em nova aba simultaneamente
-    // Sócio nem precisa clicar "Abrir Apple ID" — saiu daqui já tá lá
+    // NÃO abre Apple ID auto — sócio precisa ler as instruções primeiro.
+    // Botão "Abrir Apple ID" no card 1 abre quando ele tiver entendido o que fazer.
+  }
+
+  function openAppleIdTab() {
     window.open('https://account.apple.com/account/manage', '_blank', 'noopener');
-    // OTIMIZAÇÃO 2: foca no campo de senha (Apple ID já preenchido)
-    setTimeout(() => passwordInputRef.current?.focus(), 250);
+    setTimeout(() => passwordInputRef.current?.focus(), 300);
   }
 
   // OTIMIZAÇÃO 3: quando user voltar pra essa aba (depois de copiar do Apple),
@@ -331,38 +333,48 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
               </button>
             </div>
 
-            {/* Banner: Apple ID já foi aberto automaticamente */}
-            <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-start gap-2">
-              <div
-                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs flex-shrink-0"
-                style={{ color: '#0D1B2A' }}
-              >
-                1
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-text-primary text-sm font-medium leading-relaxed">
-                  Abrimos o Apple ID em outra aba 👉
-                </p>
-                <p className="text-text-muted text-[11px] mt-1 leading-relaxed">
-                  Lá:{' '}
-                  <strong className="text-text-secondary">Início de sessão e segurança</strong>{' '}
-                  →{' '}
-                  <strong className="text-text-secondary">Senhas específicas de apps</strong>{' '}
-                  →{' '}
-                  <strong className="text-text-secondary">Gerar senha</strong>{' '}
-                  → dá um nome (ex: <code className="text-accent">EQR Agenda</code>) → copia a
-                  senha → volta aqui.
-                </p>
-                <a
-                  href="https://account.apple.com/account/manage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-accent hover:underline"
+            {/* Passo 1: instruções + botão abrir Apple ID */}
+            <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <div
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs flex-shrink-0"
+                  style={{ color: '#0D1B2A' }}
                 >
-                  <ExternalLink className="w-3 h-3" />
-                  Abrir Apple ID novamente
-                </a>
+                  1
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-text-primary text-sm font-semibold leading-snug">
+                    Gera a senha no seu Apple ID
+                  </p>
+                  <p className="text-text-muted text-[11px] mt-1.5 leading-relaxed">
+                    Quando clicar no botão abaixo, abre uma nova aba. Lá:
+                  </p>
+                  <ol className="text-text-muted text-[11px] mt-1 leading-relaxed list-decimal list-inside pl-1 space-y-0.5">
+                    <li>Login com Apple ID + verificação em duas etapas</li>
+                    <li>
+                      Menu lateral →{' '}
+                      <strong className="text-text-secondary">Início de sessão e segurança</strong>
+                    </li>
+                    <li>
+                      Clica em{' '}
+                      <strong className="text-text-secondary">Senhas específicas de apps</strong>
+                    </li>
+                    <li>
+                      <strong className="text-text-secondary">Gerar senha</strong> → dá um nome
+                      (ex: <code className="text-accent">EQR Agenda</code>)
+                    </li>
+                    <li>Copia a senha gerada e volta aqui</li>
+                  </ol>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={openAppleIdTab}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-base border border-accent/40 text-text-primary text-sm font-medium hover:border-accent hover:bg-accent/5 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4 text-accent" />
+                Abrir Apple ID em nova aba
+              </button>
             </div>
 
             {/* CARD: Conectar (passo 2 — colar senha) */}
