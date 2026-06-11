@@ -84,7 +84,15 @@ export function useCalendarEvents({ startAt, endAt, memberIds }: UseCalendarEven
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
 
-  const queryKey = ['calendar-events', startAt.toISOString(), endAt.toISOString(), memberIds?.join(',')];
+  // getTime() é estável e mais barato que toISOString(); sorted memberIds
+  // garantem queryKey igual independentemente da ordem da array recebida —
+  // evita refetch contínuo quando o parent re-renderiza memberIds em outra ordem.
+  const queryKey = [
+    'calendar-events',
+    startAt.getTime(),
+    endAt.getTime(),
+    memberIds ? [...memberIds].sort().join(',') : null,
+  ];
 
   const query = useQuery({
     queryKey,
