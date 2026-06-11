@@ -1,29 +1,30 @@
 /**
- * Envia convite de reunião (.ics).
+ * Envia convite de reunião com .ics inline.
  *
- * Transporte é selecionado por `getEmailTransport`:
- *   1. SMTP do admin (config em admin_email_smtp_settings com verified_at) → nodemailer
- *   2. Fallback Resend REST API (sandbox onboarding@resend.dev)
+ * Arquitetura:
+ *   1. Decide transport (SMTP admin > Resend fallback)
+ *   2. Quando SMTP: alinha ORGANIZER do .ics com fromAddress (Outlook trust)
+ *   3. Gera .ics + HTML + plain text
+ *   4. Envia via icalEvent (SMTP) ou attachments[] (Resend)
  *
- * Estratégia do email:
- *   - HTML legível (resumo + data + organizador) — funciona mesmo se cliente
- *     ignorar o anexo .ics
- *   - Anexo .ics permite clique pra adicionar ao calendar (Apple Mail, Outlook,
- *     Gmail Web etc.)
- *   - Mensagem em PT-BR, tom corporativo neutro
+ * Por que NÃO tem botões custom "Sim/Não" no email body:
+ *   - Outlook desktop/web mostra toolbar nativa Accept/Decline quando vê
+ *     text/calendar com METHOD=REQUEST. 1 clique nativo > qualquer botão custom.
+ *   - Apple Mail mostra banner "Add to Calendar" nativo.
+ *   - Botões custom ficam confusos em Outlook (Word renderer não suporta
+ *     `display: inline-block` consistente, background-color quebra etc.)
  *
- * Falhas tratadas:
- *   - Sem transporte configurado → erro claro
- *   - SMTP recusa → propaga mensagem
- *   - Resend não-2xx → propaga mensagem
- *   - Timeout 15s
+ * Por que ORGANIZER tem que bater com from:
+ *   - Outlook valida que sender == organizer pra mostrar UI de invitation
+ *   - Se mismatch, Outlook trata como "info only" e suprime botões
+ *   - Apple Mail é menos estrito mas também prefere match
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@eqr/database';
 import { generateMeetingIcs, type MeetingInviteIcs } from './generateMeetingIcs';
 import { getEmailTransport } from './getEmailTransport';
-import { sendViaSmtp } from './smtpTransport';
+import { sendViaSmtp, type SmtpConfig } from './smtpTransport';
 
 type ServiceDb = SupabaseClient<Database>;
 
@@ -32,145 +33,174 @@ export type SendInviteResult =
   | { ok: false; error: string };
 
 export interface SendMeetingInviteOpts {
-  /** Email destinatário (sócio, cliente externo, etc). */
   to: string;
-  /** Nome amigável do destinatário pra cabeçalho "To". */
   toName?: string | null;
-  /** Dados do invite — vira tanto .ics quanto corpo do email. */
   invite: MeetingInviteIcs;
-  /** Override do "from" (só Resend; SMTP usa from da config admin). */
+  /** Override From (só Resend; SMTP usa from da config admin). */
   from?: string;
 }
 
 const RESEND_API = 'https://api.resend.com/emails';
 const FETCH_TIMEOUT_MS = 15_000;
-
 const RESEND_DEFAULT_FROM =
   process.env['EMAIL_FROM'] ?? 'EQR Agenda <onboarding@resend.dev>';
 
-function formatDateTimePtBr(d: Date): string {
-  return d.toLocaleString('pt-BR', {
+function formatDateRange(startAt: Date, endAt: Date): string {
+  const day = startAt.toLocaleString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
+    year: 'numeric',
+    timeZone: 'America/Sao_Paulo',
+  });
+  const startTime = startAt.toLocaleString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'America/Sao_Paulo',
   });
+  const endTime = endAt.toLocaleString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
+  return `${day}, ${startTime}–${endTime}`;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(
+    /[<>&"']/g,
+    (c) =>
+      ({
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[c] ?? c
+  );
+}
+
+/**
+ * HTML body — versão limpa, sem botões custom.
+ * Conta com a toolbar nativa do cliente de email pra Accept/Decline.
+ * Compatível com Outlook desktop (Word renderer) — só usa table + inline CSS.
+ */
 function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
-  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString(
-    'pt-BR',
-    { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }
-  )}`;
-  const safeTitle = invite.title.replace(/[<>&]/g, (c) =>
-    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c
-  );
-  const safeDesc = (invite.description ?? '').replace(/[<>&]/g, (c) =>
-    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c
-  );
-  const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
+  const when = formatDateRange(invite.startAt, invite.endAt);
+  const safeTitle = escapeHtml(invite.title);
+  const safeDesc = invite.description ? escapeHtml(invite.description) : '';
+  const safeLocation = invite.location ? escapeHtml(invite.location) : '';
+  const safeOrganizer = escapeHtml(invite.organizer.name);
+  const greeting = toName ? `Olá ${escapeHtml(toName.split(' ')[0] ?? '')},` : 'Olá,';
 
-  const eventId = invite.uid.split('@')[0];
-  const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
-  // webcal:// = protocolo de calendar. Mac/Apple Mail abrem Calendar.app direto;
-  // Windows com Outlook como default abre Outlook calendar; iOS abre Calendar.
-  // Sem redirect, sem página intermediária — protocolo handler do OS resolve.
-  const acceptUrl = `webcal://${appHost}/api/public/events/${eventId}/ics`;
-  const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
-    `Recuso: ${invite.title}`
-  )}&body=${encodeURIComponent(
-    `Olá,\n\nNão poderei participar da reunião "${invite.title}" em ${when}.\n\n`
-  )}`;
-
-  return `
-<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"></head>
-<body style="font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #0D1B2A; max-width: 600px; margin: 0 auto; padding: 24px; background: #FAFAFA;">
-  <p style="font-size: 15px;">${greeting}</p>
-  <p style="font-size: 15px;">Você foi convidado(a) para uma reunião:</p>
-
-  <table style="margin: 16px 0; padding: 16px; background: #FFFFFF; border-radius: 8px; border-left: 4px solid #D4AF37; width: 100%; border: 1px solid #E5E7EB;">
-    <tr><td style="font-size: 18px; font-weight: 700; padding-bottom: 8px; color: #0D1B2A;">${safeTitle}</td></tr>
-    <tr><td style="color: #555; padding-bottom: 4px;"><strong>Quando:</strong> ${when}</td></tr>
-    ${invite.location ? `<tr><td style="color: #555; padding-bottom: 4px;"><strong>Onde:</strong> ${invite.location.replace(/[<>&]/g, '')}</td></tr>` : ''}
-    <tr><td style="color: #555;"><strong>Organizado por:</strong> ${invite.organizer.name}</td></tr>
-  </table>
-
-  ${safeDesc ? `<p style="color: #555; font-size: 14px;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
-
-  <!-- Botões Sim/Não -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 24px auto; width: 100%;">
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeTitle}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F5F5;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F5F5F5;padding:24px 0;">
     <tr>
-      <td align="center" style="padding: 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:8px;overflow:hidden;">
           <tr>
-            <td style="padding: 0 6px;">
-              <a href="${acceptUrl}" style="display: inline-block; padding: 14px 28px; background: #16A34A; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 130px; text-align: center;">
-                ✓ SIM, aceitar
-              </a>
+            <td style="background-color:#0D1B2A;padding:20px 24px;">
+              <p style="margin:0;color:#D4AF37;font-size:14px;font-weight:bold;letter-spacing:1px;">EQR AGENDA</p>
+              <p style="margin:4px 0 0;color:#FFFFFF;font-size:11px;">Convite de reunião</p>
             </td>
-            <td style="padding: 0 6px;">
-              <a href="${declineMailto}" style="display: inline-block; padding: 14px 28px; background: #DC2626; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 130px; text-align: center;">
-                ✗ NÃO posso
-              </a>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 8px;color:#0D1B2A;font-size:15px;">${greeting}</p>
+              <p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">Você foi convidado(a) para uma reunião. Use os botões <strong>Aceitar / Talvez / Recusar</strong> do seu app de email pra adicionar à sua agenda.</p>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-left:4px solid #D4AF37;background-color:#FAF5E6;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0 0 10px;color:#0D1B2A;font-size:18px;font-weight:bold;">${safeTitle}</p>
+                    <p style="margin:0 0 6px;color:#333333;font-size:14px;"><strong style="color:#0D1B2A;">Quando:</strong> ${when}</p>
+                    ${safeLocation ? `<p style="margin:0 0 6px;color:#333333;font-size:14px;"><strong style="color:#0D1B2A;">Onde:</strong> ${safeLocation}</p>` : ''}
+                    <p style="margin:0;color:#333333;font-size:14px;"><strong style="color:#0D1B2A;">Organizado por:</strong> ${safeOrganizer}</p>
+                  </td>
+                </tr>
+              </table>
+
+              ${safeDesc ? `<p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
+
+              ${invite.url ? `<p style="margin:0;font-size:13px;text-align:center;"><a href="${invite.url}" style="color:#D4AF37;font-weight:bold;text-decoration:none;">Ver detalhes na EQR Agenda &rarr;</a></p>` : ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#F5F5F5;padding:14px 24px;border-top:1px solid #E5E5E5;">
+              <p style="margin:0;color:#888888;font-size:11px;text-align:center;line-height:1.5;">
+                Outlook e Apple Mail mostram botões "Aceitar / Talvez / Recusar" automaticamente no topo deste email.<br>
+                Se não vir, o arquivo <strong>invite.ics</strong> está anexado e pode ser aberto manualmente.<br>
+                EQR Agenda Master &middot; convite automático
+              </p>
             </td>
           </tr>
         </table>
       </td>
     </tr>
   </table>
-
-  <p style="text-align: center; color: #888; font-size: 12px; margin: 8px 0 24px;">
-    Clicando em <strong style="color: #16A34A;">SIM</strong>, seu Apple Calendar (ou Outlook) abre direto pra adicionar a reunião.<br>
-    Clicando em <strong style="color: #DC2626;">NÃO</strong>, um email de recusa é aberto.
-  </p>
-
-  ${invite.url ? `<p style="text-align: center; font-size: 13px;"><a href="${invite.url}" style="color: #D4AF37; font-weight: 600;">Ver detalhes na EQR Agenda →</a></p>` : ''}
-
-  <hr style="border: 0; border-top: 1px solid #DDD; margin: 24px 0 16px;">
-  <p style="color: #888; font-size: 11px; text-align: center;">
-    O Outlook e Apple Mail também podem mostrar botões "Aceitar / Recusar" nativos<br>
-    no topo do email — funcionam igual ao SIM acima.<br>
-    EQR Agenda Master · Convite automático.
-  </p>
-</body></html>
-  `.trim();
+</body>
+</html>`;
 }
 
 function plainBody(invite: MeetingInviteIcs, toName?: string | null): string {
-  const when = `${formatDateTimePtBr(invite.startAt)}–${invite.endAt.toLocaleString(
-    'pt-BR',
-    { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }
-  )}`;
+  const when = formatDateRange(invite.startAt, invite.endAt);
   const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
-  return [
+  const lines: string[] = [
     greeting,
     '',
     'Você foi convidado(a) para uma reunião:',
     '',
-    `${invite.title}`,
+    `Título: ${invite.title}`,
     `Quando: ${when}`,
-    invite.location ? `Onde: ${invite.location}` : null,
-    `Organizado por: ${invite.organizer.name}`,
-    invite.description ? `\n${invite.description}` : null,
-    '',
-    'O arquivo de calendar (.ics) está anexado. Abra-o pra aceitar ou recusar.',
-    invite.url ? `\nDetalhes: ${invite.url}` : null,
-    '',
-    '— EQR Agenda Master',
-  ]
-    .filter((l) => l !== null)
-    .join('\n');
+  ];
+  if (invite.location) lines.push(`Onde: ${invite.location}`);
+  lines.push(`Organizado por: ${invite.organizer.name}`);
+  if (invite.description) {
+    lines.push('');
+    lines.push(invite.description);
+  }
+  lines.push('');
+  lines.push('Use os botões "Aceitar / Talvez / Recusar" do seu app de email pra adicionar.');
+  lines.push('Outlook, Apple Mail e Gmail mostram automaticamente.');
+  if (invite.url) {
+    lines.push('');
+    lines.push(`Detalhes: ${invite.url}`);
+  }
+  lines.push('');
+  lines.push('— EQR Agenda Master');
+  return lines.join('\n');
 }
 
-async function sendViaResend(opts: SendMeetingInviteOpts, icsBase64: string): Promise<SendInviteResult> {
+/**
+ * Quando enviando via SMTP, força ORGANIZER.email = SMTP fromAddress. Isso
+ * faz Outlook confiar no convite e mostrar a toolbar nativa. Mantém o name.
+ */
+function alignOrganizerWithSmtp(invite: MeetingInviteIcs, config: SmtpConfig): MeetingInviteIcs {
+  return {
+    ...invite,
+    organizer: {
+      name: invite.organizer.name,
+      email: config.fromAddress,
+    },
+  };
+}
+
+async function sendViaResend(
+  opts: SendMeetingInviteOpts,
+  ics: string
+): Promise<SendInviteResult> {
   const apiKey = process.env['RESEND_API_KEY'];
   if (!apiKey) {
     return { ok: false, error: 'RESEND_API_KEY não configurada' };
   }
-
+  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
   const payload = {
     from: opts.from ?? RESEND_DEFAULT_FROM,
     to: opts.toName ? `${opts.toName} <${opts.to}>` : opts.to,
@@ -199,17 +229,18 @@ async function sendViaResend(opts: SendMeetingInviteOpts, icsBase64: string): Pr
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-
     if (!res.ok) {
       const errText = await res.text();
       console.error('[sendMeetingInvite/resend] error', {
         status: res.status,
         to: opts.to,
-        body: errText,
+        body: errText.slice(0, 300),
       });
-      return { ok: false, error: `Resend ${res.status}: ${errText.slice(0, 200)}` };
+      return {
+        ok: false,
+        error: `Resend ${res.status}: ${errText.slice(0, 200)}`,
+      };
     }
-
     const data = (await res.json()) as { id?: string };
     return { ok: true, id: data.id ?? 'unknown', via: 'resend' };
   } catch (err) {
@@ -226,13 +257,6 @@ async function sendViaResend(opts: SendMeetingInviteOpts, icsBase64: string): Pr
   }
 }
 
-/**
- * Decide transporte (SMTP admin vs Resend fallback) e envia.
- *
- * Recebe `serviceDb` pra consultar a config SMTP. Caller deve usar service
- * client (não user client) porque RLS da tabela exige role='admin' e isso
- * pode rodar em contexto de webhook/cron sem sessão.
- */
 export async function sendMeetingInvite(
   serviceDb: ServiceDb,
   opts: SendMeetingInviteOpts
@@ -240,38 +264,46 @@ export async function sendMeetingInvite(
   const transport = await getEmailTransport(serviceDb);
 
   if (transport.kind === 'smtp') {
-    // CRITICAL: Outlook só mostra botões nativos Aceitar/Recusar se o ORGANIZER
-    // do .ics bater com o sender do email. Quando sender é o SMTP fromAddress,
-    // organizer também precisa ser. Senão Outlook desconfia e suprime os botões.
-    //
-    // Mantém o nome original do organizer se diferente (ex: "Amina EQR criou em
-    // nome de scarparo@..."), mas o email vai pro SMTP fromAddress.
-    const inviteForSmtp = {
-      ...opts.invite,
-      organizer: {
-        name: opts.invite.organizer.name,
-        email: transport.config.fromAddress,
-      },
-    };
-    const ics = generateMeetingIcs(inviteForSmtp);
-    const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
+    const inviteForSmtp = alignOrganizerWithSmtp(opts.invite, transport.config);
+    let ics: string;
+    try {
+      ics = generateMeetingIcs(inviteForSmtp);
+    } catch (err) {
+      console.error('[sendMeetingInvite/smtp] ics gen failed', err);
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : 'Erro ao gerar .ics',
+      };
+    }
     const result = await sendViaSmtp(transport.config, {
       to: opts.to,
       toName: opts.toName ?? undefined,
       subject: `Convite: ${opts.invite.title}`,
       html: htmlBody(inviteForSmtp, opts.toName),
       text: plainBody(inviteForSmtp, opts.toName),
-      icsBase64,
+      icsContent: ics,
+      icsMethod: opts.invite.status === 'CANCELLED' ? 'CANCEL' : 'REQUEST',
     });
     if (!result.ok) {
-      console.error('[sendMeetingInvite/smtp] failed', { to: opts.to, error: result.error });
+      console.error('[sendMeetingInvite/smtp] failed', {
+        to: opts.to,
+        error: result.error,
+        code: result.code,
+      });
       return { ok: false, error: `SMTP: ${result.error}` };
     }
     return { ok: true, id: result.messageId, via: 'smtp' };
   }
 
-  // Resend fallback — gera .ics com organizer original
-  const ics = generateMeetingIcs(opts.invite);
-  const icsBase64 = Buffer.from(ics, 'utf8').toString('base64');
-  return sendViaResend(opts, icsBase64);
+  // Resend fallback
+  let ics: string;
+  try {
+    ics = generateMeetingIcs(opts.invite);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro ao gerar .ics',
+    };
+  }
+  return sendViaResend(opts, ics);
 }
