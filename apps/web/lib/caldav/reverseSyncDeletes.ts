@@ -167,26 +167,24 @@ export async function reverseSyncDeletesForMember(
     };
   }
 
-  // 8. Hard delete dos candidatos
-  let deleted = 0;
-  for (const c of candidates) {
-    try {
+  // 8. Hard delete dos candidatos — em paralelo (eram sequenciais antes).
+  // Cada delete é independente; paraleliza mas usa allSettled pra não cancelar
+  // os outros se um falhar.
+  const deleteResults = await Promise.allSettled(
+    candidates.map(async (c) => {
       const { error } = await serviceDb.from('events').delete().eq('id', c.id);
       if (error) {
         console.warn('[caldav/reverseSync] delete failed', {
+          memberId,
           eventId: c.id,
           error: error.message,
         });
-        continue;
+        throw new Error(error.message);
       }
-      deleted++;
-    } catch (err) {
-      console.warn('[caldav/reverseSync] delete exception', {
-        eventId: c.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+      return c.id;
+    })
+  );
+  const deleted = deleteResults.filter((r) => r.status === 'fulfilled').length;
 
   return {
     memberId,
