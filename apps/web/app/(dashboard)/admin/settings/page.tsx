@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Bell, BellOff, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Link2Off, Link2, Maximize2, Minimize2, Palette, Languages } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { Sun, Moon, Bell, BellOff, AlertTriangle, Clock, Timer, CalendarDays, PanelLeft, Maximize2, Minimize2, Palette, Languages, CheckCircle2, XCircle } from 'lucide-react';
 import { useAgendaSettings, type AgendaSettings } from '@/hooks/useAgendaSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/lib/i18n';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { EmailConnectorSection } from '@/components/admin/EmailConnectorSection';
 import { MemberEmailSection } from '@/components/member/MemberEmailSection';
+import { MemberIcalSection } from '@/components/member/MemberIcalSection';
 
 type Theme = 'dark' | 'light';
 type NotifPermission = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -534,17 +531,14 @@ export default function SettingsPage() {
         </SettingRow>
       </motion.div>
 
-      {/* Outlook Calendar (Admin) — gerenciar vínculos dos sócios */}
-      <AdminCalendarSection />
-
       {/* Email connector (Admin) — SMTP relay pra convites .ics */}
       <AdminEmailConnectorWrapper />
 
-      {/* Outlook Calendar (Sócio) — desvincular o próprio calendar */}
-      <MemberCalendarSection />
-
       {/* Email do sócio — confirmar/trocar onde recebe convites */}
       <MemberEmailSectionWrapper />
+
+      {/* Apple Calendar (Sócio) — compartilhar via iCal URL */}
+      <MemberIcalSectionWrapper />
     </div>
   );
 }
@@ -559,222 +553,8 @@ function MemberEmailSectionWrapper() {
   return <MemberEmailSection isMember={Boolean(member)} isAdmin={isAdmin} />;
 }
 
-function AdminCalendarSection() {
-  const { isAdmin } = useAuth();
-  const supabase = getSupabaseBrowserClient();
-  const queryClient = useQueryClient();
-  const { t } = useTranslation();
-  const [disconnecting, setDisconnecting] = useState<string | 'all' | null>(null);
-
-  const { data: linkedMembers = [], refetch } = useQuery({
-    queryKey: ['admin-calendar-linked-members'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('members')
-        .select('id, name, slug, color_hex, avatar_url, calendar_provider_accounts!inner(provider_email, provider)')
-        .eq('calendar_linked', true)
-        .eq('is_active', true)
-        .eq('calendar_provider_accounts.provider', 'microsoft')
-        .order('name');
-      return (data ?? []) as Array<{
-        id: string;
-        name: string;
-        slug: string;
-        color_hex: string;
-        avatar_url: string | null;
-        calendar_provider_accounts: { provider_email: string; provider: string }[] | null;
-      }>;
-    },
-    enabled: isAdmin,
-    staleTime: 30_000,
-  });
-
-  if (!isAdmin) return null;
-
-  async function disconnect(memberId?: string) {
-    const key = memberId ?? 'all';
-    if (memberId) {
-      if (!confirm(t('settings.calendar.disconnectConfirmMember'))) return;
-    } else {
-      if (!confirm(t('settings.calendar.disconnectConfirmAll'))) return;
-    }
-    setDisconnecting(key);
-    try {
-      const res = await fetch('/api/microsoft/admin-disconnect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(memberId ? { memberId } : {}),
-      });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; disconnected?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.calendar.disconnectError'));
-      toast.success(
-        memberId
-          ? t('settings.calendar.disconnected')
-          : `${data.disconnected ?? 0} ${t('settings.calendar.disconnected')}`
-      );
-      await Promise.all([
-        refetch(),
-        queryClient.invalidateQueries({ queryKey: ['sidebar-members'] }),
-        queryClient.invalidateQueries({ queryKey: ['members-list'] }),
-        queryClient.invalidateQueries({ queryKey: ['member-panel'] }),
-      ]);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('settings.calendar.disconnectError'));
-    } finally {
-      setDisconnecting(null);
-    }
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.22 }}
-      className="bg-surface-elevated border border-surface-border rounded-xl px-5"
-    >
-      <div className="py-4 border-b border-surface-border flex items-center justify-between">
-        <h2 className="text-text-secondary text-sm font-medium">{t('settings.section.outlookCalendarAdmin')}</h2>
-        {linkedMembers.length > 0 && (
-          <button
-            type="button"
-            onClick={() => void disconnect()}
-            disabled={disconnecting === 'all'}
-            className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {disconnecting === 'all' ? t('common.disconnecting') : t('common.disconnectAll')}
-          </button>
-        )}
-      </div>
-
-      {linkedMembers.length === 0 ? (
-        <div className="py-6 flex items-center gap-2 text-text-muted text-sm">
-          <Link2Off className="w-4 h-4" />
-          {t('settings.calendar.noneLinked')}
-        </div>
-      ) : (
-        <ul className="py-2 divide-y divide-surface-border">
-          {linkedMembers.map((m) => {
-            const account = m.calendar_provider_accounts?.[0];
-            const isBusy = disconnecting === m.id;
-            return (
-              <li key={m.id} className="flex items-center gap-3 py-3">
-                <MemberAvatar
-                  member={{ name: m.name, colorHex: m.color_hex, avatarUrl: m.avatar_url }}
-                  size="sm"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary text-sm font-medium truncate">{m.name}</p>
-                  <p className="text-text-muted text-[11px] flex items-center gap-1.5">
-                    <Link2 className="w-3 h-3 text-success" />
-                    {account?.provider_email ?? '—'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void disconnect(m.id)}
-                  disabled={isBusy || disconnecting === 'all'}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-text-secondary hover:border-danger/50 hover:text-danger transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px]"
-                >
-                  {isBusy ? t('common.disconnecting') : t('common.disconnect')}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div className="pb-4 pt-1">
-        <p className="text-text-muted text-[11px]">
-          {t('settings.calendar.disconnectInfoAdmin')}
-        </p>
-      </div>
-    </motion.div>
-  );
+function MemberIcalSectionWrapper() {
+  const { isAdmin, member } = useAuth();
+  return <MemberIcalSection isMember={Boolean(member)} isAdmin={isAdmin} />;
 }
 
-/**
- * Versão pessoal do bloco de Outlook Calendar — visível só para sócios não-admin.
- * Permite desvincular APENAS a própria conta. Usa /api/microsoft/disconnect (não o admin-disconnect).
- */
-function MemberCalendarSection() {
-  const { member, isAdmin } = useAuth();
-  const queryClient = useQueryClient();
-  const { t } = useTranslation();
-  const [disconnecting, setDisconnecting] = useState(false);
-
-  // Só sócios não-admin veem este bloco
-  if (isAdmin || !member) return null;
-
-  async function handleDisconnect() {
-    if (!confirm(t('settings.calendar.disconnectConfirmSelf'))) return;
-    setDisconnecting(true);
-    try {
-      const res = await fetch('/api/microsoft/disconnect', { method: 'POST' });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? t('settings.calendar.disconnectError'));
-      toast.success(t('settings.calendar.disconnected'));
-      await queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
-      setTimeout(() => window.location.reload(), 400);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t('settings.calendar.disconnectError'));
-    } finally {
-      setDisconnecting(false);
-    }
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.22 }}
-      className="bg-surface-elevated border border-surface-border rounded-xl px-5"
-    >
-      <div className="py-4 border-b border-surface-border">
-        <SectionTitle>{t('settings.section.outlookCalendar')}</SectionTitle>
-      </div>
-
-      <div className="py-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {member.calendarLinked ? (
-            <Link2 className="w-4 h-4 text-success flex-shrink-0" />
-          ) : (
-            <Link2Off className="w-4 h-4 text-text-muted flex-shrink-0" />
-          )}
-          <div className="min-w-0">
-            <p className="text-text-primary text-sm font-medium">
-              {member.calendarLinked ? t('settings.calendar.connected') : t('settings.calendar.notConnected')}
-            </p>
-            <p className="text-text-muted text-[11px]">
-              {member.calendarLinked ? t('settings.calendar.descConnected') : t('settings.calendar.descNotConnected')}
-            </p>
-          </div>
-        </div>
-
-        {member.calendarLinked ? (
-          <button
-            type="button"
-            onClick={() => void handleDisconnect()}
-            disabled={disconnecting}
-            className="text-xs font-medium px-3 py-1.5 rounded-md border border-danger/40 text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 min-h-[36px]"
-          >
-            {disconnecting ? t('common.disconnecting') : t('common.disconnect')}
-          </button>
-        ) : (
-          <a
-            href="/api/microsoft/connect"
-            className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent text-brand hover:bg-accent-bright transition-colors flex-shrink-0 min-h-[36px] flex items-center"
-            style={{ color: '#0D1B2A' }}
-          >
-            {t('common.connect')}
-          </a>
-        )}
-      </div>
-
-      <div className="pb-4 pt-1">
-        <p className="text-text-muted text-[11px]">
-          {t('settings.calendar.disconnectInfoSelf')}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
