@@ -11,7 +11,8 @@ import {
 // Constant-time string compare pra mitigar timing attack na validação do
 // CSRF state cookie do OAuth.
 function timingSafeStrEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+  // Defensivo: strings vazias nunca devem matchear (mesmo length).
+  if (a.length === 0 || b.length === 0 || a.length !== b.length) return false;
   try {
     return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
   } catch {
