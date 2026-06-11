@@ -72,23 +72,66 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   );
   const greeting = toName ? `Olá ${toName.split(' ')[0]},` : 'Olá,';
 
+  // UID tem formato "eventId@host" → extrai só o eventId pro link público
+  const eventId = invite.uid.split('@')[0];
+  const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
+  const icsUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
+  const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
+    `Recuso: ${invite.title}`
+  )}&body=${encodeURIComponent(
+    `Olá,\n\nNão poderei participar da reunião "${invite.title}" em ${when}.\n\n`
+  )}`;
+
   return `
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"></head>
-<body style="font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #0D1B2A; max-width: 600px; margin: 0 auto; padding: 24px;">
-  <p>${greeting}</p>
-  <p>Você foi convidado(a) para uma reunião:</p>
+<body style="font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #0D1B2A; max-width: 600px; margin: 0 auto; padding: 24px; background: #FAFAFA;">
+  <p style="font-size: 15px;">${greeting}</p>
+  <p style="font-size: 15px;">Você foi convidado(a) para uma reunião:</p>
+
   <table style="margin: 16px 0; padding: 16px; background: #F4ECD0; border-radius: 8px; border-left: 4px solid #D4AF37; width: 100%;">
-    <tr><td style="font-size: 18px; font-weight: 700; padding-bottom: 8px;">${safeTitle}</td></tr>
+    <tr><td style="font-size: 18px; font-weight: 700; padding-bottom: 8px; color: #0D1B2A;">${safeTitle}</td></tr>
     <tr><td style="color: #555; padding-bottom: 4px;"><strong>Quando:</strong> ${when}</td></tr>
     ${invite.location ? `<tr><td style="color: #555; padding-bottom: 4px;"><strong>Onde:</strong> ${invite.location.replace(/[<>&]/g, '')}</td></tr>` : ''}
     <tr><td style="color: #555;"><strong>Organizado por:</strong> ${invite.organizer.name}</td></tr>
   </table>
-  ${safeDesc ? `<p style="color: #555;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
-  <p>O arquivo de calendar (.ics) está anexado a este email. Abra-o no seu app de calendar para aceitar ou recusar.</p>
-  ${invite.url ? `<p><a href="${invite.url}" style="color: #D4AF37; font-weight: 600;">Ver detalhes na EQR Agenda</a></p>` : ''}
-  <hr style="border: 0; border-top: 1px solid #ccc; margin: 24px 0;">
-  <p style="color: #888; font-size: 12px;">EQR Agenda Master · Este é um convite automático.</p>
+
+  ${safeDesc ? `<p style="color: #555; font-size: 14px;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
+
+  <!-- Botões grandes Sim/Não -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 24px auto; width: 100%;">
+    <tr>
+      <td align="center" style="padding: 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding: 0 6px;">
+              <a href="${icsUrl}" style="display: inline-block; padding: 14px 28px; background: #16A34A; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
+                ✓ SIM, aceitar
+              </a>
+            </td>
+            <td style="padding: 0 6px;">
+              <a href="${declineMailto}" style="display: inline-block; padding: 14px 28px; background: #DC2626; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; min-width: 120px; text-align: center;">
+                ✗ NÃO posso
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <p style="text-align: center; color: #888; font-size: 12px; margin: 8px 0 24px;">
+    Clicando em <strong style="color: #16A34A;">SIM</strong>, o arquivo de calendar é baixado e seu app abre pra confirmar.<br>
+    Clicando em <strong style="color: #DC2626;">NÃO</strong>, um email de recusa é aberto.
+  </p>
+
+  ${invite.url ? `<p style="text-align: center;"><a href="${invite.url}" style="color: #D4AF37; font-weight: 600; font-size: 14px;">Ver detalhes na EQR Agenda →</a></p>` : ''}
+
+  <hr style="border: 0; border-top: 1px solid #DDD; margin: 24px 0 16px;">
+  <p style="color: #888; font-size: 11px; text-align: center;">
+    O arquivo .ics também está anexado a este email — seu app de calendar pode oferecer botões nativos de Aceitar/Recusar.<br>
+    EQR Agenda Master · Convite automático.
+  </p>
 </body></html>
   `.trim();
 }
