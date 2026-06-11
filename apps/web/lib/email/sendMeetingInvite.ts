@@ -7,12 +7,20 @@
  *   3. Gera .ics + HTML + plain text
  *   4. Envia via icalEvent (SMTP) ou attachments[] (Resend)
  *
- * Por que NÃO tem botões custom "Sim/Não" no email body:
- *   - Outlook desktop/web mostra toolbar nativa Accept/Decline quando vê
- *     text/calendar com METHOD=REQUEST. 1 clique nativo > qualquer botão custom.
- *   - Apple Mail mostra banner "Add to Calendar" nativo.
- *   - Botões custom ficam confusos em Outlook (Word renderer não suporta
- *     `display: inline-block` consistente, background-color quebra etc.)
+ * Estratégia de aceite (DUAS camadas, porque nenhuma é universal):
+ *   1. RSVP NATIVO — o .ics vai como text/calendar;method=REQUEST. Apple Mail,
+ *      Gmail e Outlook clássico desenham "Aceitar/Recusar" no topo → 1 clique,
+ *      SEM navegador. É o caminho premium.
+ *   2. BOTÃO GARANTIDO no corpo — HTML puro (table+bgcolor) que renderiza em
+ *      QUALQUER cliente. Existe porque o RSVP nativo NÃO aparece em todo lugar
+ *      (ex: novo Outlook com conta IMAP trata o .ics como anexo e não mostra
+ *      Aceitar). Sem ele, esses clientes ficariam sem nenhuma ação visível.
+ *      Tradeoff: linka pro /ics → baixa o arquivo (passa pelo navegador) nesses
+ *      clientes. Inevitável pra evento avulso, mas garante que nunca falte botão.
+ *
+ * O servidor NÃO consegue detectar se o cliente renderizou o RSVP nativo (é
+ * client-side, invisível pro backend) — por isso a rede de segurança é o botão
+ * do corpo, não uma checagem server-side.
  *
  * Por que ORGANIZER tem que bater com from:
  *   - Outlook valida que sender == organizer pra mostrar UI de invitation
@@ -81,23 +89,17 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * HTML body do convite.
+ * HTML body do convite. Duas camadas de aceite (ver doc do topo do arquivo):
+ *   - RSVP nativo (Aceitar no topo) → sem navegador, mas só em clientes que
+ *     suportam (Apple Mail, Gmail, Outlook clássico).
+ *   - Botão GARANTIDO "Adicionar à minha agenda" no corpo → renderiza em
+ *     qualquer cliente. Linka pro /ics. É a rede de segurança pra quem não vê
+ *     o RSVP nativo (ex: novo Outlook + IMAP).
  *
- * Estratégia "apertou, entrou" (sócios usam Mac + Apple Mail):
- *   - O .ics vai como text/calendar;method=REQUEST dentro de
- *     multipart/alternative (ver smtpTransport). Apple Mail detecta como
- *     convite e desenha "Aceitar / Talvez / Recusar" NATIVO no topo do email.
- *   - 1 toque em "Aceitar" → evento entra no Apple Calendar na hora, SEM abrir
- *     navegador e SEM baixar arquivo. Esse é o caminho principal.
+ * Botão bulletproof: <table> + <td bgcolor> + <a display:block> — sem
+ * inline-block nem background shorthand (Outlook Word renderer quebra esses).
  *
- * Por que NÃO usamos botão custom grande "SIM" no corpo:
- *   - Um <a href="https://.../ics"> sempre abre o navegador e baixa o arquivo
- *     (Content-Disposition: attachment) — exatamente o atrito que queremos evitar.
- *   - Ele competia visualmente com o banner nativo e roubava o clique.
- *
- * Fallback discreto (links pequenos, pra quem não usa Apple Mail):
- *   - "Adicionar manualmente" → /api/public/events/[id]/ics (baixa o .ics)
- *   - "Não poderei ir" → mailto: de recusa pré-preenchido
+ * "Não poderei ir" → mailto: de recusa pré-preenchido.
  */
 function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   const when = formatDateRange(invite.startAt, invite.endAt);
@@ -162,29 +164,26 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 
               ${safeDesc ? `<p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
 
-              <!-- ===== CTA: banner nativo "Aceitar" do Apple Mail ===== -->
-              <!-- O .ics vai como text/calendar;method=REQUEST → Apple Mail desenha
-                   "Aceitar / Talvez / Recusar" no topo do email. 1 toque = evento no
-                   Calendar, sem browser e sem download. Aqui só apontamos pra lá. -->
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#EAF7EE" style="margin:8px 0 14px;background-color:#EAF7EE;border:1px solid #16A34A;border-radius:8px;">
+              <!-- ===== Botão GARANTIDO (renderiza em qualquer cliente) ===== -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 12px;">
                 <tr>
-                  <td style="padding:16px 18px;text-align:center;">
-                    <p style="margin:0 0 6px;color:#15803D;font-size:15px;font-weight:bold;">
-                      &#10003; Adicionar no seu Apple Calendar
-                    </p>
-                    <p style="margin:0;color:#333333;font-size:14px;line-height:1.5;">
-                      Toque em <strong style="color:#15803D;">Aceitar</strong> no topo deste email
-                      (logo abaixo do remetente). O evento entra na sua agenda na hora &mdash;
-                      sem baixar nada, sem abrir o navegador.
-                    </p>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td bgcolor="#16A34A" style="background-color:#16A34A;border-radius:6px;">
+                          <a href="${icsAcceptUrl}" style="display:block;padding:15px 34px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
+                            &#10003; Adicionar &agrave; minha agenda
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:0 0 16px;text-align:center;color:#AAAAAA;font-size:11px;line-height:1.6;">
-                N&atilde;o aparece o bot&atilde;o Aceitar?
-                <a href="${icsAcceptUrl}" style="color:#888888;text-decoration:underline;">Adicionar manualmente</a>
-                &nbsp;&middot;&nbsp;
+              <p style="margin:0 0 16px;text-align:center;color:#888888;font-size:12px;line-height:1.6;">
+                No Apple Mail, Gmail ou Outlook, o bot&atilde;o <strong style="color:#16A34A;">Aceitar</strong>
+                no topo do email adiciona sem baixar nada.<br>
                 <a href="${declineMailto}" style="color:#888888;text-decoration:underline;">N&atilde;o poderei ir</a>
               </p>
 
