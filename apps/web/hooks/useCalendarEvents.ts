@@ -156,7 +156,7 @@ export function useCalendarEvents({ startAt, endAt, memberIds }: UseCalendarEven
 
     return () => unsubscribes.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [member?.id, isAdmin, memberIds?.join(',')]);
+  }, [member?.id, isAdmin, memberIds ? [...memberIds].sort().join(',') : null]);
 
   // Quando alguém me adiciona/remove de event_participants, reavalia.
   useEffect(() => {
