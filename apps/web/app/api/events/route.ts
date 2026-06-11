@@ -330,19 +330,32 @@ export async function POST(req: NextRequest) {
         caldavResult.anySuccess ? 'synced' :
         msResult.attempted || caldavResult.attempted ? 'failed' :
         'local_only';
+      // sync_error preciso por origem (evita msg stale de provider anterior):
+      // - synced ou local_only: sem erro
+      // - failed só MS: msg do markFailed (MS já gravou — não toca)
+      // - failed só CalDAV: marca explicitamente
+      // - failed ambos: marca como combinado
+      let finalSyncError: string | null | undefined; // undefined = não toca
+      if (finalStatus === 'synced' || finalStatus === 'local_only') {
+        finalSyncError = null;
+      } else if (msResult.attempted && caldavResult.attempted) {
+        finalSyncError = 'Microsoft e Apple Calendar (CalDAV) ambos falharam';
+      } else if (!msResult.attempted && caldavResult.attempted) {
+        finalSyncError = 'Push pro Apple Calendar (CalDAV) falhou';
+      }
       const update: Record<string, unknown> = {
         sync_status: finalStatus,
         last_synced_at: new Date().toISOString(),
       };
-      if (finalStatus === 'synced') update['sync_error'] = null;
+      if (finalSyncError !== undefined) update['sync_error'] = finalSyncError;
       await serviceDb.from('events').update(update).eq('id', event.id);
 
       // Reflete o status final no objeto retornado pro cliente. Sem isso, o
       // React adiciona o evento ao cache com sync_status='pending' (valor de
       // service.create) e o badge "Sincronizando" aparece até o próximo refetch.
       (event as { syncStatus: typeof finalStatus }).syncStatus = finalStatus;
-      if (finalStatus === 'synced') {
-        (event as { syncError: string | null }).syncError = null;
+      if (finalSyncError !== undefined) {
+        (event as { syncError: string | null }).syncError = finalSyncError;
       }
     }
 
