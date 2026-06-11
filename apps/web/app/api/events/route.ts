@@ -263,13 +263,19 @@ export async function POST(req: NextRequest) {
       reminders: parsed.data.reminders,
     });
 
-    // Fire-and-forget: insert notifications without blocking the response
+    // Fire-and-forget: insert notifications without blocking the response.
+    // Erros não bloqueiam mas precisam aparecer em logs pra observabilidade.
     void insertCreatedNotifications(serviceDb, {
       eventId: event.id,
       eventTitle: event.title,
       participantIds: event.participantIds,
       actorMemberId: member.id,
       actorRole: member.role,
+    }).catch((err) => {
+      console.error('[events/create] insertCreatedNotifications failed', {
+        eventId: event.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
 
     // Email + CalDAV em paralelo — ambos awaitados pra Vercel não cortar a function
