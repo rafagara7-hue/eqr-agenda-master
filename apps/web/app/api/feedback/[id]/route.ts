@@ -10,11 +10,15 @@ const updateSchema = z.object({
 async function getAdmin(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  if (error && error.code !== 'PGRST116') {
+    console.error('[api/feedback/[id]/getAdmin] lookup failed', { userId: user.id, code: error.code });
+    return null;
+  }
   const me = data as { id: string; role: string } | null;
   return me?.role === 'admin' ? me : null;
 }
