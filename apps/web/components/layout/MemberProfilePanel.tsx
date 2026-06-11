@@ -32,6 +32,20 @@ function PanelContent() {
     staleTime: 60_000,
   });
 
+  // Status CalDAV (Apple Calendar) por endpoint dedicado — retorna só boolean,
+  // qualquer sócio pode consultar status de outro sócio (sem PII).
+  const { data: caldavStatus } = useQuery({
+    queryKey: ['member-panel-caldav', profileId],
+    queryFn: async () => {
+      const res = await fetch(`/api/calendar/caldav-status?memberId=${profileId!}`);
+      if (!res.ok) return { connected: false };
+      return (await res.json()) as { connected: boolean };
+    },
+    enabled: !!profileId,
+    staleTime: 60_000,
+  });
+  const caldavConnected = caldavStatus?.connected ?? false;
+
   function close() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete('profile');
@@ -144,11 +158,11 @@ function PanelContent() {
                     </a>
                   )}
                   <div className="flex justify-between items-center text-sm px-4 py-3">
-                    <span className="text-text-muted">{t('profilePanel.outlookCalendar')}</span>
-                    <span className={`flex items-center gap-1 text-xs font-medium ${member.calendar_linked ? 'text-success' : 'text-text-muted'}`}>
-                      {member.calendar_linked
-                        ? <><Link2 className="w-3.5 h-3.5" /> {t('common.linked')}</>
-                        : <><Link2Off className="w-3.5 h-3.5" /> {t('common.notLinked')}</>
+                    <span className="text-text-muted">{t('profilePanel.appleCalendar')}</span>
+                    <span className={`flex items-center gap-1 text-xs font-medium ${caldavConnected ? 'text-success' : 'text-text-muted'}`}>
+                      {caldavConnected
+                        ? <><Link2 className="w-3.5 h-3.5" /> {t('common.connected')}</>
+                        : <><Link2Off className="w-3.5 h-3.5" /> {t('common.notConnected')}</>
                       }
                     </span>
                   </div>
