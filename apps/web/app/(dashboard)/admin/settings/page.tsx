@@ -542,7 +542,9 @@ export default function SettingsPage() {
       <MemberIcalSectionWrapper />
 
       {/* Apple Calendar CalDAV (Sócio) — push real-time via app-password */}
-      <MemberCalDAVSectionWrapper />
+      <div id="caldav" className="scroll-mt-20">
+        <MemberCalDAVSectionWrapper />
+      </div>
     </div>
   );
 }
