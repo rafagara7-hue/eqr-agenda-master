@@ -8,6 +8,17 @@ import {
   type MicrosoftAccountRecord,
 } from '@/lib/microsoft';
 
+// Constant-time string compare pra mitigar timing attack na validação do
+// CSRF state cookie do OAuth.
+function timingSafeStrEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 // Callback do OAuth Microsoft Entra ID. Recebe ?code & ?state, valida state via cookie,
 // troca code por tokens, criptografa e persiste em calendar_provider_accounts (provider='microsoft').
 export async function GET(req: NextRequest) {
@@ -25,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   if (errorParam) return back(`microsoft=denied&reason=${encodeURIComponent(errorParam)}`);
   if (!code || !state) return back('microsoft=invalid');
-  if (!cookieState || cookieState !== state) return back('microsoft=state-mismatch');
+  if (!cookieState || !timingSafeStrEqual(cookieState, state)) return back('microsoft=state-mismatch');
   if (!cookieMember) return back('microsoft=no-member');
 
   const supabase = await getSupabaseServerClient();
