@@ -1,10 +1,25 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import nodeCrypto from 'node:crypto';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { EventService } from '@eqr/services';
 
 const N8N_WEBHOOK_SECRET = process.env['N8N_WEBHOOK_SECRET'] ?? '';
 
+// Comparação constant-time pra hex strings — evita timing attack na
+// verificação de assinatura HMAC do webhook.
+function timingSafeHexEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length || a.length === 0) return false;
+  try {
+    return nodeCrypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
 async function verifySignature(rawBody: string, signatureHeader: string): Promise<boolean> {
+  // Fail-closed se secret não estiver configurado em prod.
+  if (!N8N_WEBHOOK_SECRET || N8N_WEBHOOK_SECRET.length < 32) return false;
   const expected = signatureHeader.replace('sha256=', '');
   const key = await crypto.subtle.importKey(
     'raw',
@@ -15,7 +30,7 @@ async function verifySignature(rawBody: string, signatureHeader: string): Promis
   );
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
   const computed = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return computed === expected;
+  return timingSafeHexEqual(computed, expected);
 }
 
 interface N8NInboundPayload {
