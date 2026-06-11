@@ -243,10 +243,6 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Banner conectar Apple Calendar — ANTES do TopBar pra não ficar
-          escondido atrás dele (TopBar é sticky z-10) */}
-      <CalDAVConnectBanner />
-
       <TopBar
         currentDate={currentDate}
         view={view}
@@ -255,6 +251,10 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         onOpenMobileFilters={() => setMobileFiltersOpen(true)}
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
+
+      {/* Banner abaixo do TopBar — z-index igual ao filter pills (20) pra
+          não ficar escondido atrás da sticky toolbar quando rolar */}
+      <CalDAVConnectBanner />
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
