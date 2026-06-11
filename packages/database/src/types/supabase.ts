@@ -638,6 +638,46 @@ export interface Database {
           updated_at?: string;
         };
       };
+      caldav_connections: {
+        Row: {
+          id: string;
+          member_id: string;
+          apple_id_email: string;
+          app_password_encrypted: string;
+          calendar_url: string | null;
+          calendar_name: string | null;
+          verified_at: string | null;
+          last_sync_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          apple_id_email: string;
+          app_password_encrypted: string;
+          calendar_url?: string | null;
+          calendar_name?: string | null;
+          verified_at?: string | null;
+          last_sync_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          apple_id_email?: string;
+          app_password_encrypted?: string;
+          calendar_url?: string | null;
+          calendar_name?: string | null;
+          verified_at?: string | null;
+          last_sync_at?: string | null;
+          last_error?: string | null;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       v_availability_busy_slots: {
