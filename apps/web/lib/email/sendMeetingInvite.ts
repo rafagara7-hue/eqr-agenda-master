@@ -107,7 +107,13 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 
   const eventId = invite.uid.split('@')[0];
   const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
-  const icsDownloadUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
+  // webcal:// protocolo nativo de calendar do OS:
+  //   - Mac/iPhone (sócios): abre Calendar.app direto → prompt "Adicionar?"
+  //   - Windows + Outlook como default: abre Outlook → prompt "Add calendar?"
+  //   - Sem download visível, sem prompt "abrir com qual app?", smooth UX
+  const icsAcceptUrl = `webcal://${appHost}/api/public/events/${eventId}/ics`;
+  // Fallback https:// caso webcal:// não esteja registrado no OS (raro)
+  const icsHttpsUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
   const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
     `Recuso: ${invite.title}`
   )}&body=${encodeURIComponent(
@@ -157,7 +163,7 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td bgcolor="#16A34A" style="background-color:#16A34A;border-radius:6px;padding:0;">
-                          <a href="${icsDownloadUrl}" style="display:block;padding:14px 28px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
+                          <a href="${icsAcceptUrl}" style="display:block;padding:14px 28px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
                             &#10003; SIM, aceitar
                           </a>
                         </td>
@@ -173,9 +179,12 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
                 </tr>
               </table>
 
-              <p style="margin:0 0 16px;text-align:center;color:#888888;font-size:12px;line-height:1.5;">
-                <strong style="color:#16A34A;">SIM</strong> baixa o arquivo .ics e abre no seu calendar.<br>
+              <p style="margin:0 0 8px;text-align:center;color:#888888;font-size:12px;line-height:1.5;">
+                <strong style="color:#16A34A;">SIM</strong> abre seu calendar direto pra confirmar a reuni&atilde;o.<br>
                 <strong style="color:#DC2626;">N&Atilde;O</strong> abre email de recusa pra responder.
+              </p>
+              <p style="margin:0 0 16px;text-align:center;color:#AAAAAA;font-size:10px;">
+                <a href="${icsHttpsUrl}" style="color:#AAAAAA;text-decoration:underline;">se o SIM n&atilde;o abrir, clique aqui pra baixar o arquivo .ics</a>
               </p>
 
               ${invite.url ? `<p style="margin:0;font-size:13px;text-align:center;"><a href="${invite.url}" style="color:#D4AF37;font-weight:bold;text-decoration:none;">Ver detalhes na EQR Agenda &rarr;</a></p>` : ''}
