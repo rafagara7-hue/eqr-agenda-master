@@ -132,14 +132,30 @@ export async function pushEvent(
   icsContent: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await client.createCalendarObject({
+    // ATENÇÃO: tsdav.createCalendarObject NÃO lança em 4xx/5xx — retorna o
+    // Response object com .status/.statusText/.ok. Comentário antigo "tsdav
+    // lança em 4xx/5xx" era ENGANOSO e mascarava falhas (last_sync_at era
+    // gravado mesmo quando iCloud rejeitava o PUT). Validamos status aqui.
+    const response = (await client.createCalendarObject({
       calendar: { url: calendarUrl },
       filename: `${uid}.ics`,
       iCalString: icsContent,
-    });
+    })) as unknown as { status?: number; statusText?: string; ok?: boolean };
+
+    const status = response?.status;
+    if (typeof status === 'number') {
+      if (status === 409) {
+        return updateEvent(client, calendarUrl, uid, icsContent);
+      }
+      if (status < 200 || status >= 300) {
+        return {
+          ok: false,
+          error: `HTTP ${status}${response.statusText ? ` ${response.statusText}` : ''}`,
+        };
+      }
+    }
     return { ok: true };
   } catch (err) {
-    // tsdav lança em 4xx/5xx. Tenta detectar conflito (evento já existe) → update.
     const msg = err instanceof Error ? err.message : 'Erro CalDAV PUT';
     if (/409|conflict|already exists/i.test(msg)) {
       return updateEvent(client, calendarUrl, uid, icsContent);
@@ -179,20 +195,29 @@ export async function updateEvent(
     });
     const existing = objects.find((o) => o.url.endsWith(`${uid}.ics`));
     if (existing) {
-      await client.updateCalendarObject({
-        calendarObject: {
-          ...existing,
-          data: icsContent,
-        },
-      });
+      const r = (await client.updateCalendarObject({
+        calendarObject: { ...existing, data: icsContent },
+      })) as unknown as { status?: number; statusText?: string };
+      if (typeof r?.status === 'number' && (r.status < 200 || r.status >= 300)) {
+        return {
+          ok: false,
+          error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
+        };
+      }
       return { ok: true };
     }
     // Não achou — cria novo
-    await client.createCalendarObject({
+    const r = (await client.createCalendarObject({
       calendar: { url: calendarUrl },
       filename: `${uid}.ics`,
       iCalString: icsContent,
-    });
+    })) as unknown as { status?: number; statusText?: string };
+    if (typeof r?.status === 'number' && (r.status < 200 || r.status >= 300)) {
+      return {
+        ok: false,
+        error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
+      };
+    }
     return { ok: true };
   } catch (err) {
     return {
