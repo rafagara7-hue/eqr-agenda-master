@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarHeart,
@@ -110,6 +110,9 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
     }
   }
 
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const autoConnectTriggeredRef = useRef(false);
+
   async function openSetup() {
     setShowForm(true);
     setError(null);
@@ -121,7 +124,55 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
         if (user?.email) setAppleId(user.email);
       } catch {}
     }
+    // OTIMIZAÇÃO 1: já abre Apple ID em nova aba simultaneamente
+    // Sócio nem precisa clicar "Abrir Apple ID" — saiu daqui já tá lá
+    window.open('https://account.apple.com/account/manage', '_blank', 'noopener');
+    // OTIMIZAÇÃO 2: foca no campo de senha (Apple ID já preenchido)
+    setTimeout(() => passwordInputRef.current?.focus(), 250);
   }
+
+  // OTIMIZAÇÃO 3: quando user voltar pra essa aba (depois de copiar do Apple),
+  // tenta auto-paste do clipboard se ainda não preencheu senha
+  useEffect(() => {
+    if (!showForm) return;
+    async function tryClipboardOnFocus() {
+      if (appPassword) return; // já tem senha
+      if (document.visibilityState !== 'visible') return;
+      try {
+        // Permission API check antes de tentar (evita prompt invasivo)
+        const perm = await navigator.permissions
+          .query({ name: 'clipboard-read' as PermissionName })
+          .catch(() => null);
+        if (perm && perm.state === 'denied') return;
+        const text = (await navigator.clipboard.readText()).trim();
+        if (!text) return;
+        const formatted = autoFormatPassword(text);
+        if (isValidAppPassword(formatted)) {
+          setAppPassword(formatted);
+          toast.success('Senha colada do clipboard ✓');
+          // OTIMIZAÇÃO 4: já dispara connect (debounce 800ms pra dar tempo de ver)
+          setTimeout(() => {
+            if (!autoConnectTriggeredRef.current && isValidAppPassword(formatted)) {
+              autoConnectTriggeredRef.current = true;
+              void handleConnect();
+            }
+          }, 800);
+        }
+      } catch {
+        // Sem permissão / não suportado — ignora silenciosamente
+      }
+    }
+    function onVisibilityChange() {
+      void tryClipboardOnFocus();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm, appPassword]);
 
   async function handleConnect() {
     setError(null);
@@ -254,10 +305,10 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
               style={{ color: '#0D1B2A' }}
             >
               <Link2 className="w-4 h-4" />
-              Conectar Apple Calendar via CalDAV
+              Conectar Apple Calendar (abre Apple ID auto)
             </button>
             <p className="text-[10px] text-text-muted text-center">
-              Setup leva ~1min · Sua senha do iCloud nunca é pedida
+              ~1min · Apple ID abre auto · Senha do iCloud nunca é pedida
             </p>
           </div>
         ) : (
@@ -280,58 +331,35 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
               </button>
             </div>
 
-            {/* CARD 1: Gerar password no Apple */}
-            <div className="bg-surface-base border border-surface-border rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs"
-                  style={{ color: '#0D1B2A' }}
-                >
-                  1
-                </span>
-                <h3 className="text-sm font-medium text-text-primary">
-                  Gerar app password no Apple ID
-                </h3>
-              </div>
-              <a
-                href="https://account.apple.com/account/manage"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg bg-surface-overlay border border-accent/40 text-text-primary text-sm font-medium hover:border-accent hover:bg-accent/5 transition-colors"
+            {/* Banner: Apple ID já foi aberto automaticamente */}
+            <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-start gap-2">
+              <div
+                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs flex-shrink-0"
+                style={{ color: '#0D1B2A' }}
               >
-                <ExternalLink className="w-4 h-4 text-accent" />
-                Abrir Apple ID (nova aba)
-              </a>
-              <details className="text-[11px] text-text-muted">
-                <summary className="cursor-pointer hover:text-text-secondary">
-                  Como gerar a senha lá no Apple ID
-                </summary>
-                <ol className="list-decimal list-inside pl-2 space-y-0.5 mt-2 leading-relaxed">
-                  <li>Login com Apple ID + senha + código 2FA</li>
-                  <li>
-                    Sidebar →{' '}
-                    <strong className="text-text-secondary">Sign-In and Security</strong>
-                  </li>
-                  <li>
-                    Clica em{' '}
-                    <strong className="text-text-secondary">App-Specific Passwords</strong>
-                  </li>
-                  <li>
-                    <strong className="text-text-secondary">Generate Password</strong> → dá um
-                    nome (<code className="text-accent">EQR Agenda</code>)
-                  </li>
-                  <li>
-                    Copia a senha gerada (formato{' '}
-                    <code className="text-accent">xxxx-xxxx-xxxx-xxxx</code>)
-                  </li>
-                </ol>
-                <p className="text-warning text-[11px] mt-2">
-                  ⚠ Apple só mostra essa senha 1 vez — copia ela direto.
+                1
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-text-primary text-sm font-medium leading-relaxed">
+                  Abrimos o Apple ID em outra aba 👉
                 </p>
-              </details>
+                <p className="text-text-muted text-[11px] mt-0.5 leading-snug">
+                  Lá: Sign-In and Security → App-Specific Passwords → Generate → copia a senha
+                  → volta aqui.
+                </p>
+                <a
+                  href="https://account.apple.com/account/manage"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-1 text-[11px] text-accent hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Abrir Apple ID novamente
+                </a>
+              </div>
             </div>
 
-            {/* CARD 2: Conectar */}
+            {/* CARD: Conectar (passo 2 — colar senha) */}
             <div className="bg-surface-base border border-surface-border rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <span
@@ -381,9 +409,19 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
                 </div>
                 <div className="relative">
                   <input
+                    ref={passwordInputRef}
                     type={showPassword ? 'text' : 'password'}
                     value={appPassword}
-                    onChange={(e) => setAppPassword(autoFormatPassword(e.target.value))}
+                    onChange={(e) => {
+                      setAppPassword(autoFormatPassword(e.target.value));
+                      autoConnectTriggeredRef.current = false;
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && isValidAppPassword(appPassword) && appleId.trim()) {
+                        e.preventDefault();
+                        void handleConnect();
+                      }
+                    }}
                     placeholder="abcd-efgh-ijkl-mnop"
                     className={
                       inputClass +
