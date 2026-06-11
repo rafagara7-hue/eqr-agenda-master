@@ -343,15 +343,21 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
                 <p className="text-text-primary text-sm font-medium leading-relaxed">
                   Abrimos o Apple ID em outra aba 👉
                 </p>
-                <p className="text-text-muted text-[11px] mt-0.5 leading-snug">
-                  Lá: Sign-In and Security → App-Specific Passwords → Generate → copia a senha
-                  → volta aqui.
+                <p className="text-text-muted text-[11px] mt-1 leading-relaxed">
+                  Lá:{' '}
+                  <strong className="text-text-secondary">Entrada e segurança</strong>{' '}
+                  →{' '}
+                  <strong className="text-text-secondary">Senhas específicas para apps</strong>{' '}
+                  →{' '}
+                  <strong className="text-text-secondary">Gerar senha</strong>{' '}
+                  → dá um nome (ex: <code className="text-accent">EQR Agenda</code>) → copia a
+                  senha → volta aqui.
                 </p>
                 <a
                   href="https://account.apple.com/account/manage"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 mt-1 text-[11px] text-accent hover:underline"
+                  className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-accent hover:underline"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Abrir Apple ID novamente
