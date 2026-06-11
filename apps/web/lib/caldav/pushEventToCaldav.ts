@@ -177,9 +177,27 @@ export async function pushEventToCaldavConnections(
         })
     );
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[caldav/push] outer error', {
       eventId: opts.eventId,
-      error: err instanceof Error ? err.message : err,
+      error: errMsg,
     });
+    // Tenta gravar o erro pra todas as conn dos recipients (se conseguir
+    // identificar quais). Isso garante visibilidade quando o erro acontece
+    // ANTES do loop por-conn (ex: query SQL falha, decrypt key issue, etc.).
+    try {
+      const recipientIds = opts.participantMemberIds.filter(
+        (id) => id !== opts.actorMemberId
+      );
+      if (recipientIds.length > 0) {
+        await serviceDb
+          .from('caldav_connections')
+          .update({ last_error: `outer: ${errMsg.slice(0, 500)}` })
+          .in('member_id', recipientIds)
+          .not('verified_at', 'is', null);
+      }
+    } catch {
+      // se nem isso funcionar, não tem o que fazer
+    }
   }
 }
