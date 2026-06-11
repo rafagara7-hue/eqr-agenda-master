@@ -157,10 +157,22 @@ export async function pushEventToCaldavConnections(
               })
               .eq('id', conn.id);
           } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
             console.error('[caldav/push] exception per recipient', {
               memberId: conn.member_id,
-              error: err instanceof Error ? err.message : err,
+              error: errMsg,
             });
+            // Bug histórico: o catch antigo só logava no console (invisível em prod
+            // sem acesso a logs Vercel). Agora também grava no last_error pra
+            // diagnosticar via banco quando algo falha.
+            try {
+              await serviceDb
+                .from('caldav_connections')
+                .update({ last_error: `exception: ${errMsg.slice(0, 500)}` })
+                .eq('id', conn.id);
+            } catch {
+              // se o update também falhar, não tem o que fazer
+            }
           }
         })
     );
