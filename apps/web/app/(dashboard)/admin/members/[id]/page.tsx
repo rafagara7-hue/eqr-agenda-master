@@ -51,6 +51,16 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
   const hasExternalCalendar = !!externalRow;
   const lastSyncedAt = externalRow?.last_synced_at ?? null;
 
+  // Apple Calendar (CalDAV) status: verified_at IS NOT NULL = conectado.
+  const { data: rawCaldav } = await supabase
+    .from('caldav_connections')
+    .select('verified_at, last_sync_at')
+    .eq('member_id', member.id)
+    .maybeSingle();
+  const caldavRow = rawCaldav as { verified_at: string | null; last_sync_at: string | null } | null;
+  const caldavConnected = !!caldavRow?.verified_at;
+  const caldavLastSyncAt = caldavRow?.last_sync_at ?? null;
+
   // Lazy sync: dispara fetch+upsert em background se feed externo está stale.
   // Não bloqueia render — próximo refresh (ou revalidação Next.js) mostra dados
   // atualizados. Usa service client porque syncIcalToEvents precisa bypassar
@@ -77,6 +87,8 @@ export default async function MemberProfilePage({ params }: { params: { id: stri
       isAdmin={currentMember.role === 'admin'}
       hasExternalCalendar={hasExternalCalendar}
       lastSyncedAt={lastSyncedAt}
+      caldavConnected={caldavConnected}
+      caldavLastSyncAt={caldavLastSyncAt}
     />
   );
 }
