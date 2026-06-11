@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
 
     // Email + CalDAV em paralelo — ambos awaitados pra Vercel não cortar a function
     const participantsAndHost = Array.from(new Set([event.memberId, ...event.participantIds]));
-    await Promise.allSettled([
+    const [, caldavResult] = await Promise.all([
       sendInvitesForCreatedEvent(serviceDb, {
         eventId: event.id,
         eventTitle: event.title,
@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
         participantIds: event.participantIds,
         actorMemberId: member.id,
         actorUserEmail: user.email ?? null,
-      }),
+      }).catch(() => undefined),
       // Push direto pro Apple Calendar dos participantes via CalDAV (real-time)
       pushEventToCaldavConnections(serviceDb, {
         eventId: event.id,
@@ -299,14 +299,12 @@ export async function POST(req: NextRequest) {
         actorMemberId: member.id,
         organizerName: 'EQR Agenda',
         organizerEmail: user.email ?? 'agenda@eqr.com.br',
-      }),
+      }).catch(() => ({ attempted: false, anySuccess: false, anyFailure: false })),
     ]);
 
-    // Awaitamos o sync com o Microsoft Graph: em serverless da Vercel, fire-and-forget
-    // (void) é cortado quando o handler retorna. Esperar 1-2s garante que o
-    // sync_status seja gravado (synced ou failed). Falhas internamente são
-    // tratadas por syncCreateToMicrosoft e nunca propagam — segura pra await.
-    await syncCreateToMicrosoft(serviceDb, {
+    // Microsoft Graph sync (Outlook OAuth). Hoje parqueado mas mantido — se
+    // sócio voltar a conectar Outlook, marca external_event_id corretamente.
+    const msResult = await syncCreateToMicrosoft(serviceDb, {
       eventId: event.id,
       memberId: event.memberId,
       data: {
@@ -320,6 +318,25 @@ export async function POST(req: NextRequest) {
         reminders: event.reminders,
       },
     });
+
+    // Combina resultados pra computar sync_status final.
+    // - MS sucesso: deixa como está (markSynced já gravou external_event_id).
+    // - MS não rodou + CalDAV sucesso: marca 'synced' (limpa o "Sincronizando" eterno).
+    // - MS não rodou + CalDAV falhou: 'failed'.
+    // - Nenhum dos dois rodou (nem Outlook nem CalDAV): 'local_only' (semântica:
+    //   sem destino externo configurado — não fica preso em 'pending').
+    if (!msResult.succeeded) {
+      const finalStatus =
+        caldavResult.anySuccess ? 'synced' :
+        msResult.attempted || caldavResult.attempted ? 'failed' :
+        'local_only';
+      const update: Record<string, unknown> = {
+        sync_status: finalStatus,
+        last_synced_at: new Date().toISOString(),
+      };
+      if (finalStatus === 'synced') update['sync_error'] = null;
+      await serviceDb.from('events').update(update).eq('id', event.id);
+    }
 
     return NextResponse.json({ event, hasConflict }, { status: 201 });
   } catch (err) {
