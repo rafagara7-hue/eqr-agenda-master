@@ -17,7 +17,6 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay,
 import type { CalendarEvent } from '@eqr/domain';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { BottomSheet } from '@/components/shared/BottomSheet';
-import { CalendarConnectBanner } from '@/components/shared/CalendarConnectBanner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useTranslation } from '@/lib/i18n';
@@ -129,7 +128,6 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         .select('id, name, color_hex, avatar_url')
         .eq('is_active', true)
         .neq('slug', 'admin')
-        .neq('slug', 'external')
         .order('name');
       return (data ?? []).map((m) => ({
         id: m.id,
@@ -244,8 +242,6 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <CalendarConnectBanner />
-
       <TopBar
         currentDate={currentDate}
         view={view}
