@@ -243,6 +243,11 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Banner PRIMEIRO no flow pra colar no topo do conteúdo (logo abaixo
+          do sidebar). Antes ele tava depois do TopBar e o vão de 56px do
+          TopBar + pt-[68px] do main criava um espaço fantasma feio. */}
+      <CalDAVConnectBanner />
+
       <TopBar
         currentDate={currentDate}
         view={view}
@@ -251,10 +256,6 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         onOpenMobileFilters={() => setMobileFiltersOpen(true)}
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
-
-      {/* Banner abaixo do TopBar — z-index igual ao filter pills (20) pra
-          não ficar escondido atrás da sticky toolbar quando rolar */}
-      <CalDAVConnectBanner />
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
