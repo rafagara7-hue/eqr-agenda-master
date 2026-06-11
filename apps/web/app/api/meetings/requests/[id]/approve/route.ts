@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { MeetingRequestRepository } from '@eqr/database';
 import { sendMeetingInvite } from '@/lib/email/sendMeetingInvite';
+import { pushEventToCaldavConnections } from '@/lib/caldav/pushEventToCaldav';
 
 const bodySchema = z.object({
   decisionNote: z.string().max(2000).optional(),
@@ -142,8 +143,42 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       decisionNote: parsed.data.decisionNote,
     });
 
-    // Envia convite por email — não derruba o approve se falhar
-    await sendInviteAfterApprove(serviceDb, eventId, id, member.id);
+    // Envia convite por email + push CalDAV pros sócios conectados.
+    // Ambos awaitados via allSettled pra Vercel não cortar a function;
+    // falha de qualquer um não derruba o approve.
+    const { data: rawEvent } = await serviceDb
+      .from('events')
+      .select('title, description, location, start_at, end_at, member_id')
+      .eq('id', eventId)
+      .single();
+    const ev = rawEvent as {
+      title: string;
+      description: string | null;
+      location: string | null;
+      start_at: string;
+      end_at: string;
+      member_id: string;
+    } | null;
+
+    await Promise.allSettled([
+      sendInviteAfterApprove(serviceDb, eventId, id, member.id),
+      // Push CalDAV pro sócio host (e participantes adicionais via meeting_request_participants
+      // ficam de fora aqui — V1, expandir se necessário). Exclui o ator (admin que aprovou).
+      ev
+        ? pushEventToCaldavConnections(serviceDb, {
+            eventId,
+            eventTitle: ev.title,
+            eventDescription: ev.description,
+            eventLocation: ev.location,
+            eventStartAt: new Date(ev.start_at),
+            eventEndAt: new Date(ev.end_at),
+            participantMemberIds: [ev.member_id],
+            actorMemberId: member.id,
+            organizerName: 'EQR Agenda',
+            organizerEmail: user.email ?? 'agenda@eqr.com.br',
+          })
+        : Promise.resolve(),
+    ]);
 
     return NextResponse.json({ ok: true, eventId });
   } catch (err) {
