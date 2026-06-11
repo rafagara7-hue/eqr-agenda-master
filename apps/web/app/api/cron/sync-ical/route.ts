@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { syncAllIcalSubscriptions } from '@/lib/microsoftIcal';
 import { renewExpiringMicrosoftSubscriptions } from '@/lib/microsoftSubscriptions';
+import { reverseSyncDeletesForAll } from '@/lib/caldav/reverseSyncDeletes';
 
 // Permite cron rodar até 5 minutos (Vercel default é 10s no Hobby).
 // Necessário pra sync de 5+ sócios com Outlook lento (até 15s cada).
@@ -50,11 +51,12 @@ export async function GET(req: NextRequest) {
 
   const serviceDb = await getSupabaseServiceClient();
 
-  // Roda iCal sync + Microsoft subscription renewal em paralelo.
-  // Se um falhar, o outro segue — Promise.allSettled isola falhas.
-  const [icalResult, msResult] = await Promise.allSettled([
+  // Roda iCal sync + Microsoft subscription renewal + CalDAV reverse-sync em paralelo.
+  // Se um falhar, os outros seguem — Promise.allSettled isola falhas.
+  const [icalResult, msResult, caldavReverseResult] = await Promise.allSettled([
     syncAllIcalSubscriptions(serviceDb),
     renewExpiringMicrosoftSubscriptions(serviceDb),
+    reverseSyncDeletesForAll(serviceDb),
   ]);
 
   const ical = icalResult.status === 'fulfilled'
@@ -65,10 +67,20 @@ export async function GET(req: NextRequest) {
     ? { renewed: msResult.value.renewed, errors: msResult.value.errors, skipped: msResult.value.skipped }
     : { renewed: 0, errors: 1, skipped: 0, fail: (msResult.reason as Error)?.message };
 
+  const caldavReverse = caldavReverseResult.status === 'fulfilled'
+    ? {
+        processed: caldavReverseResult.value.length,
+        deleted: caldavReverseResult.value.reduce((acc, r) => acc + r.deleted, 0),
+        skipped: caldavReverseResult.value.reduce((acc, r) => acc + r.skipped, 0),
+        aborted: caldavReverseResult.value.filter((r) => r.reason?.startsWith('sanity-check-aborted')).length,
+      }
+    : { processed: 0, deleted: 0, skipped: 0, aborted: 0, fail: (caldavReverseResult.reason as Error)?.message };
+
   return NextResponse.json({
     ok: true,
     ical,
     microsoft,
+    caldavReverse,
     timestamp: new Date().toISOString(),
   });
 }
