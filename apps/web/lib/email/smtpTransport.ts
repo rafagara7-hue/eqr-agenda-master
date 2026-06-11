@@ -115,6 +115,7 @@ export async function sendViaSmtp(
   }
 
   try {
+    const method = msg.icsMethod ?? 'REQUEST';
     const mailOpts: Parameters<typeof transporter.sendMail>[0] = {
       from: { name: config.fromName, address: config.fromAddress },
       to: msg.toName ? { name: msg.toName, address: msg.to } : msg.to,
@@ -124,14 +125,46 @@ export async function sendViaSmtp(
     };
 
     if (msg.icsContent) {
-      mailOpts.icalEvent = {
-        method: msg.icsMethod ?? 'REQUEST',
-        content: msg.icsContent,
-        filename: 'invite.ics',
-      };
-    }
+      // CRÍTICO pra Outlook mostrar toolbar Accept/Decline consistente:
+      //
+      // RFC 2447 (iMIP) exige que `text/calendar` esteja dentro de
+      // `multipart/alternative` (como uma "view alternativa" do email),
+      // NÃO como anexo ou parte de multipart/mixed.
+      //
+      // nodemailer `icalEvent` põe fora do multipart/alternative — Outlook
+      // detecta às vezes mas é inconsistente. Usando `alternatives` direto
+      // força a estrutura correta:
+      //
+      //   multipart/alternative
+      //     text/plain
+      //     text/html
+      //     text/calendar; method=REQUEST  ← Outlook detecta iMIP aqui
+      mailOpts.alternatives = [
+        {
+          contentType: `text/calendar; charset="utf-8"; method=${method}`,
+          content: msg.icsContent,
+        },
+      ];
 
-    if (msg.attachments && msg.attachments.length > 0) {
+      // Headers Microsoft pra reforçar que é meeting invite (alguns Outlook
+      // antigos exigem). Não machuca clientes modernos.
+      mailOpts.headers = {
+        'Content-Class': 'urn:content-classes:calendarmessage',
+        'X-Microsoft-CDO-Importance': '1',
+      };
+
+      // Anexo .ics adicional pra fallback (clients que não suportam iMIP
+      // inline ainda conseguem baixar o arquivo manualmente). Vai pra
+      // multipart/mixed externo.
+      const icsAttachment = {
+        filename: 'invite.ics',
+        content: msg.icsContent,
+        contentType: `text/calendar; charset="utf-8"; method=${method}`,
+      };
+      mailOpts.attachments = msg.attachments
+        ? [icsAttachment, ...msg.attachments]
+        : [icsAttachment];
+    } else if (msg.attachments && msg.attachments.length > 0) {
       mailOpts.attachments = msg.attachments;
     }
 
