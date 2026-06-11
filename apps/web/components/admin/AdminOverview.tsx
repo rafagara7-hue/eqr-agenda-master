@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock, CheckCircle2, Users, History, Trash2 } from 'lucide-react';
+import { CalendarDays, AlertTriangle, RefreshCw, ArrowRight, Circle, Clock, CheckCircle2, Users, History, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { usePresenceContext } from '@/contexts/PresenceContext';
@@ -152,6 +152,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const { onlineMemberIds } = usePresenceContext();
   const { t } = useTranslation();
   const [deletingPast, setDeletingPast] = useState(false);
+  const [confirmDeletePastOpen, setConfirmDeletePastOpen] = useState(false);
 
   const nowMs = Date.now();
   const totalEvents = events.length;
@@ -161,7 +162,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   const confirmedCount = events.filter((e) => e.status === 'confirmed').length;
   const pastCount = events.filter((e) => new Date(e.end_at).getTime() < nowMs).length;
 
-  const activeMembers = members.filter((m) => m.slug !== 'admin' && m.slug !== 'external');
+  const activeMembers = members.filter((m) => m.slug !== 'admin');
   const onlineMembers = activeMembers.filter((m) => onlineMemberIds.has(m.id));
   const offlineMembers = activeMembers.filter((m) => !onlineMemberIds.has(m.id));
   const onlineCount = onlineMembers.length;
@@ -191,15 +192,27 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
     [events, nowMs]
   );
 
-  async function handleDeletePast() {
+  function openDeletePastConfirm() {
     if (pastCount === 0) return;
-    const ok = window.confirm(t('admin.deletePast.confirm'));
-    if (!ok) return;
+    setConfirmDeletePastOpen(true);
+  }
+
+  async function handleDeletePast() {
+    setConfirmDeletePastOpen(false);
+    if (pastCount === 0) return;
     setDeletingPast(true);
     try {
       const res = await fetch('/api/events/delete-past', { method: 'POST' });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; deleted?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? t('admin.deletePast.error'));
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        deleted?: number;
+        error?: string;
+        details?: string;
+      };
+      if (!res.ok || !data.ok) {
+        const detailed = data.details ? `${data.error}: ${data.details}` : data.error;
+        throw new Error(detailed ?? t('admin.deletePast.error'));
+      }
       toast.success(`${data.deleted ?? 0} ${t('admin.deletePast.success')}`);
       router.refresh();
     } catch (err) {
@@ -225,6 +238,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
   }, [conflicts, eventById]);
 
   return (
+    <>
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
       <div>
         <h1 className="text-text-primary text-xl font-semibold">{t('admin.overview.title')}</h1>
@@ -364,7 +378,7 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
           <div className="space-y-2">
             <button
               type="button"
-              onClick={() => void handleDeletePast()}
+              onClick={openDeletePastConfirm}
               disabled={deletingPast || pastCount === 0}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-danger/40 text-danger hover:bg-danger/10 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
             >
@@ -481,5 +495,62 @@ export function AdminOverview({ members, events, conflicts, failedSyncs }: Admin
         </IndicatorCard>
       </div>
     </div>
+
+    {confirmDeletePastOpen && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeletePastOpen(false); }}
+      >
+        <div className="bg-surface-elevated border border-surface-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-danger/15 border border-danger/30 flex items-center justify-center">
+              <Trash2 className="w-5 h-5 text-danger" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-text-primary font-semibold text-base">
+                {t('admin.deletePast.button')}
+              </h3>
+              <p className="text-text-muted text-sm mt-1 leading-relaxed">
+                {t('admin.deletePast.confirm')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfirmDeletePastOpen(false)}
+              className="flex-shrink-0 text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 mb-4">
+            <p className="text-warning text-xs">
+              <strong>{pastCount}</strong> {t('admin.indicator.past').toLowerCase()}
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setConfirmDeletePastOpen(false)}
+              className="px-4 py-2 rounded-lg bg-surface-overlay border border-surface-border text-text-secondary text-sm hover:text-text-primary transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDeletePast()}
+              disabled={deletingPast}
+              className="px-4 py-2 rounded-lg bg-danger text-white font-medium text-sm hover:bg-danger/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deletingPast ? t('common.deleting') : t('admin.deletePast.button')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
