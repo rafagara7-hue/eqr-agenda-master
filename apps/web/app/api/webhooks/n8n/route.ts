@@ -5,16 +5,30 @@ import { EventService } from '@eqr/services';
 
 const N8N_WEBHOOK_SECRET = process.env['N8N_WEBHOOK_SECRET'] ?? '';
 
+// Constant-time hex parse — Buffer.from(hex) tem fast-path que pode vazar
+// timing pelo padrão da string. Aqui parse byte a byte sem branch baseado
+// no valor (apenas erro grosseiro de formato é early-out).
+function hexToBytesConstantTime(hex: string): Uint8Array | null {
+  if (hex.length % 2 !== 0) return null;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    const hi = parseInt(hex[i * 2] ?? '', 16);
+    const lo = parseInt(hex[i * 2 + 1] ?? '', 16);
+    if (Number.isNaN(hi) || Number.isNaN(lo)) return null;
+    out[i] = (hi << 4) | lo;
+  }
+  return out;
+}
+
 // Comparação constant-time pra hex strings — evita timing attack na
 // verificação de assinatura HMAC do webhook.
 function timingSafeHexEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   if (a.length !== b.length || a.length === 0) return false;
-  try {
-    return nodeCrypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
-  } catch {
-    return false;
-  }
+  const aBytes = hexToBytesConstantTime(a);
+  const bBytes = hexToBytesConstantTime(b);
+  if (!aBytes || !bBytes || aBytes.length !== bBytes.length) return false;
+  return nodeCrypto.timingSafeEqual(aBytes, bBytes);
 }
 
 async function verifySignature(rawBody: string, signatureHeader: string): Promise<boolean> {
