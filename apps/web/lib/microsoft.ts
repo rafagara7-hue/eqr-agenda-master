@@ -26,15 +26,41 @@ const MS_GRAPH_API = 'https://graph.microsoft.com/v1.0';
 // isso, um endpoint MS lento pendura o handler Vercel até o maxDuration.
 const MS_FETCH_TIMEOUT_MS = 15_000;
 
+/**
+ * Erro lançado quando o fetch ao Microsoft Graph/Entra ID excede MS_FETCH_TIMEOUT_MS.
+ * Permite ao caller identificar timeout vs outras falhas (ECONNREFUSED, DNS, etc).
+ */
+export class MicrosoftFetchTimeoutError extends Error {
+  readonly url: string;
+  readonly timeoutMs: number;
+  constructor(url: string, timeoutMs: number) {
+    super(`Microsoft fetch timed out after ${timeoutMs}ms: ${url}`);
+    this.name = 'MicrosoftFetchTimeoutError';
+    this.url = url;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 async function fetchWithTimeout(
   url: string,
   init: RequestInit = {},
   timeoutMs: number = MS_FETCH_TIMEOUT_MS
 ): Promise<Response> {
+  // Guard: defensivo contra sobrescrita silenciosa de signal vindo do caller.
+  // Hoje nenhum caller passa, mas se passar futuramente fica explícito.
+  if (init.signal) {
+    throw new Error('fetchWithTimeout: init.signal já presente — caller deve gerenciar o próprio timeout');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    // AbortError vira erro tipado pra caller diferenciar timeout de outras falhas.
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new MicrosoftFetchTimeoutError(url, timeoutMs);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
