@@ -6,6 +6,7 @@ import { Link2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/lib/i18n';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 /**
  * Banner persistente no topo do conteúdo quando o member ainda não configurou
@@ -49,10 +50,28 @@ export function CalendarConnectBanner() {
   const router = useRouter();
   // null = ainda nao decidiu (server render); false = ativo; true = dispensado
   const [dismissed, setDismissed] = useState<boolean | null>(null);
+  // Trigger novo: CalDAV (Apple Calendar) é o caminho oficial. Banner só
+  // aparece pra quem AINDA não tem CalDAV. calendar_linked (Outlook OAuth) está
+  // parqueado e ficaria sempre false, fazendo o banner aparecer pra todos.
+  const [hasCaldav, setHasCaldav] = useState<boolean | null>(null);
 
   useEffect(() => {
     setDismissed(readDismissed());
   }, []);
+
+  useEffect(() => {
+    if (!member) return;
+    const supabase = getSupabaseBrowserClient();
+    void (async () => {
+      const { data } = await supabase
+        .from('caldav_connections')
+        .select('verified_at')
+        .eq('member_id', member.id)
+        .maybeSingle();
+      const row = data as { verified_at: string | null } | null;
+      setHasCaldav(!!row?.verified_at);
+    })();
+  }, [member]);
 
   function handleDismiss() {
     const until = Date.now() + DISMISS_HOURS * 60 * 60 * 1000;
@@ -65,8 +84,14 @@ export function CalendarConnectBanner() {
     router.push(`/admin/members/${member.id}`);
   }
 
+  // Mostra se: terminou load, há member, AINDA não temos resposta de CalDAV
+  // mas a query terminou e member NÃO tem CalDAV verificado, e o banner não
+  // foi dispensado nesta janela.
   const shouldShowBanner =
-    !isLoading && !!member && !member.calendarLinked && dismissed === false;
+    !isLoading
+    && !!member
+    && hasCaldav === false
+    && dismissed === false;
 
   return (
     <AnimatePresence>
