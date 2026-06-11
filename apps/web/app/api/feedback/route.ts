@@ -11,11 +11,16 @@ const createSchema = z.object({
 async function getMe(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  // PGRST116 (no rows) é estado válido pra users sem member; outros são bugs.
+  if (error && error.code !== 'PGRST116') {
+    console.error('[api/feedback/getMe] members lookup failed', { userId: user.id, code: error.code, message: error.message });
+    return null;
+  }
   return data as { id: string; role: string } | null;
 }
 
@@ -67,11 +72,14 @@ export async function POST(req: NextRequest) {
     .select('id')
     .eq('role', 'admin')
     .eq('is_active', true);
-  const { data: actor } = await serviceDb
+  const { data: actor, error: actorErr } = await serviceDb
     .from('members')
     .select('name')
     .eq('id', me.id)
     .single();
+  if (actorErr && actorErr.code !== 'PGRST116') {
+    console.warn('[api/feedback/POST] actor lookup failed', { memberId: me.id, code: actorErr.code });
+  }
   const actorName = (actor as { name?: string } | null)?.name ?? 'Membro';
   const adminIds = ((admins ?? []) as { id: string }[]).map((a) => a.id).filter((id) => id !== me.id);
   if (adminIds.length > 0) {
