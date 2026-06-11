@@ -83,9 +83,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      const raw = error.message;
+      const raw = error.message ?? 'Erro ao enviar solicitação';
       console.error('[api/public/meeting-requests] failed', {
         target: parsed.data.targetPartnerId,
+        code: error.code ?? null,
         error: raw,
       });
       const lower = raw.toLowerCase();
