@@ -18,12 +18,11 @@ export default async function MembersPage() {
 
   const isAdmin = currentMember?.role === 'admin';
 
-  const [membersRes, eventsRes, conflictsRes] = await Promise.all([
+  const [membersRes, eventsRes, conflictsRes, caldavRes] = await Promise.all([
     supabase
       .from('members')
       .select('id, name, slug, color_hex, avatar_url, role, is_active, calendar_linked, phone')
       .eq('is_active', true)
-      .neq('slug', 'external')
       .order('name'),
     // Só busca estatísticas se for admin (members não veem dos outros)
     isAdmin
@@ -32,13 +31,20 @@ export default async function MembersPage() {
     isAdmin
       ? supabase.from('conflicts').select('member_id').eq('resolved', false)
       : Promise.resolve({ data: [] as Array<{ member_id: string }> }),
+    supabase
+      .from('caldav_connections')
+      .select('member_id')
+      .not('verified_at', 'is', null),
   ]);
+
+  const caldavConnectedIds = ((caldavRes.data ?? []) as { member_id: string }[]).map((r) => r.member_id);
 
   return (
     <MembersListPage
       members={membersRes.data ?? []}
       events={eventsRes.data ?? []}
       conflicts={conflictsRes.data ?? []}
+      caldavConnectedIds={caldavConnectedIds}
       currentMemberId={currentMember?.id ?? ''}
       isAdmin={isAdmin}
     />
