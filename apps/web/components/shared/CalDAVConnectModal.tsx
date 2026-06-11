@@ -59,9 +59,9 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const autoConnectTriggeredRef = useRef(false);
-  const appleTabOpenedRef = useRef(false);
 
-  // Auto-setup ao abrir o modal
+  // Setup quando o modal abre (apenas pre-fill — NÃO abre Apple ID auto, pra
+  // dar tempo do sócio ler as instruções primeiro)
   useEffect(() => {
     if (!open) {
       // Reset state quando fecha
@@ -69,7 +69,6 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
       setError(null);
       setSuccess(null);
       autoConnectTriggeredRef.current = false;
-      appleTabOpenedRef.current = false;
       return;
     }
     // Pre-fill Apple ID com email do user
@@ -82,15 +81,14 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
         if (user?.email && !appleId) setAppleId(user.email);
       } catch {}
     })();
-    // Auto-abre Apple ID (só uma vez por abertura do modal)
-    if (!appleTabOpenedRef.current) {
-      appleTabOpenedRef.current = true;
-      window.open('https://account.apple.com/account/manage', '_blank', 'noopener');
-    }
-    // Focus no campo de senha
-    setTimeout(() => passwordInputRef.current?.focus(), 300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  function openAppleIdTab() {
+    window.open('https://account.apple.com/account/manage', '_blank', 'noopener');
+    // Foca no campo de senha pra quando voltar do Apple já estar pronto
+    setTimeout(() => passwordInputRef.current?.focus(), 300);
+  }
 
   // Auto-paste do clipboard quando user volta pra essa aba
   useEffect(() => {
@@ -269,38 +267,50 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
               </div>
             ) : (
               <div className="p-5 space-y-4">
-                {/* Banner instrução: Apple ID já aberto */}
-                <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-start gap-2">
-                  <div
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs flex-shrink-0"
-                    style={{ color: '#0D1B2A' }}
-                  >
-                    1
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text-primary text-sm font-medium leading-snug">
-                      Abrimos o Apple ID em outra aba 👉
-                    </p>
-                    <p className="text-text-muted text-[11px] mt-1 leading-relaxed">
-                      Lá:{' '}
-                      <strong className="text-text-secondary">Início de sessão e segurança</strong>{' '}
-                      →{' '}
-                      <strong className="text-text-secondary">Senhas específicas de apps</strong>{' '}
-                      →{' '}
-                      <strong className="text-text-secondary">Gerar senha</strong>{' '}
-                      → dá um nome (ex: <code className="text-accent">EQR Agenda</code>) → copia
-                      a senha → volta aqui.
-                    </p>
-                    <a
-                      href="https://account.apple.com/account/manage"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-accent hover:underline"
+                {/* Passo 1: instruções + botão abrir Apple ID */}
+                <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <div
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent font-bold text-xs flex-shrink-0"
+                      style={{ color: '#0D1B2A' }}
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      Abrir Apple ID novamente
-                    </a>
+                      1
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary text-sm font-semibold leading-snug">
+                        Gera a senha no seu Apple ID
+                      </p>
+                      <p className="text-text-muted text-[11px] mt-1.5 leading-relaxed">
+                        Quando clicar no botão abaixo, abre uma nova aba. Lá:
+                      </p>
+                      <ol className="text-text-muted text-[11px] mt-1 leading-relaxed list-decimal list-inside pl-1 space-y-0.5">
+                        <li>
+                          Login com Apple ID + verificação em duas etapas
+                        </li>
+                        <li>
+                          Menu lateral →{' '}
+                          <strong className="text-text-secondary">Início de sessão e segurança</strong>
+                        </li>
+                        <li>
+                          Clica em{' '}
+                          <strong className="text-text-secondary">Senhas específicas de apps</strong>
+                        </li>
+                        <li>
+                          <strong className="text-text-secondary">Gerar senha</strong> → dá um
+                          nome (ex: <code className="text-accent">EQR Agenda</code>)
+                        </li>
+                        <li>Copia a senha gerada e volta aqui</li>
+                      </ol>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={openAppleIdTab}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-base border border-accent/40 text-text-primary text-sm font-medium hover:border-accent hover:bg-accent/5 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 text-accent" />
+                    Abrir Apple ID em nova aba
+                  </button>
                 </div>
 
                 {/* Passo 2: Form */}
