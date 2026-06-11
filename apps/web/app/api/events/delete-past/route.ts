@@ -99,7 +99,7 @@ export async function POST(_req: NextRequest) {
       console.error('[delete-past] events DELETE batch failed', {
         batchStart: i,
         batchSize: batch.length,
-        firstId: batch[0],
+        firstId: batch.length > 0 ? batch[0] : 'empty',
         code: delErr.code,
         message: delErr.message,
         hint: (delErr as { hint?: string }).hint,
