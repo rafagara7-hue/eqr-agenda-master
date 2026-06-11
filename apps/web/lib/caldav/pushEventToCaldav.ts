@@ -50,10 +50,26 @@ interface MemberRow {
   user_id: string | null;
 }
 
+/**
+ * Resumo do push CalDAV — usado pelo caller pra computar o events.sync_status
+ * final combinando com Microsoft.
+ * - attempted=false: nenhum recipient tem CalDAV verificado (no-op)
+ * - attempted=true, anySuccess=true: ao menos 1 conn recebeu o evento
+ * - attempted=true, anyFailure=true: ao menos 1 conn falhou
+ *   (anySuccess e anyFailure podem ser ambos true em reunião conjunta parcial)
+ */
+export interface CaldavPushResult {
+  attempted: boolean;
+  anySuccess: boolean;
+  anyFailure: boolean;
+}
+
 export async function pushEventToCaldavConnections(
   serviceDb: ServiceDb,
   opts: PushOpts
-): Promise<void> {
+): Promise<CaldavPushResult> {
+  let anySuccess = false;
+  let anyFailure = false;
   try {
     // Diferença importante vs email: aqui NÃO filtramos o actor.
     // Email .ics: não notifica o próprio criador (faz sentido — ele sabe).
@@ -61,7 +77,7 @@ export async function pushEventToCaldavConnections(
     // inclusive se for o próprio criador. O Apple Calendar do sócio é o
     // calendário-fonte-da-verdade dele — quer ver tudo que tá na EQR Agenda.
     const recipientIds = Array.from(new Set(opts.participantMemberIds));
-    if (recipientIds.length === 0) return;
+    if (recipientIds.length === 0) return { attempted: false, anySuccess: false, anyFailure: false };
 
     // Busca conexões CalDAV verificadas dos recipients
     const { data: rawConns } = await serviceDb
@@ -70,7 +86,7 @@ export async function pushEventToCaldavConnections(
       .in('member_id', recipientIds)
       .not('verified_at', 'is', null);
     const conns = (rawConns ?? []) as CaldavConnRow[];
-    if (conns.length === 0) return;
+    if (conns.length === 0) return { attempted: false, anySuccess: false, anyFailure: false };
 
     // Busca nomes dos members + emails pra montar attendees corretos
     const { data: rawMembers } = await serviceDb
@@ -123,6 +139,7 @@ export async function pushEventToCaldavConnections(
               appPassword,
             });
             if (!result.ok) {
+              anyFailure = true;
               await serviceDb
                 .from('caldav_connections')
                 .update({ last_error: `connect: ${result.error}`, last_sync_at: null })
@@ -142,6 +159,7 @@ export async function pushEventToCaldavConnections(
               ics
             );
             if (!push.ok) {
+              anyFailure = true;
               await serviceDb
                 .from('caldav_connections')
                 .update({ last_error: `push: ${push.error}` })
@@ -154,6 +172,7 @@ export async function pushEventToCaldavConnections(
             }
 
             // Sucesso
+            anySuccess = true;
             await serviceDb
               .from('caldav_connections')
               .update({
@@ -162,6 +181,7 @@ export async function pushEventToCaldavConnections(
               })
               .eq('id', conn.id);
           } catch (err) {
+            anyFailure = true;
             const errMsg = err instanceof Error ? err.message : String(err);
             console.error('[caldav/push] exception per recipient', {
               memberId: conn.member_id,
@@ -181,6 +201,7 @@ export async function pushEventToCaldavConnections(
           }
         })
     );
+    return { attempted: true, anySuccess, anyFailure };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[caldav/push] outer error', {
@@ -204,5 +225,9 @@ export async function pushEventToCaldavConnections(
     } catch {
       // se nem isso funcionar, não tem o que fazer
     }
+    // Outer fail = não conseguimos nem iniciar o push. Reportamos como no-op
+    // pro caller (não queremos forçar sync_status='failed' por causa de erro
+    // que pode ser apenas transiente — Microsoft sync ainda pode marcar synced).
+    return { attempted: false, anySuccess: false, anyFailure: false };
   }
 }
