@@ -129,33 +129,47 @@ async function markSynced(db: ServiceDb, eventId: string, externalEventId: strin
     .eq('id', eventId);
 }
 
+/**
+ * Resumo do que o sync tentou — usado pelo caller (route.ts) pra computar o
+ * sync_status final combinando com CalDAV.
+ * - attempted=false: member sem Outlook → no-op (não conta como sucesso nem falha)
+ * - attempted=true, succeeded=true: createCalendarEvent rodou OK (markSynced rodou)
+ * - attempted=true, succeeded=false: erro no caminho do MS (markFailed rodou)
+ */
+export interface MicrosoftSyncResult {
+  attempted: boolean;
+  succeeded: boolean;
+}
+
 export async function syncCreateToMicrosoft(
   db: ServiceDb,
   opts: { eventId: string; memberId: string; data: MicrosoftEventInput }
-): Promise<void> {
+): Promise<MicrosoftSyncResult> {
   let account: MicrosoftAccountRecord | null = null;
   try {
     account = await getAccount(db, opts.memberId);
-    if (!account) return; // Member sem Outlook conectado — no-op
+    if (!account) return { attempted: false, succeeded: false }; // Member sem Outlook conectado — no-op
     const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
     const payload: MicrosoftEventInput = { ...opts.data, attendees };
     const { externalEventId, refreshed } = await createCalendarEvent(account, payload);
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, externalEventId);
+    return { attempted: true, succeeded: true };
   } catch (err) {
     if (account) await dropAccountIfTokenDead(db, account, err);
     await markFailed(db, opts.eventId, err);
+    return { attempted: true, succeeded: false };
   }
 }
 
 export async function syncUpdateToMicrosoft(
   db: ServiceDb,
   opts: { eventId: string; memberId: string; externalEventId: string | null; data: MicrosoftEventInput }
-): Promise<void> {
+): Promise<MicrosoftSyncResult> {
   let account: MicrosoftAccountRecord | null = null;
   try {
     account = await getAccount(db, opts.memberId);
-    if (!account) return;
+    if (!account) return { attempted: false, succeeded: false };
 
     const attendees = await getAttendeeEmails(db, opts.eventId, opts.memberId);
     const payload: MicrosoftEventInput = { ...opts.data, attendees };
@@ -164,15 +178,17 @@ export async function syncUpdateToMicrosoft(
       const { externalEventId, refreshed } = await createCalendarEvent(account, payload);
       if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
       await markSynced(db, opts.eventId, externalEventId);
-      return;
+      return { attempted: true, succeeded: true };
     }
 
     const { refreshed } = await updateCalendarEvent(account, opts.externalEventId, payload);
     if (refreshed) await persistRefreshedToken(db, account.id, refreshed);
     await markSynced(db, opts.eventId, opts.externalEventId);
+    return { attempted: true, succeeded: true };
   } catch (err) {
     if (account) await dropAccountIfTokenDead(db, account, err);
     await markFailed(db, opts.eventId, err);
+    return { attempted: true, succeeded: false };
   }
 }
 
