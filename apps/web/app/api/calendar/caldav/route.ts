@@ -95,8 +95,9 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(() => ({}));
   const parsed = postBody.safeParse(raw);
   if (!parsed.success) {
+    const firstErr = parsed.error.errors?.[0];
     return NextResponse.json(
-      { error: parsed.error.errors[0]?.message ?? 'Dados inválidos' },
+      { error: firstErr?.message ?? 'Dados inválidos' },
       { status: 400 }
     );
   }
@@ -147,7 +148,11 @@ export async function POST(req: NextRequest) {
   );
 
   if (error) {
-    console.error('[caldav POST] upsert failed', error);
+    console.error('[caldav POST] upsert failed', {
+      memberId: auth.targetMemberId,
+      code: error.code ?? null,
+      message: error.message,
+    });
     return NextResponse.json({ error: 'Erro ao salvar conexão' }, { status: 500 });
   }
 
@@ -179,7 +184,11 @@ export async function DELETE(req: NextRequest) {
     .eq('member_id', auth.targetMemberId);
 
   if (error) {
-    console.error('[caldav DELETE] failed', error);
+    console.error('[caldav DELETE] failed', {
+      memberId: auth.targetMemberId,
+      code: error.code ?? null,
+      message: error.message,
+    });
     return NextResponse.json({ error: 'Erro ao desconectar' }, { status: 500 });
   }
 
