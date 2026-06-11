@@ -47,8 +47,14 @@ export async function middleware(request: NextRequest) {
   // ATENÇÃO: getUser() valida server-side; nao usar getSession()
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Redireciona usuários não autenticados para login
+  // Redireciona usuários não autenticados:
+  //   - Páginas → redirect 307 pra /login (UX padrão de navegação)
+  //   - API routes (/api/*) → JSON 401 (caller é fetch, não browser; redirect quebra)
+  // O matcher já exclui /api/public, /api/health, /api/cron, /api/webhooks.
   if (!user) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
