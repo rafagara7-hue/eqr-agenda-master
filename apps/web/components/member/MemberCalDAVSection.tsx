@@ -73,6 +73,7 @@ function autoFormatPassword(s: string): string {
 export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
   const [status, setStatus] = useState<CalDAVStatus>({ connected: false });
   const [loading, setLoading] = useState(true);
+  // showForm = false → mostra só o botão "Conectar"; true → mostra os 2 cards
   const [showForm, setShowForm] = useState(false);
 
   const [appleId, setAppleId] = useState('');
@@ -100,19 +101,25 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
       if (data.connected) {
         setAppleId(data.appleIdEmail ?? '');
         setShowForm(false);
-      } else {
-        // Pre-fill Apple ID com email do user (provavelmente igual)
-        const supabase = getSupabaseBrowserClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email && !appleId) {
-          setAppleId(user.email);
-        }
-        setShowForm(true);
       }
+      // Quando NÃO conectado: showForm fica false (default) → mostra só botão
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro de rede');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function openSetup() {
+    setShowForm(true);
+    setError(null);
+    // Pre-fill Apple ID com email do user se ainda não tiver
+    if (!appleId) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) setAppleId(user.email);
+      } catch {}
     }
   }
 
@@ -234,12 +241,44 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
             onDisconnect={() => void handleDisconnect()}
             disconnecting={disconnecting}
           />
-        ) : (
-          <>
+        ) : !showForm ? (
+          // Estado inicial: só botão grande "Conectar"
+          <div className="space-y-3">
             <p className="text-xs text-text-muted leading-relaxed">
               Receba reuniões do EQR direto no seu Apple Calendar, sem precisar abrir email.
-              Setup leva ~1min na primeira vez.
             </p>
+            <button
+              type="button"
+              onClick={() => void openSetup()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-accent text-brand font-medium text-sm hover:bg-accent-bright transition-colors"
+              style={{ color: '#0D1B2A' }}
+            >
+              <Link2 className="w-4 h-4" />
+              Conectar Apple Calendar via CalDAV
+            </button>
+            <p className="text-[10px] text-text-muted text-center">
+              Setup leva ~1min · Sua senha do iCloud nunca é pedida
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-text-muted leading-relaxed">
+                Conecte sua conta Apple. Setup leva ~1min.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError(null);
+                  setAppPassword('');
+                }}
+                disabled={submitting}
+                className="text-[11px] text-text-muted hover:text-text-secondary transition-colors flex-shrink-0"
+              >
+                ← voltar
+              </button>
+            </div>
 
             {/* CARD 1: Gerar password no Apple */}
             <div className="bg-surface-base border border-surface-border rounded-lg p-4 space-y-3">
