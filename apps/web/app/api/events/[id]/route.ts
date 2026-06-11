@@ -98,8 +98,13 @@ async function getAuthorizedMember(
   if (!event) return null;
 
   if (action === 'delete') {
-    // Apenas o criador (ou admin) pode deletar
-    return event.created_by === member.id ? member : null;
+    // Pode deletar: criador OU dono do calendário (member_id).
+    // Caso comum que motivou incluir member_id: approve_meeting_request grava
+    // created_by = admin que aprovou, mas o evento vive no calendar do sócio
+    // (member_id = target_partner). Sem isso, o sócio dono nunca consegue
+    // remover o próprio evento — só o admin remove. Admin já tem bypass acima.
+    if (event.created_by === member.id || event.member_id === member.id) return member;
+    return null;
   }
 
   // update: owner ou participant com can_edit=true (checagem em event_participants)
