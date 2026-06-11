@@ -70,21 +70,6 @@ export function isValidIcalUrl(url: string): boolean {
 // Alias mantido pra compatibilidade — DEPRECATED, use isValidIcalUrl.
 export const isValidOutlookIcalUrl = isValidIcalUrl;
 
-/**
- * Detecta qual provedor pela URL (só pra UX/labels — não muda comportamento).
- */
-export function detectIcalProvider(url: string): 'google' | 'apple' | 'outlook' | 'other' {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    if (host.endsWith('google.com')) return 'google';
-    if (host.endsWith('icloud.com')) return 'apple';
-    if (host.endsWith('outlook.com') || host.endsWith('office.com') || host.endsWith('office365.com')) return 'outlook';
-    return 'other';
-  } catch {
-    return 'other';
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Parser iCal (RFC 5545) — implementação mínima sem dependência externa
 // ---------------------------------------------------------------------------
