@@ -345,9 +345,9 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
                 </p>
                 <p className="text-text-muted text-[11px] mt-1 leading-relaxed">
                   Lá:{' '}
-                  <strong className="text-text-secondary">Entrada e segurança</strong>{' '}
+                  <strong className="text-text-secondary">Início de sessão e segurança</strong>{' '}
                   →{' '}
-                  <strong className="text-text-secondary">Senhas específicas para apps</strong>{' '}
+                  <strong className="text-text-secondary">Senhas específicas de apps</strong>{' '}
                   →{' '}
                   <strong className="text-text-secondary">Gerar senha</strong>{' '}
                   → dá um nome (ex: <code className="text-accent">EQR Agenda</code>) → copia a
