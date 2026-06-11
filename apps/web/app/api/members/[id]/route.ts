@@ -7,11 +7,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const { data: rawCurrentMember } = await supabase
+  const { data: rawCurrentMember, error: meErr } = await supabase
     .from('members')
     .select('id, role')
     .eq('user_id', user.id)
     .single();
+  if (meErr && meErr.code !== 'PGRST116') {
+    console.error('[api/members/[id]/PUT] me lookup failed', { userId: user.id, code: meErr.code });
+    return NextResponse.json({ error: 'Erro ao validar permissão' }, { status: 500 });
+  }
   const currentMember = rawCurrentMember as { id: string; role: string } | null;
 
   if (!currentMember) return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
