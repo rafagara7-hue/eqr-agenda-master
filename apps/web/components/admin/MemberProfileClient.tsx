@@ -29,11 +29,13 @@ interface MemberProfileClientProps {
   isAdmin: boolean;
   hasExternalCalendar: boolean;
   lastSyncedAt: string | null;
+  caldavConnected: boolean;
+  caldavLastSyncAt: string | null;
 }
 
 const PRESET_COLORS = ['#3B82F6', '#22C55E', '#A855F7', '#F97316'];
 
-export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternalCalendar, lastSyncedAt }: MemberProfileClientProps) {
+export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternalCalendar, lastSyncedAt, caldavConnected }: MemberProfileClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const canEdit = isOwnProfile || isAdmin;
@@ -47,6 +49,7 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [disconnectingCalendar, setDisconnectingCalendar] = useState(false);
+  const [disconnectingCaldav, setDisconnectingCaldav] = useState(false);
 
   // Lê resultado do callback OAuth Microsoft (?microsoft=connected|denied|error&reason=...)
   const searchParams = useSearchParams();
@@ -64,6 +67,10 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Handler do fluxo Outlook OAuth (parqueado em 2026-06-08; UI substituída por
+  // Apple Calendar mas mantido pra reativar facilmente — backend /api/microsoft/*
+  // ainda existe e roda).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function handleDisconnectCalendar() {
     const confirmMsg = isOwnProfile
       ? 'Desvincular sua conta Outlook? Eventos atuais não serão removidos do Outlook, mas novas alterações deixarão de sincronizar.'
@@ -92,6 +99,36 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
       toast.error(err instanceof Error ? err.message : 'Erro ao desvincular');
     } finally {
       setDisconnectingCalendar(false);
+    }
+  }
+
+  async function handleDisconnectCaldav() {
+    const confirmMsg = isOwnProfile
+      ? 'Desconectar seu Apple Calendar? Eventos atuais permanecem no Apple Calendar; novos eventos do EQR Agenda deixam de ser empurrados até reconectar.'
+      : `Desconectar o Apple Calendar de ${member.name}? O sócio precisará reconectar pra voltar a receber events.`;
+    if (!confirm(confirmMsg)) return;
+
+    setDisconnectingCaldav(true);
+    try {
+      // Próprio sócio omite memberId; admin desconectando outro passa memberId.
+      const body = isOwnProfile ? {} : { memberId: member.id };
+      const res = await fetch('/api/calendar/caldav', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? 'Erro ao desconectar');
+      }
+      toast.success(
+        isOwnProfile ? 'Apple Calendar desconectado' : `Apple Calendar de ${member.name} desconectado`
+      );
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao desconectar');
+    } finally {
+      setDisconnectingCaldav(false);
     }
   }
 
@@ -347,28 +384,29 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
               )}
             </div>
 
-            {/* Outlook Calendar: só o próprio dono pode conectar/desconectar */}
+            {/* Apple Calendar (CalDAV): só o próprio dono pode conectar.
+                Admin pode desvincular qualquer sócio. */}
             <div className="flex justify-between items-center gap-3 text-sm">
-              <span className="text-text-muted">Outlook Calendar</span>
-              {member.calendar_linked ? (
+              <span className="text-text-muted">Apple Calendar</span>
+              {caldavConnected ? (
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1 text-xs font-medium text-success">
-                    <Link2 className="w-3.5 h-3.5" /> Vinculado
+                    <Link2 className="w-3.5 h-3.5" /> Conectado
                   </span>
                   {(isOwnProfile || isAdmin) && (
                     <button
                       type="button"
-                      onClick={() => void handleDisconnectCalendar()}
-                      disabled={disconnectingCalendar}
+                      onClick={() => void handleDisconnectCaldav()}
+                      disabled={disconnectingCaldav}
                       className="text-xs text-text-muted hover:text-danger underline underline-offset-2 disabled:opacity-50"
                     >
-                      {disconnectingCalendar ? 'Desvinculando…' : 'Desvincular'}
+                      {disconnectingCaldav ? 'Desconectando…' : 'Desconectar'}
                     </button>
                   )}
                 </div>
               ) : isOwnProfile ? (
                 <a
-                  href="/api/microsoft/connect"
+                  href="/admin/settings#caldav"
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-member-blue hover:underline"
                 >
                   <Link2 className="w-3.5 h-3.5" />
@@ -376,7 +414,7 @@ export function MemberProfileClient({ member, isOwnProfile, isAdmin, hasExternal
                 </a>
               ) : (
                 <span className="flex items-center gap-1 text-xs font-medium text-text-muted">
-                  <Link2Off className="w-3.5 h-3.5" /> Não vinculado
+                  <Link2Off className="w-3.5 h-3.5" /> Não conectado
                 </span>
               )}
             </div>
