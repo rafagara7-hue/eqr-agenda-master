@@ -339,7 +339,12 @@ export async function sendMeetingInvite(
     try {
       ics = generateMeetingIcs(inviteForSmtp);
     } catch (err) {
-      console.error('[sendMeetingInvite/smtp] ics gen failed', err);
+      console.error('[sendMeetingInvite/smtp] ics gen failed', {
+        to: opts.to,
+        title: inviteForSmtp.title,
+        uid: inviteForSmtp.uid,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return {
         ok: false,
         error: err instanceof Error ? err.message : 'Erro ao gerar .ics',
