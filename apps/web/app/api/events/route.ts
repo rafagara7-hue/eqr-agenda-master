@@ -336,6 +336,14 @@ export async function POST(req: NextRequest) {
       };
       if (finalStatus === 'synced') update['sync_error'] = null;
       await serviceDb.from('events').update(update).eq('id', event.id);
+
+      // Reflete o status final no objeto retornado pro cliente. Sem isso, o
+      // React adiciona o evento ao cache com sync_status='pending' (valor de
+      // service.create) e o badge "Sincronizando" aparece até o próximo refetch.
+      (event as { syncStatus: typeof finalStatus }).syncStatus = finalStatus;
+      if (finalStatus === 'synced') {
+        (event as { syncError: string | null }).syncError = null;
+      }
     }
 
     return NextResponse.json({ event, hasConflict }, { status: 201 });
