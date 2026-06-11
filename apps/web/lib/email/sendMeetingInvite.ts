@@ -81,9 +81,21 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * HTML body — versão limpa, sem botões custom.
- * Conta com a toolbar nativa do cliente de email pra Accept/Decline.
- * Compatível com Outlook desktop (Word renderer) — só usa table + inline CSS.
+ * HTML body com botões bulletproof Sim/Não.
+ *
+ * Botões usam o padrão clássico que renderiza em qualquer Outlook:
+ *   - <table> + <tr> + <td bgcolor="#xxxxxx">
+ *   - bgcolor como HTML attribute (não CSS) — Outlook Word renderer respeita
+ *   - <a> dentro do td com display:block + line-height
+ *   - SEM display: inline-block (Outlook ignora)
+ *   - SEM background CSS shorthand (Outlook prefere background-color)
+ *
+ * Botão SIM → link direto pro endpoint /api/public/events/[id]/ics
+ *   - Server responde com Content-Disposition: attachment
+ *   - Browser baixa o arquivo .ics
+ *   - SO abre no calendar app default
+ *
+ * Botão NÃO → mailto: com subject/body pré-preenchido pra resposta de recusa
  */
 function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   const when = formatDateRange(invite.startAt, invite.endAt);
@@ -93,6 +105,15 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
   const safeOrganizer = escapeHtml(invite.organizer.name);
   const greeting = toName ? `Olá ${escapeHtml(toName.split(' ')[0] ?? '')},` : 'Olá,';
 
+  const eventId = invite.uid.split('@')[0];
+  const appHost = process.env['NEXT_PUBLIC_APP_HOST'] ?? 'eqr-agenda-master.vercel.app';
+  const icsDownloadUrl = `https://${appHost}/api/public/events/${eventId}/ics`;
+  const declineMailto = `mailto:${invite.organizer.email}?subject=${encodeURIComponent(
+    `Recuso: ${invite.title}`
+  )}&body=${encodeURIComponent(
+    `Olá,\n\nNão poderei participar da reunião "${invite.title}" em ${when}.\n\n`
+  )}`;
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -101,12 +122,12 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 <title>${safeTitle}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F5F5F5;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F5F5F5;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#F5F5F5" style="background-color:#F5F5F5;padding:24px 0;">
     <tr>
       <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:8px;overflow:hidden;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" bgcolor="#FFFFFF" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:8px;overflow:hidden;">
           <tr>
-            <td style="background-color:#0D1B2A;padding:20px 24px;">
+            <td bgcolor="#0D1B2A" style="background-color:#0D1B2A;padding:20px 24px;">
               <p style="margin:0;color:#D4AF37;font-size:14px;font-weight:bold;letter-spacing:1px;">EQR AGENDA</p>
               <p style="margin:4px 0 0;color:#FFFFFF;font-size:11px;">Convite de reunião</p>
             </td>
@@ -114,9 +135,9 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
           <tr>
             <td style="padding:24px;">
               <p style="margin:0 0 8px;color:#0D1B2A;font-size:15px;">${greeting}</p>
-              <p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">Você foi convidado(a) para uma reunião. Use os botões <strong>Aceitar / Talvez / Recusar</strong> do seu app de email pra adicionar à sua agenda.</p>
+              <p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">Você foi convidado(a) para uma reunião:</p>
 
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-left:4px solid #D4AF37;background-color:#FAF5E6;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#FAF5E6" style="margin:0 0 20px;border-left:4px solid #D4AF37;background-color:#FAF5E6;">
                 <tr>
                   <td style="padding:16px 18px;">
                     <p style="margin:0 0 10px;color:#0D1B2A;font-size:18px;font-weight:bold;">${safeTitle}</p>
@@ -129,15 +150,42 @@ function htmlBody(invite: MeetingInviteIcs, toName?: string | null): string {
 
               ${safeDesc ? `<p style="margin:0 0 16px;color:#555555;font-size:14px;line-height:1.5;">${safeDesc.replace(/\n/g, '<br>')}</p>` : ''}
 
+              <!-- ============ BOTÕES BULLETPROOF SIM/NÃO ============ -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 20px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td bgcolor="#16A34A" style="background-color:#16A34A;border-radius:6px;padding:0;">
+                          <a href="${icsDownloadUrl}" style="display:block;padding:14px 28px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
+                            &#10003; SIM, aceitar
+                          </a>
+                        </td>
+                        <td style="width:12px;font-size:0;line-height:0;">&nbsp;</td>
+                        <td bgcolor="#DC2626" style="background-color:#DC2626;border-radius:6px;padding:0;">
+                          <a href="${declineMailto}" style="display:block;padding:14px 28px;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;line-height:1;">
+                            &#10007; N&Atilde;O posso
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 16px;text-align:center;color:#888888;font-size:12px;line-height:1.5;">
+                <strong style="color:#16A34A;">SIM</strong> baixa o arquivo .ics e abre no seu calendar.<br>
+                <strong style="color:#DC2626;">N&Atilde;O</strong> abre email de recusa pra responder.
+              </p>
+
               ${invite.url ? `<p style="margin:0;font-size:13px;text-align:center;"><a href="${invite.url}" style="color:#D4AF37;font-weight:bold;text-decoration:none;">Ver detalhes na EQR Agenda &rarr;</a></p>` : ''}
             </td>
           </tr>
           <tr>
-            <td style="background-color:#F5F5F5;padding:14px 24px;border-top:1px solid #E5E5E5;">
+            <td bgcolor="#F5F5F5" style="background-color:#F5F5F5;padding:14px 24px;border-top:1px solid #E5E5E5;">
               <p style="margin:0;color:#888888;font-size:11px;text-align:center;line-height:1.5;">
-                Outlook e Apple Mail mostram botões "Aceitar / Talvez / Recusar" automaticamente no topo deste email.<br>
-                Se não vir, o arquivo <strong>invite.ics</strong> está anexado e pode ser aberto manualmente.<br>
-                EQR Agenda Master &middot; convite automático
+                Outlook e Apple Mail tamb&eacute;m podem mostrar bot&otilde;es Aceitar/Recusar nativos no topo.<br>
+                EQR Agenda Master &middot; convite autom&aacute;tico
               </p>
             </td>
           </tr>
