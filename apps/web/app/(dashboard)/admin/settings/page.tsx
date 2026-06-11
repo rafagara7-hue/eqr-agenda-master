@@ -9,6 +9,7 @@ import { useTranslation } from '@/lib/i18n';
 import { EmailConnectorSection } from '@/components/admin/EmailConnectorSection';
 import { MemberEmailSection } from '@/components/member/MemberEmailSection';
 import { MemberIcalSection } from '@/components/member/MemberIcalSection';
+import { MemberCalDAVSection } from '@/components/member/MemberCalDAVSection';
 
 type Theme = 'dark' | 'light';
 type NotifPermission = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -539,8 +540,16 @@ export default function SettingsPage() {
 
       {/* Apple Calendar (Sócio) — compartilhar via iCal URL */}
       <MemberIcalSectionWrapper />
+
+      {/* Apple Calendar CalDAV (Sócio) — push real-time via app-password */}
+      <MemberCalDAVSectionWrapper />
     </div>
   );
+}
+
+function MemberCalDAVSectionWrapper() {
+  const { isAdmin, member } = useAuth();
+  return <MemberCalDAVSection isMember={Boolean(member)} isAdmin={isAdmin} />;
 }
 
 function AdminEmailConnectorWrapper() {
