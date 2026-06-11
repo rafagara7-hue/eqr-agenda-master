@@ -99,8 +99,11 @@ async function getMemberRole(
   if (error && error.code !== 'PGRST116') {
     console.error('[middleware.getMemberRole]', { userId, code: error.code, message: error.message });
   }
-  const m = data as { role: string } | null;
-  return m?.role ?? 'member';
+  const m = data as { role?: string } | null;
+  const role = m?.role;
+  // Whitelist explícita — qualquer valor inesperado vira 'member' (fallback seguro).
+  if (role === 'admin' || role === 'member' || role === 'employee') return role;
+  return 'member';
 }
 
 export const config = {
