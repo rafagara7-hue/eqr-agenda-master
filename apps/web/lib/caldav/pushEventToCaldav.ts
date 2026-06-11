@@ -146,6 +146,9 @@ export async function pushEventToCaldavConnections(
                 .eq('id', conn.id);
               console.warn('[caldav/push] connect failed', {
                 memberId: conn.member_id,
+                appleIdEmail: conn.apple_id_email,
+                calendarUrl: conn.calendar_url,
+                code: result.code,
                 error: result.error,
               });
               return;
@@ -166,6 +169,8 @@ export async function pushEventToCaldavConnections(
                 .eq('id', conn.id);
               console.warn('[caldav/push] push failed', {
                 memberId: conn.member_id,
+                eventId: opts.eventId,
+                calendarUrl: conn.calendar_url,
                 error: push.error,
               });
               return;
