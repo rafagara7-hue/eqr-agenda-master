@@ -159,48 +159,51 @@ export async function connectCalDAV(
 
 /**
  * Verifica se um VEVENT com determinado UID está REALMENTE na coleção CalDAV.
- * Chamado após PUT (createCalendarObject) pra confirmar persistência — iCloud
- * pode retornar 2xx mas descartar silenciosamente em casos edge (Apple ID com
- * pendência, METHOD não-aceito, conta em estado limitado).
+ * Chamado após PUT pra confirmar persistência — iCloud pode retornar 2xx mas
+ * descartar silenciosamente em casos edge (Apple ID com pendência, conta em
+ * estado limitado, etc).
  *
- * Retorna true se achou, false caso contrário (incluindo erro de fetch).
- * Caso edge: se fetchCalendarObjects falhar (rede, etc), retorna false pra ser
- * conservador — se vamos errar, errar pro lado da segurança (gravar last_error
- * em vez de mentir last_sync_at).
+ * RETRY com backoff (300ms, 800ms, 2s) pra mitigar read-after-write lag
+ * em clusters do iCloud. Se evento sumir definitivamente, retorna false.
  */
 async function verifyEventInCalendar(
   client: DAVClient,
   calendarUrl: string,
   uid: string
 ): Promise<boolean> {
-  try {
-    const objects = await client.fetchCalendarObjects({
-      calendar: { url: calendarUrl },
-      filters: [
-        {
-          'comp-filter': {
-            _attributes: { name: 'VCALENDAR' },
+  const delaysMs = [300, 800, 2000]; // tentativas: imediato + 3 retries
+  for (let attempt = 0; attempt <= delaysMs.length; attempt++) {
+    if (attempt > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delaysMs[attempt - 1]!));
+    }
+    try {
+      const objects = await client.fetchCalendarObjects({
+        calendar: { url: calendarUrl },
+        filters: [
+          {
             'comp-filter': {
-              _attributes: { name: 'VEVENT' },
-              'prop-filter': {
-                _attributes: { name: 'UID' },
-                'text-match': { _text: uid },
+              _attributes: { name: 'VCALENDAR' },
+              'comp-filter': {
+                _attributes: { name: 'VEVENT' },
+                'prop-filter': {
+                  _attributes: { name: 'UID' },
+                  'text-match': { _text: uid },
+                },
               },
             },
           },
-        },
-      ],
-    });
-    // Confirma o UID em pelo menos um dos objetos retornados.
-    // Filtro server-side pode não ser exato em todo CalDAV server,
-    // então re-validamos client-side por substring no .data.
-    return objects.some((o) => {
-      const data = (o as { data?: string }).data;
-      return typeof data === 'string' && data.includes(`UID:${uid}`);
-    });
-  } catch {
-    return false;
+        ],
+      });
+      const found = objects.some((o) => {
+        const data = (o as { data?: string }).data;
+        return typeof data === 'string' && data.includes(`UID:${uid}`);
+      });
+      if (found) return true;
+    } catch {
+      // Erro de fetch: tenta de novo (rede flaky) até esgotar tentativas
+    }
   }
+  return false;
 }
 
 /**
