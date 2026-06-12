@@ -16,7 +16,11 @@ import { pullInboundFromCaldavForMember } from './pullInboundFromCaldav';
 
 type ServiceDb = SupabaseClient<Database>;
 
-const THRESHOLD_MS = 5 * 60_000; // 5min
+// 60s — era 5min (overconservative). Cada sócio tem auth iCloud independente
+// (app-password próprio), então hammer-rate é por-sócio. 60s ≈ 1 req/min/sócio
+// que iCloud aguenta tranquilo. Sócio sente sync quase-real-time ao abrir
+// /calendar.
+const THRESHOLD_MS = 60_000;
 const lastRunByMember = new Map<string, number>();
 
 function isStale(memberId: string): boolean {
@@ -61,10 +65,12 @@ export async function triggerLazyReverseSyncForAll(db: ServiceDb): Promise<void>
   const now = Date.now();
   for (const id of staleIds) lastRunByMember.set(id, now);
 
-  // Fire-and-forget sequencial. ORDEM: pull inbound ANTES do reverse-delete
-  // pra que events inbound novos não fiquem expostos a delete acidental.
-  void (async () => {
-    for (const memberId of staleIds) {
+  // Fire-and-forget PARALELO por sócio (cada um tem auth iCloud independente).
+  // Dentro de cada sócio mantém sequencial: pull → delete (pull ANTES pra events
+  // inbound novos não ficarem expostos a delete acidental).
+  // 4 sócios × ~15s sequenciais era ~60s. Agora ~15s (limite do mais lento).
+  void Promise.allSettled(
+    staleIds.map(async (memberId) => {
       try {
         await pullInboundFromCaldavForMember(db, memberId);
       } catch (err) {
@@ -81,6 +87,6 @@ export async function triggerLazyReverseSyncForAll(db: ServiceDb): Promise<void>
           error: err instanceof Error ? err.message : err,
         });
       }
-    }
-  })();
+    })
+  );
 }
