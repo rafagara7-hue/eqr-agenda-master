@@ -5,23 +5,37 @@
  * importa pra tabela events com external_provider='apple_caldav'. Admin passa
  * a ver TUDO que sócio tem agendado, mesmo eventos pessoais.
  *
+ * MULTI-CALENDAR: pull lê de TODAS as coleções VEVENT-capable do iCloud do
+ * sócio (Casa, Trabalho, Família, Pessoal, etc), não só da primary. Sócio
+ * tem 5-8 coleções tipicamente — todos events visíveis pro admin no EQR.
+ *
+ * Assimetria pull vs push:
+ *   - PULL = espelho de LEITURA completo (todas coleções)
+ *   - PUSH = espelho de ESCRITA direcionado (só primary — pra evitar duplicar
+ *     events EQR em todas coleções do iCloud)
+ *
  * Arquitetura:
  *   1. Lê caldav_connections.verified_at + inbound_sync_enabled
- *   2. Conecta CalDAV e lista TODOS calendar objects
- *   3. Parse VEVENT (UID, SUMMARY, DTSTART, DTEND, etc) com unfold RFC 5545
- *   4. SKIP UIDs no padrão EQR (`<uuid>@<host>`) — anti-loop
- *   5. SANITY CHECK: aborta se Apple retornou 0 events mas DB tem Apple-sourced
- *      (provavelmente erro de conexão, não delete real)
- *   6. UPSERT idempotente por (member_id, external_event_id) — UNIQUE index
- *      em migration 0033 garante zero duplicata
- *   7. DELETE de Apple-sourced events do DB que sumiram do Apple
- *   8. Filtro de janela: só events dos últimos 30 dias + próximos 365 dias
- *      (evita pull de histórico antigo de anos)
+ *   2. Conecta CalDAV e descobre TODAS coleções VEVENT-capable
+ *   3. Itera coleções fetchando objects (try/catch granular per-calendar)
+ *   4. Parse VEVENT (UID, SUMMARY, DTSTART, DTEND, etc) com unfold RFC 5545
+ *   5. SKIP UIDs no padrão EQR (`<uuid>@<host>`) — anti-loop
+ *   6. SANITY CHECK: aborta se UNIÃO de todas coleções = 0 events apple mas
+ *      DB tem Apple-sourced (provavelmente erro de conexão, não delete real)
+ *   7. UPSERT idempotente por (member_id, external_event_id) — UNIQUE index
+ *      em migration 0033 garante zero duplicata mesmo se evento estiver em 2
+ *      coleções
+ *   8. DELETE de Apple-sourced events do DB que sumiram de TODAS as coleções
+ *   9. Filtro de janela: só events dos últimos 30 dias + próximos 365 dias
  *
  * Anti-loop:
  *   - Pull SKIP UIDs EQR-format (`<uuid>@<host>`)
  *   - Push detecta external_provider='apple_caldav' e skip
  *   - reverseSyncDeletes filtra .neq('external_provider','apple_caldav')
+ *
+ * Blocklist de ruído (não bloqueia push, só pull):
+ *   - Aniversários (gerado de contatos)
+ *   - Feriados (subscrição read-only)
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -159,17 +173,53 @@ export async function pullInboundFromCaldavForMember(
     return { memberId, appleEventsFound: 0, inserted: 0, updated: 0, deleted: 0, skipped: 0, reason: `connect: ${connResult.error}` };
   }
 
-  // 3. Fetch all calendar objects (V1 = full pull; sync-token incremental fica pra V2)
+  // 3. Fetch calendar objects de TODAS coleções VEVENT-capable do iCloud do
+  // sócio. Antes lia só conn.calendar_url (primary) — eventos criados em
+  // outras coleções (Casa, Trabalho, Família, etc) ficavam invisíveis.
+  // connResult.calendars[] já vem filtrado por connectCalDAV (VEVENT-only +
+  // anti-Reminders blocklist).
+  //
+  // Blocklist secundária pra ruído típico (não bloqueia push, só pull):
+  // - Aniversários (gerado automaticamente de contatos)
+  // - Feriados (subscrição read-only do calendário público)
+  const NOISE_CALENDAR_BLOCKLIST =
+    /^(anivers[áa]rios?|birthdays?|feriados?|holidays?)$/i;
+
+  const calendarsToScan = connResult.calendars.filter(
+    (c) => !NOISE_CALENDAR_BLOCKLIST.test((c.displayName ?? '').trim())
+  );
+
+  // Sequencial intra-member pra não burstar iCloud com N requests simultâneos
+  // do mesmo Apple ID. Inter-member já é paralelo no caller.
   let objects: Array<{ data?: string; url?: string }> = [];
-  try {
-    const raw = await connResult.client.fetchCalendarObjects({
-      calendar: { url: conn.calendar_url },
-    });
-    objects = raw as Array<{ data?: string; url?: string }>;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    await serviceDb.from('caldav_connections').update({ last_inbound_error: `fetch: ${msg.slice(0, 500)}` }).eq('id', conn.id);
-    return { memberId, appleEventsFound: 0, inserted: 0, updated: 0, deleted: 0, skipped: 0, reason: `fetch: ${msg}` };
+  const perCalendarErrors: string[] = [];
+  let calendarsThatSucceeded = 0;
+  for (const cal of calendarsToScan) {
+    try {
+      const raw = await connResult.client.fetchCalendarObjects({
+        calendar: { url: cal.url },
+      });
+      objects = objects.concat(raw as Array<{ data?: string; url?: string }>);
+      calendarsThatSucceeded++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Erro em UMA coleção não aborta as outras (log no last_inbound_error).
+      perCalendarErrors.push(`${cal.displayName ?? cal.url}: ${msg.slice(0, 200)}`);
+      console.warn('[caldav/pull] per-calendar fetch failed', {
+        memberId,
+        calendar: cal.displayName,
+        error: msg,
+      });
+    }
+  }
+
+  // Se TODAS coleções falharam, aborta. Mantém last_inbound_error pra debug.
+  if (calendarsThatSucceeded === 0 && calendarsToScan.length > 0) {
+    const allErrors = perCalendarErrors.join(' | ');
+    await serviceDb.from('caldav_connections').update({
+      last_inbound_error: `all-calendars-failed: ${allErrors.slice(0, 500)}`
+    }).eq('id', conn.id);
+    return { memberId, appleEventsFound: 0, inserted: 0, updated: 0, deleted: 0, skipped: 0, reason: 'all-calendars-failed' };
   }
 
   // 4. Parse VEVENTs + filter window + SKIP EQR-canonical (anti-loop)
