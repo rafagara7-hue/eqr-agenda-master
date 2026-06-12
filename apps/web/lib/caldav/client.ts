@@ -105,16 +105,46 @@ export async function connectCalDAV(
     };
   }
 
-  const infos: CalDAVCalendarInfo[] = calendars.map((c) => ({
+  // Filtra APENAS coleções que suportam VEVENT (RFC 4791 §5.2.3).
+  // Isto exclui coleções VTODO-only como "Lembretes" / "Reminders" / "Tasks"
+  // do iCloud, que retornam HTTP 403 em PUT de VEVENT.
+  // tsdav expõe `components: string[]` parseado de
+  // CALDAV:supported-calendar-component-set. Se vier vazio/ausente, aceita
+  // a coleção mas filtra pelo nome como guarda secundária.
+  const REMINDER_NAME_BLOCKLIST =
+    /^(lembretes?|reminders?|tarefas?|tasks?|to-?dos?|notes?|notas?)$/i;
+
+  const eventCapableCalendars = calendars.filter((c) => {
+    const comps = (c as { components?: unknown }).components;
+    const supportsVEvent =
+      Array.isArray(comps) && comps.length > 0
+        ? comps.some((x) => typeof x === 'string' && x.toUpperCase() === 'VEVENT')
+        : true; // tsdav não retornou components → não bloqueia por aqui
+    const name = typeof c.displayName === 'string' ? c.displayName : '';
+    const looksLikeReminders = REMINDER_NAME_BLOCKLIST.test(name.trim());
+    return supportsVEvent && !looksLikeReminders;
+  });
+
+  if (eventCapableCalendars.length === 0) {
+    return {
+      ok: false,
+      error:
+        'Nenhum calendário de eventos encontrado nesta conta iCloud (apenas listas de Lembretes/Tarefas). Verifique se há um calendar como "Casa" ou "Calendário" habilitado em Settings → iCloud → Calendars.',
+      code: 'NO_CALENDARS',
+    };
+  }
+
+  const infos: CalDAVCalendarInfo[] = eventCapableCalendars.map((c) => ({
     url: c.url,
     displayName: typeof c.displayName === 'string' ? c.displayName : 'Calendar',
   }));
 
-  // Escolhe calendar padrão: prefere "Home" / "Calendar" / "Calendário"
+  // Dentro do conjunto já filtrado (só VEVENT), prefere nomes conhecidos
+  // PT-BR + EN. Se nenhum bater, infos[0] agora é SEGURO (já é VEVENT-capable).
+  const PREFERRED_NAME =
+    /^(home|calendar|calend[áa]rio|principal|casa|pessoal|trabalho)$/i;
   const primaryByName =
-    infos.find((c) =>
-      /^(home|calendar|calend[áa]rio|principal)$/i.test(c.displayName)
-    ) ?? infos[0]!;
+    infos.find((c) => PREFERRED_NAME.test(c.displayName.trim())) ?? infos[0]!;
 
   return { ok: true, client, calendars: infos, primary: primaryByName };
 }
