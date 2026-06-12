@@ -159,48 +159,45 @@ export async function connectCalDAV(
 
 /**
  * Verifica se um VEVENT com determinado UID está REALMENTE na coleção CalDAV.
- * Chamado após PUT pra confirmar persistência — iCloud pode retornar 2xx mas
- * descartar silenciosamente em casos edge (Apple ID com pendência, conta em
- * estado limitado, etc).
  *
- * RETRY com backoff (300ms, 800ms, 2s) pra mitigar read-after-write lag
- * em clusters do iCloud. Se evento sumir definitivamente, retorna false.
+ * 2 mudanças baseadas em observação real (Aluísio caso 2026-06-12):
+ *
+ * 1) RETRY mais generoso: backoff até ~12s (era 3.1s). iCloud pode levar mais
+ *    que 3s pra propagação cross-cluster — fica seguro pra catch lag de read
+ *    replica não-imediata.
+ *
+ * 2) NÃO usa server-side comp-filter (era a abordagem original). iCloud REPORT
+ *    com prop-filter UID nem sempre retorna o object recém-criado (timing de
+ *    cluster). Em vez disso fazemos fetchCalendarObjects SEM filter e procuramos
+ *    o UID na lista completa. Mais bytes na resposta mas SEMPRE retorna o
+ *    estado real da coleção primary.
  */
 async function verifyEventInCalendar(
   client: DAVClient,
   calendarUrl: string,
   uid: string
 ): Promise<boolean> {
-  const delaysMs = [300, 800, 2000]; // tentativas: imediato + 3 retries
+  const delaysMs = [500, 1500, 3000, 6000]; // ~11s total budget
   for (let attempt = 0; attempt <= delaysMs.length; attempt++) {
     if (attempt > 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, delaysMs[attempt - 1]!));
     }
     try {
+      // SEM filter — fetch all + search local. Comp-filter REPORT do iCloud
+      // tem timing inconsistente após PUT recente; full-fetch é mais confiável.
       const objects = await client.fetchCalendarObjects({
         calendar: { url: calendarUrl },
-        filters: [
-          {
-            'comp-filter': {
-              _attributes: { name: 'VCALENDAR' },
-              'comp-filter': {
-                _attributes: { name: 'VEVENT' },
-                'prop-filter': {
-                  _attributes: { name: 'UID' },
-                  'text-match': { _text: uid },
-                },
-              },
-            },
-          },
-        ],
       });
+      // Procura UID tanto no .data quanto no .url (.ics filename = UID)
       const found = objects.some((o) => {
-        const data = (o as { data?: string }).data;
-        return typeof data === 'string' && data.includes(`UID:${uid}`);
+        const obj = o as { data?: string; url?: string };
+        if (typeof obj.data === 'string' && obj.data.includes(`UID:${uid}`)) return true;
+        if (typeof obj.url === 'string' && obj.url.includes(uid)) return true;
+        return false;
       });
       if (found) return true;
     } catch {
-      // Erro de fetch: tenta de novo (rede flaky) até esgotar tentativas
+      // Erro de fetch: tenta de novo até esgotar
     }
   }
   return false;
