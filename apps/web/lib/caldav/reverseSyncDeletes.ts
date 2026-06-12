@@ -28,7 +28,11 @@ import { connectCalDAV } from './client';
 
 type ServiceDb = SupabaseClient<Database>;
 
-const GRACE_PERIOD_MS = 15 * 60_000; // 15min — evita race com pushEventToCaldav em flight
+// 3min — antes era 15min (overconservative). Com post-PUT verification, sabemos
+// que o evento ESTÁ em Apple no momento do push. Único risco residual é read
+// replica lag do iCloud (<1s tipicamente). 3min cobre folgadamente + permite
+// testes rápidos de delete reverso.
+const GRACE_PERIOD_MS = 3 * 60_000;
 
 interface CaldavConnRow {
   id: string;
