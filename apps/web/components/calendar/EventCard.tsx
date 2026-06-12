@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users, Star } from 'lucide-react';
+import { Users, Star, Apple } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@eqr/domain';
 import { SyncStatusBadge } from './SyncStatusBadge';
@@ -24,6 +24,9 @@ export function EventCard({ event, memberColor, style, onClick, onDelete, compac
   const isTentative = event.status === 'tentative';
   const participantCount = event.participantIds?.length ?? 1;
   const isJoint = participantCount > 1;
+  // Event veio do pull inbound do Apple Calendar — exibe badge visual pra
+  // distinguir e indicar que é read-only do lado EQR.
+  const isFromApple = (event as { externalProvider?: string }).externalProvider === 'apple_caldav';
 
   return (
     <motion.div
@@ -54,6 +57,15 @@ export function EventCard({ event, memberColor, style, onClick, onDelete, compac
     >
       {/* Indicadores de topo */}
       <div className="absolute top-1 right-1 flex items-center gap-1 z-10">
+        {isFromApple && (
+          <span
+            className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white/15"
+            title="Importado do Apple Calendar — leitura apenas (edite/apague no Apple)"
+            aria-label="Importado do Apple Calendar"
+          >
+            <Apple className="w-2.5 h-2.5 text-white/80" />
+          </span>
+        )}
         {isFavorite && (
           <Star className="w-3 h-3 text-favorite" fill="#C9A84C" aria-label="Favoritado" />
         )}
