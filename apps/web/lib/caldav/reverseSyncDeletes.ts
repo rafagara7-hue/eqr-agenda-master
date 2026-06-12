@@ -137,17 +137,23 @@ export async function reverseSyncDeletesForMember(
     if (m && m[1]) eqrEventIdsInApple.add(m[1]);
   }
 
-  // 5. Busca events do member no DB, fora do grace period
+  // 5. Busca events do member no DB, fora do grace period.
+  // DEFENSE-IN-DEPTH: explicitamente exclui Apple-sourced events (managed
+  // exclusively by pullInboundFromCaldav, não pelo reverse-delete que opera
+  // sobre events EQR-canônicos). UID pattern já filtra na prática mas explicit
+  // > implicit.
   const graceCutoff = new Date(Date.now() - GRACE_PERIOD_MS).toISOString();
   const { data: dbEvents } = await serviceDb
     .from('events')
-    .select('id, title, created_at')
+    .select('id, title, created_at, external_provider')
     .eq('member_id', memberId)
-    .lt('created_at', graceCutoff);
+    .lt('created_at', graceCutoff)
+    .or('external_provider.is.null,external_provider.neq.apple_caldav');
   const dbEventsList = (dbEvents ?? []) as Array<{
     id: string;
     title: string;
     created_at: string;
+    external_provider: string | null;
   }>;
 
   // 6. Diff: em DB ∧ ¬ em Apple = candidatos a delete
