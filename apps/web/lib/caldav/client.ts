@@ -48,7 +48,7 @@ export interface CalDAVConnectResult {
 export interface CalDAVError {
   ok: false;
   error: string;
-  code?: 'AUTH_FAILED' | 'NO_CALENDARS' | 'NETWORK' | 'UNKNOWN';
+  code?: 'AUTH_FAILED' | 'NO_CALENDARS' | 'WEB_ONLY_ACCOUNT' | 'NETWORK' | 'UNKNOWN';
 }
 
 /**
@@ -97,11 +97,19 @@ export async function connectCalDAV(
     return { ok: false, error: msg, code: 'UNKNOWN' };
   }
 
+  // Heurística Web-Only Account: Apple ID criado direto pelo browser
+  // (account.apple.com sem device Apple) gera conta "iCloud apenas na web".
+  // Essa conta autentica com sucesso em CalDAV (Basic auth passa) mas o
+  // servidor não tem calendar provisionado pra ela — fetchCalendars retorna
+  // lista vazia. Sintoma: auth OK + zero calendars.
+  // É indistinguível server-side de "conta full mas com 0 calendars" (raro),
+  // então mostramos mensagem com diagnóstico Web-Only como hipótese principal.
   if (calendars.length === 0) {
     return {
       ok: false,
-      error: 'Nenhum calendar encontrado na conta iCloud.',
-      code: 'NO_CALENDARS',
+      error:
+        'Auth OK mas nenhum calendar disponível. Provável causa: sua conta Apple é "iCloud apenas na web" (criada via account.apple.com sem device Apple). CalDAV exige conta iCloud completa — faça sign-in com esse Apple ID em algum iPhone/Mac/iPad pelo menos uma vez (Apple promove pra Full automaticamente) e tente novamente.',
+      code: 'WEB_ONLY_ACCOUNT',
     };
   }
 
