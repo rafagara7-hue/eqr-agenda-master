@@ -158,6 +158,52 @@ export async function connectCalDAV(
 }
 
 /**
+ * Verifica se um VEVENT com determinado UID está REALMENTE na coleção CalDAV.
+ * Chamado após PUT (createCalendarObject) pra confirmar persistência — iCloud
+ * pode retornar 2xx mas descartar silenciosamente em casos edge (Apple ID com
+ * pendência, METHOD não-aceito, conta em estado limitado).
+ *
+ * Retorna true se achou, false caso contrário (incluindo erro de fetch).
+ * Caso edge: se fetchCalendarObjects falhar (rede, etc), retorna false pra ser
+ * conservador — se vamos errar, errar pro lado da segurança (gravar last_error
+ * em vez de mentir last_sync_at).
+ */
+async function verifyEventInCalendar(
+  client: DAVClient,
+  calendarUrl: string,
+  uid: string
+): Promise<boolean> {
+  try {
+    const objects = await client.fetchCalendarObjects({
+      calendar: { url: calendarUrl },
+      filters: [
+        {
+          'comp-filter': {
+            _attributes: { name: 'VCALENDAR' },
+            'comp-filter': {
+              _attributes: { name: 'VEVENT' },
+              'prop-filter': {
+                _attributes: { name: 'UID' },
+                'text-match': { _text: uid },
+              },
+            },
+          },
+        },
+      ],
+    });
+    // Confirma o UID em pelo menos um dos objetos retornados.
+    // Filtro server-side pode não ser exato em todo CalDAV server,
+    // então re-validamos client-side por substring no .data.
+    return objects.some((o) => {
+      const data = (o as { data?: string }).data;
+      return typeof data === 'string' && data.includes(`UID:${uid}`);
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Push de event pro calendar do user via CalDAV PUT.
  *
  * @param uid UID estável do event (será o nome do arquivo .ics no calendar)
@@ -203,6 +249,18 @@ export async function pushEvent(
       return {
         ok: false,
         error: `HTTP ${status}${response.statusText ? ` ${response.statusText}` : ''}`,
+      };
+    }
+
+    // POST-PUT VERIFICATION: confirma que o evento REALMENTE persistiu na
+    // coleção. iCloud frequentemente retorna 2xx mas descarta silenciosamente
+    // o VEVENT (especialmente em conta com Apple ID pendente ou METHOD que ele
+    // não gostou). Fazemos REPORT por UID — se não achar, tratamos como falha.
+    const verified = await verifyEventInCalendar(client, calendarUrl, uid);
+    if (!verified) {
+      return {
+        ok: false,
+        error: `Post-PUT verification failed: iCloud retornou ${status} mas evento não está na coleção (silent discard provável — Apple ID precisa de atenção ou conta em estado limitado)`,
       };
     }
     return { ok: true };
@@ -262,6 +320,14 @@ export async function updateEvent(
           error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
         };
       }
+      // Post-PUT verification em update path
+      const verified = await verifyEventInCalendar(client, calendarUrl, uid);
+      if (!verified) {
+        return {
+          ok: false,
+          error: `Post-PUT verification falhou em UPDATE: iCloud retornou ${r.status} mas evento sumiu da coleção`,
+        };
+      }
       return { ok: true };
     }
     // Não achou — cria novo
@@ -280,6 +346,14 @@ export async function updateEvent(
       return {
         ok: false,
         error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
+      };
+    }
+    // Post-PUT verification em create-fallback path
+    const verified = await verifyEventInCalendar(client, calendarUrl, uid);
+    if (!verified) {
+      return {
+        ok: false,
+        error: `Post-PUT verification falhou em CREATE fallback: iCloud retornou ${r.status} mas evento não está na coleção`,
       };
     }
     return { ok: true };
