@@ -292,7 +292,8 @@ export async function pullInboundFromCaldavForMember(
 
 /**
  * Roda pullInboundFromCaldav pra todos members com CalDAV verified +
- * inbound_sync_enabled. Sequencial pra não burstar iCloud.
+ * inbound_sync_enabled. PARALELO via Promise.allSettled — cada sócio tem
+ * auth iCloud independente, então 4 conns concorrentes não burstam ninguém.
  */
 export async function pullInboundFromCaldavForAll(
   serviceDb: ServiceDb
@@ -304,22 +305,20 @@ export async function pullInboundFromCaldavForAll(
     .eq('inbound_sync_enabled', true);
   const memberIds = ((rawConns ?? []) as Array<{ member_id: string }>).map((c) => c.member_id);
 
-  const results: InboundPullResult[] = [];
-  for (const memberId of memberIds) {
-    try {
-      const r = await pullInboundFromCaldavForMember(serviceDb, memberId);
-      results.push(r);
-    } catch (err) {
-      results.push({
-        memberId,
-        appleEventsFound: 0,
-        inserted: 0,
-        updated: 0,
-        deleted: 0,
-        skipped: 0,
-        reason: `exception: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-  }
-  return results;
+  const settled = await Promise.allSettled(
+    memberIds.map((memberId) => pullInboundFromCaldavForMember(serviceDb, memberId))
+  );
+
+  return settled.map((s, i) => {
+    if (s.status === 'fulfilled') return s.value;
+    return {
+      memberId: memberIds[i]!,
+      appleEventsFound: 0,
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      skipped: 0,
+      reason: `exception: ${s.reason instanceof Error ? s.reason.message : String(s.reason)}`,
+    };
+  });
 }
