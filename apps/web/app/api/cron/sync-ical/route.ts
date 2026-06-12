@@ -4,6 +4,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { syncAllIcalSubscriptions } from '@/lib/microsoftIcal';
 import { renewExpiringMicrosoftSubscriptions } from '@/lib/microsoftSubscriptions';
 import { reverseSyncDeletesForAll } from '@/lib/caldav/reverseSyncDeletes';
+import { pullInboundFromCaldavForAll } from '@/lib/caldav/pullInboundFromCaldav';
 
 // Permite cron rodar até 5 minutos (Vercel default é 10s no Hobby).
 // Necessário pra sync de 5+ sócios com Outlook lento (até 15s cada).
@@ -51,6 +52,14 @@ export async function GET(req: NextRequest) {
 
   const serviceDb = await getSupabaseServiceClient();
 
+  // ORDEM IMPORTANTE: pull inbound RODA ANTES do reverse-delete pra que
+  // events Apple-sourced inseridos não fiquem expostos a delete acidental.
+  // Pull é sequencial-isolado; depois as outras 3 tarefas rodam em paralelo.
+  const caldavInboundResult = await pullInboundFromCaldavForAll(serviceDb).catch((err) => {
+    console.warn('[cron/sync-ical] pull inbound failed', err);
+    return [] as Awaited<ReturnType<typeof pullInboundFromCaldavForAll>>;
+  });
+
   // Roda iCal sync + Microsoft subscription renewal + CalDAV reverse-sync em paralelo.
   // Se um falhar, os outros seguem — Promise.allSettled isola falhas.
   const [icalResult, msResult, caldavReverseResult] = await Promise.allSettled([
@@ -80,11 +89,21 @@ export async function GET(req: NextRequest) {
       }
     : { processed: 0, deleted: 0, skipped: 0, aborted: 0, fail: reasonMsg(caldavReverseResult.reason) };
 
+  // Agrega resultado do pull inbound (já resolvido antes do allSettled)
+  const caldavInbound = {
+    processed: caldavInboundResult.length,
+    inserted: caldavInboundResult.reduce((acc, r) => acc + r.inserted, 0),
+    updated: caldavInboundResult.reduce((acc, r) => acc + r.updated, 0),
+    deleted: caldavInboundResult.reduce((acc, r) => acc + r.deleted, 0),
+    aborted: caldavInboundResult.filter((r) => r.reason === 'sanity-check-aborted').length,
+  };
+
   return NextResponse.json({
     ok: true,
     ical,
     microsoft,
     caldavReverse,
+    caldavInbound,
     timestamp: new Date().toISOString(),
   });
 }
