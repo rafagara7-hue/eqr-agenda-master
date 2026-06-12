@@ -17,6 +17,16 @@ import {
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
+// Strip caracteres invisíveis que copy-paste de mobile/Mac injeta (zero-width,
+// NBSP, BOM). Sem isso, mesmo um Apple ID visualmente correto pode falhar na
+// validação de email do backend.
+function normalizeInput(s: string): string {
+  return s
+    .replace(/[​-‍﻿]/g, '')
+    .replace(/ /g, ' ')
+    .trim();
+}
+
 /**
  * Versão simplificada: 2 cards (Gerar password, Conectar) em vez de 4 passos.
  *
@@ -192,8 +202,8 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          appleIdEmail: appleId.trim(),
-          appPassword: appPassword.trim(),
+          appleIdEmail: normalizeInput(appleId),
+          appPassword: normalizeInput(appPassword),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
