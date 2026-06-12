@@ -115,13 +115,11 @@ export async function pushEventToCaldavConnections(
               recipientEmail = userResp?.user?.email ?? conn.apple_id_email;
             }
 
-            // Gera .ics — usa METHOD:PUBLISH (não REQUEST) porque é push direto
-            // no calendar do próprio sócio, não convite por email. Apple Calendar
-            // pode descartar silenciosamente METHOD:REQUEST quando ORGANIZER
-            // (admin@eqr.com.br) não é dono da conta iCloud do attendee — o
-            // iCloud aceita o PUT (2xx) mas não persiste o VEVENT visível.
-            // PUBLISH não dispara essa heurística — é tratado como "evento
-            // adicionado direto ao calendar" sem semântica de RSVP.
+            // Gera .ics — METHOD:REQUEST (default). Empiricamente Apple iCloud
+            // aceita REQUEST e persiste o VEVENT (testado em 2026-06-11 com
+            // Aluísio). Mudança pra PUBLISH causou regressão (silent discard
+            // caught pelo post-PUT verification em 2026-06-12). PUBLISH ficou
+            // como override opcional no MeetingInviteIcs caso seja útil futuro.
             const invite: MeetingInviteIcs = {
               uid: `${opts.eventId}@${host}`,
               title: opts.eventTitle,
@@ -136,7 +134,6 @@ export async function pushEventToCaldavConnections(
               attendees: [{ name: member.name, email: recipientEmail, rsvp: false }],
               status: 'CONFIRMED',
               url: `https://${host}/meetings/${opts.eventId}`,
-              method: 'PUBLISH',
             };
             const ics = generateMeetingIcs(invite);
 
