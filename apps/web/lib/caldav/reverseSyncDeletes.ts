@@ -206,8 +206,8 @@ export async function reverseSyncDeletesForMember(
 }
 
 /**
- * Roda reverse-sync pra TODOS members com CalDAV verificado. Sequencial pra
- * evitar burst de requests no iCloud.
+ * Roda reverse-sync pra TODOS members com CalDAV verificado.
+ * PARALELO via Promise.allSettled — cada sócio tem auth iCloud independente.
  */
 export async function reverseSyncDeletesForAll(
   serviceDb: ServiceDb
@@ -218,21 +218,19 @@ export async function reverseSyncDeletesForAll(
     .not('verified_at', 'is', null);
   const memberIds = ((rawConns ?? []) as Array<{ member_id: string }>).map((c) => c.member_id);
 
-  const results: ReverseSyncResult[] = [];
-  for (const memberId of memberIds) {
-    try {
-      const r = await reverseSyncDeletesForMember(serviceDb, memberId);
-      results.push(r);
-    } catch (err) {
-      results.push({
-        memberId,
-        appleEventsFound: 0,
-        candidates: 0,
-        deleted: 0,
-        skipped: 0,
-        reason: `exception: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-  }
-  return results;
+  const settled = await Promise.allSettled(
+    memberIds.map((memberId) => reverseSyncDeletesForMember(serviceDb, memberId))
+  );
+
+  return settled.map((s, i) => {
+    if (s.status === 'fulfilled') return s.value;
+    return {
+      memberId: memberIds[i]!,
+      appleEventsFound: 0,
+      candidates: 0,
+      deleted: 0,
+      skipped: 0,
+      reason: `exception: ${s.reason instanceof Error ? s.reason.message : String(s.reason)}`,
+    };
+  });
 }
