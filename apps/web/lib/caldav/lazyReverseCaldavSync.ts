@@ -12,6 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@eqr/database';
 import { reverseSyncDeletesForMember } from './reverseSyncDeletes';
+import { pullInboundFromCaldavForMember } from './pullInboundFromCaldav';
 
 type ServiceDb = SupabaseClient<Database>;
 
@@ -60,13 +61,22 @@ export async function triggerLazyReverseSyncForAll(db: ServiceDb): Promise<void>
   const now = Date.now();
   for (const id of staleIds) lastRunByMember.set(id, now);
 
-  // Fire-and-forget sequencial
+  // Fire-and-forget sequencial. ORDEM: pull inbound ANTES do reverse-delete
+  // pra que events inbound novos não fiquem expostos a delete acidental.
   void (async () => {
     for (const memberId of staleIds) {
       try {
+        await pullInboundFromCaldavForMember(db, memberId);
+      } catch (err) {
+        console.warn('[lazyReverseCaldavSync] inbound pull failed', {
+          memberId,
+          error: err instanceof Error ? err.message : err,
+        });
+      }
+      try {
         await reverseSyncDeletesForMember(db, memberId);
       } catch (err) {
-        console.warn('[lazyReverseCaldavSync] all sync failed', {
+        console.warn('[lazyReverseCaldavSync] reverse-delete failed', {
           memberId,
           error: err instanceof Error ? err.message : err,
         });
