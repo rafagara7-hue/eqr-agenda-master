@@ -85,6 +85,18 @@ export async function connectCalDAV(
         code: 'NETWORK',
       };
     }
+    // "cannot find principalUrl" / "principal" = tsdav fez WebDAV discovery
+    // mas iCloud não expôs principal URL pra essa conta. Sintoma típico de
+    // conta "iCloud apenas na web" — Apple ID criado direto no browser sem
+    // sign-in em iPhone/Mac. CalDAV não é provisionado pra essas contas.
+    if (/principal[Uu]rl|cannot find principal/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          'Sua conta Apple parece ser "iCloud apenas na web" (criada via account.apple.com sem dispositivo Apple). CalDAV exige conta iCloud completa — faça sign-in com esse Apple ID em algum iPhone/Mac/iPad pelo menos uma vez (Apple promove pra Full automaticamente) e tente novamente.',
+        code: 'WEB_ONLY_ACCOUNT',
+      };
+    }
     return { ok: false, error: msg, code: 'UNKNOWN' };
   }
 
