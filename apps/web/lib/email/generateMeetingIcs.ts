@@ -44,6 +44,18 @@ export interface MeetingInviteIcs {
   lastModified?: Date;
   /** URL clicável (ex: link pra abrir reunião no EQR Agenda). */
   url?: string;
+  /**
+   * METHOD override (RFC 5546). Default = 'REQUEST' (convite por email com RSVP).
+   *
+   * - REQUEST: convite enviado por EMAIL pro attendee responder (cliente mostra
+   *   Aceitar/Recusar). É o padrão pra .ics anexado em email.
+   * - PUBLISH: publicação direta de evento em calendar (sem RSVP). Adequado pra
+   *   push CalDAV no calendar do próprio sócio — Apple Calendar não trata como
+   *   convite externo (que iCloud pode rejeitar silenciosamente quando
+   *   ORGANIZER não é dono da conta).
+   * - CANCEL: cancelamento. Setado automaticamente quando status === 'CANCELLED'.
+   */
+  method?: 'REQUEST' | 'PUBLISH';
 }
 
 const CRLF = '\r\n';
@@ -127,7 +139,9 @@ export function generateMeetingIcs(invite: MeetingInviteIcs): string {
   const created = utc(invite.createdAt ?? now);
   const lastModified = utc(invite.lastModified ?? now);
   const status = invite.status ?? 'CONFIRMED';
-  const method = status === 'CANCELLED' ? 'CANCEL' : 'REQUEST';
+  // CANCELLED sempre vira CANCEL. Caso normal: usa invite.method (default REQUEST
+  // pra preservar compat email .ics). pushEventToCaldav passa PUBLISH explícito.
+  const method = status === 'CANCELLED' ? 'CANCEL' : (invite.method ?? 'REQUEST');
   const sequence = invite.sequence ?? 0;
 
   const organizerEmail = safeEmail(invite.organizer.email);
