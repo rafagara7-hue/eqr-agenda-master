@@ -52,12 +52,38 @@ export function TopBar({
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
-  function handleRefresh() {
+  // Refresh agora também dispara sync CalDAV (bypassa throttle 60s do lazy).
+  // User vê eventos novos do Apple Calendar imediatamente sem precisar esperar.
+  // Importação dinâmica do toast pra evitar bundle bloat se sonner não usado.
+  async function handleRefresh() {
     if (refreshing) return;
     setRefreshing(true);
+    try {
+      const res = await fetch('/api/calendar/caldav-sync-now', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json() as {
+          pull?: { inserted?: number; updated?: number; deleted?: number };
+          delete?: { deleted?: number };
+        };
+        const ins = data.pull?.inserted ?? 0;
+        const upd = data.pull?.updated ?? 0;
+        const del = (data.pull?.deleted ?? 0) + (data.delete?.deleted ?? 0);
+        const total = ins + upd + del;
+        if (total > 0) {
+          const { toast } = await import('sonner');
+          const parts: string[] = [];
+          if (ins) parts.push(`${ins} novo${ins > 1 ? 's' : ''}`);
+          if (upd) parts.push(`${upd} atualizado${upd > 1 ? 's' : ''}`);
+          if (del) parts.push(`${del} removido${del > 1 ? 's' : ''}`);
+          toast.success(`Apple Calendar: ${parts.join(', ')}`);
+        }
+      }
+    } catch {
+      // Refresh continua mesmo se sync CalDAV falhar (não bloqueia UX)
+    }
     void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
     void queryClient.invalidateQueries({ queryKey: ['sidebar-members'] });
-    setTimeout(() => setRefreshing(false), 800);
+    setTimeout(() => setRefreshing(false), 600);
   }
   const pos = settings.sidebarPosition;
   const isVertical = pos === 'left' || pos === 'right';
@@ -151,11 +177,11 @@ export function TopBar({
 
       <button
         type="button"
-        onClick={handleRefresh}
+        onClick={() => void handleRefresh()}
         disabled={refreshing}
-        className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center flex-shrink-0"
-        title="Atualizar"
-        aria-label="Atualizar"
+        className="p-2 rounded-md border border-surface-border hover:bg-surface-overlay transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center flex-shrink-0 touch-manipulation"
+        title="Sincronizar com Apple Calendar e atualizar"
+        aria-label="Sincronizar agora"
       >
         <RefreshCw className={cn('w-4 h-4 text-text-muted', refreshing && 'animate-spin')} />
       </button>
