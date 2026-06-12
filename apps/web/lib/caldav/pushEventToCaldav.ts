@@ -34,6 +34,11 @@ export interface PushOpts {
   /** Organizer info pro .ics. */
   organizerName: string;
   organizerEmail: string;
+  /**
+   * external_provider do event. Quando é 'apple_caldav', o event veio do pull
+   * inbound — NÃO devemos pushar de volta pro Apple (causaria loop infinito).
+   */
+  externalProvider?: 'google' | 'microsoft' | 'apple_caldav' | null;
 }
 
 interface CaldavConnRow {
@@ -76,6 +81,12 @@ export async function pushEventToCaldavConnections(
     // CalDAV: empurra pra calendar de TODOS os participantes (host + extras),
     // inclusive se for o próprio criador. O Apple Calendar do sócio é o
     // calendário-fonte-da-verdade dele — quer ver tudo que tá na EQR Agenda.
+    // ANTI-LOOP: event veio do pull inbound (Apple-sourced). Pushar de volta
+    // criaria loop infinito (push → Apple → pull → INSERT → push…). Return early.
+    if (opts.externalProvider === 'apple_caldav') {
+      return { attempted: false, anySuccess: false, anyFailure: false };
+    }
+
     const recipientIds = Array.from(new Set(opts.participantMemberIds));
     if (recipientIds.length === 0) return { attempted: false, anySuccess: false, anyFailure: false };
 
