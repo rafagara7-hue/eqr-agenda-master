@@ -253,20 +253,49 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const member = await getAuthorizedMember(supabase, id, 'delete');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  // BLOCK delete em apple_caldav — read-only no EQR. Pra apagar de verdade,
-  // sócio deleta no Apple Calendar e o reverseSyncDeletes propaga. Sem isso,
-  // user deleta no EQR → próximo pull re-importa → frustração.
+  // Delete bidirecional: se event é apple_caldav, propaga deleção pro
+  // Apple Calendar do dono ANTES de tirar do DB. Sem isso, próximo pull
+  // re-importa o event que o user pensou que tinha apagado.
   const { data: srcRow } = await supabase
     .from('events')
-    .select('external_provider')
+    .select('external_provider, external_event_id, member_id')
     .eq('id', id)
     .single();
-  const src = srcRow as { external_provider: string | null } | null;
+  const src = srcRow as {
+    external_provider: string | null;
+    external_event_id: string | null;
+    member_id: string;
+  } | null;
+
   if (src?.external_provider === 'apple_caldav') {
-    return NextResponse.json(
-      { error: 'Este evento é sincronizado do Apple Calendar. Apague no Apple Calendar — a remoção aparece no EQR após a próxima sincronização.', code: 'APPLE_CALDAV_READONLY' },
-      { status: 409 }
+    if (!src.external_event_id) {
+      return NextResponse.json(
+        { error: 'Event apple_caldav sem external_event_id (estado inconsistente)' },
+        { status: 500 }
+      );
+    }
+    const { deleteAppleEventForMember } = await import('@/lib/caldav/deleteInboundEvent');
+    const serviceDb2 = await getSupabaseServiceClient();
+    const delAppleResult = await deleteAppleEventForMember(
+      serviceDb2,
+      src.member_id,
+      src.external_event_id
     );
+    if (!delAppleResult.ok) {
+      console.error('[events DELETE] failed to delete from Apple Calendar', {
+        eventId: id,
+        memberId: src.member_id,
+        error: delAppleResult.error,
+      });
+      return NextResponse.json(
+        {
+          error: `Não foi possível apagar no Apple Calendar (${delAppleResult.error}). Tente novamente — se persistir, apague direto no Apple Calendar.`,
+          code: 'APPLE_DELETE_FAILED',
+        },
+        { status: 502 }
+      );
+    }
+    // Sucesso no Apple → segue pra deletar no DB normalmente abaixo
   }
 
   // Fetch event details + participants before deletion (needed for notification + Calendar sync)
