@@ -178,19 +178,32 @@ export async function pushEvent(
       calendar: { url: calendarUrl },
       filename: `${uid}.ics`,
       iCalString: icsContent,
-    })) as unknown as { status?: number; statusText?: string; ok?: boolean };
+    })) as unknown as {
+      status?: number;
+      statusText?: string;
+      ok?: boolean;
+      headers?: Record<string, string> | Headers;
+    };
 
+    // FAIL-CLOSED: se tsdav devolveu Response SEM status numérico,
+    // NÃO podemos confirmar que o iCloud aceitou. Antes assumíamos sucesso
+    // (return {ok:true}), gravava last_sync_at e mascarava falha silenciosa.
     const status = response?.status;
-    if (typeof status === 'number') {
-      if (status === 409) {
-        return updateEvent(client, calendarUrl, uid, icsContent);
-      }
-      if (status < 200 || status >= 300) {
-        return {
-          ok: false,
-          error: `HTTP ${status}${response.statusText ? ` ${response.statusText}` : ''}`,
-        };
-      }
+    if (typeof status !== 'number') {
+      return {
+        ok: false,
+        error: 'tsdav devolveu Response sem status — não é possível confirmar PUT',
+      };
+    }
+    if (status === 409) {
+      return updateEvent(client, calendarUrl, uid, icsContent);
+    }
+    // Também valida response.ok quando presente (defesa em profundidade)
+    if (response.ok === false || status < 200 || status >= 300) {
+      return {
+        ok: false,
+        error: `HTTP ${status}${response.statusText ? ` ${response.statusText}` : ''}`,
+      };
     }
     return { ok: true };
   } catch (err) {
@@ -235,8 +248,15 @@ export async function updateEvent(
     if (existing) {
       const r = (await client.updateCalendarObject({
         calendarObject: { ...existing, data: icsContent },
-      })) as unknown as { status?: number; statusText?: string };
-      if (typeof r?.status === 'number' && (r.status < 200 || r.status >= 300)) {
+      })) as unknown as { status?: number; statusText?: string; ok?: boolean };
+      // FAIL-CLOSED em updateEvent também
+      if (typeof r?.status !== 'number') {
+        return {
+          ok: false,
+          error: 'tsdav devolveu Response sem status em UPDATE — não é possível confirmar',
+        };
+      }
+      if (r.ok === false || r.status < 200 || r.status >= 300) {
         return {
           ok: false,
           error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
@@ -249,8 +269,14 @@ export async function updateEvent(
       calendar: { url: calendarUrl },
       filename: `${uid}.ics`,
       iCalString: icsContent,
-    })) as unknown as { status?: number; statusText?: string };
-    if (typeof r?.status === 'number' && (r.status < 200 || r.status >= 300)) {
+    })) as unknown as { status?: number; statusText?: string; ok?: boolean };
+    if (typeof r?.status !== 'number') {
+      return {
+        ok: false,
+        error: 'tsdav devolveu Response sem status em CREATE fallback — não é possível confirmar',
+      };
+    }
+    if (r.ok === false || r.status < 200 || r.status >= 300) {
       return {
         ok: false,
         error: `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ''}`,
