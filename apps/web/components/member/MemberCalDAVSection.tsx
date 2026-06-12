@@ -74,9 +74,13 @@ function isValidAppPassword(s: string): boolean {
 /**
  * Tenta auto-formatar enquanto user digita: insere hífens a cada 4 chars.
  * Aceita user digitar "abcdefghijklmnop" → "abcd-efgh-ijkl-mnop".
+ *
+ * IMPORTANTE: normalizeInput() é aplicado ANTES (remove invisíveis); só então
+ * fazemos lowercase + filter a-z. Ordem inversa silenciosamente comeria chars
+ * válidos que vinham junto com invisíveis no clipboard.
  */
 function autoFormatPassword(s: string): string {
-  const cleaned = s.toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+  const cleaned = normalizeInput(s).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
   return cleaned.replace(/(.{4})(?=.)/g, '$1-');
 }
 
@@ -161,14 +165,10 @@ export function MemberCalDAVSection({ isMember, isAdmin }: Props) {
         const formatted = autoFormatPassword(text);
         if (isValidAppPassword(formatted)) {
           setAppPassword(formatted);
-          toast.success('Senha colada do clipboard ✓');
-          // OTIMIZAÇÃO 4: já dispara connect (debounce 800ms pra dar tempo de ver)
-          setTimeout(() => {
-            if (!autoConnectTriggeredRef.current && isValidAppPassword(formatted)) {
-              autoConnectTriggeredRef.current = true;
-              void handleConnect();
-            }
-          }, 800);
+          toast.success('Senha colada do clipboard — revise e clique em Conectar');
+          // Auto-connect removido (era 800ms setTimeout): clipboard pode ter
+          // dado corrompido + auto-submit é dark pattern. User vê o valor
+          // formatado, confirma visualmente, e clica Conectar.
         }
       } catch {
         // Sem permissão / não suportado — ignora silenciosamente
