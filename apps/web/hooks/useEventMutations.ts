@@ -60,9 +60,19 @@ export function useCreateEvent() {
       void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(`Evento "${event.title}" criado`);
       const start = event.startAt instanceof Date ? event.startAt : new Date(event.startAt);
+      // Mensagem reflete sync_status real (route grava finalStatus na resposta):
+      // - synced: confirmado pelo post-PUT verification que iCloud aceitou
+      // - failed: push retornou erro OU verification não achou no servidor
+      // - pending: ainda processando (raro nesse ponto pois route aguarda)
+      // - local_only: sócio sem CalDAV nem Outlook (evento só no EQR)
+      const syncMsg =
+        event.syncStatus === 'synced' ? 'sincronizado com seu Apple Calendar' :
+        event.syncStatus === 'failed' ? 'sincronização com Apple Calendar falhou — verifique conexão CalDAV' :
+        event.syncStatus === 'local_only' ? 'evento criado apenas no EQR (sem Apple Calendar conectado)' :
+        'sincronização em andamento';
       pushLocalNotification(
         `Evento criado: ${event.title}`,
-        `${formatHora(start)} — sincronizado com seu Outlook Calendar`
+        `${formatHora(start)} — ${syncMsg}`
       );
     },
     onError: (err: Error) => {
