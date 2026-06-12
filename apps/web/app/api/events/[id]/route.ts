@@ -181,6 +181,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         actorMemberId: member.id,
         organizerName: 'EQR Agenda',
         organizerEmail: 'agenda@eqr.com.br',
+        // Anti-loop: se event veio do pull inbound (apple_caldav), push function
+        // detecta e retorna no-op. Sem isso, edit em Apple-sourced event
+        // dispararia push de volta pro Apple → loop.
+        externalProvider: event.externalProvider ?? null,
       }).catch(() => ({ attempted: false, anySuccess: false, anyFailure: false })),
     ]);
 
