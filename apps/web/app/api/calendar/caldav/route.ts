@@ -20,9 +20,24 @@ import {
 import { encrypt } from '@/lib/email/cryptoUtil';
 import { connectCalDAV } from '@/lib/caldav/client';
 
+// Remove invisíveis (zero-width, NBSP, etc) que copy-paste de mobile/Mac
+// frequentemente injeta nos campos email/senha. Sem isso, z.email() rejeita
+// o que parece visualmente correto.
+const stripInvisibles = (s: string): string =>
+  s
+    .replace(/[​-‍﻿]/g, '') // zero-width space/joiner/non-joiner/BOM
+    .replace(/ /g, ' ') // NBSP → espaço normal
+    .trim();
+
 const postBody = z.object({
-  appleIdEmail: z.string().email('Apple ID inválido').max(255),
-  appPassword: z.string().min(1, 'App password obrigatório').max(255),
+  appleIdEmail: z
+    .string()
+    .transform((s) => stripInvisibles(s).toLowerCase())
+    .pipe(z.string().email('Apple ID inválido (esperado formato email)').max(255)),
+  appPassword: z
+    .string()
+    .transform((s) => stripInvisibles(s))
+    .pipe(z.string().min(1, 'App password obrigatório').max(255)),
   /** Override do member_id (só admin pode). Se omitir, usa o próprio. */
   memberId: z.string().uuid().optional(),
 });
@@ -96,6 +111,19 @@ export async function POST(req: NextRequest) {
   const parsed = postBody.safeParse(raw);
   if (!parsed.success) {
     const firstErr = parsed.error.errors?.[0];
+    // Log com hint de chars problemáticos (sem vazar a senha) pra diagnosticar
+    // copy-paste com invisíveis. Não loga email completo por privacidade.
+    const rawEmail = (raw as { appleIdEmail?: unknown })?.appleIdEmail;
+    if (typeof rawEmail === 'string') {
+      const codepoints = Array.from(rawEmail)
+        .filter((c) => c.charCodeAt(0) > 127 || c.charCodeAt(0) < 32)
+        .map((c) => 'U+' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+      console.warn('[caldav POST] validation failed', {
+        emailLength: rawEmail.length,
+        nonAsciiCodepoints: codepoints.length > 0 ? codepoints : 'none',
+        error: firstErr?.message,
+      });
+    }
     return NextResponse.json(
       { error: firstErr?.message ?? 'Dados inválidos' },
       { status: 400 }
