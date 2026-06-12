@@ -170,10 +170,10 @@ export default function LoginPage() {
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 { label: 'Admin', email: 'admin@eqr.com.br', password: 'EqrAdmin@2026!' },
-                { label: 'Aluisio', email: 'aluisio@eqr.com.br', password: 'eqr001' },
-                { label: 'Henrique', email: 'henrique@eqr.com.br', password: 'eqr002' },
+                { label: 'Aluisio', email: 'gabriel.kailer@eqr.com.br', password: 'eqr001' },
+                { label: 'Henrique', email: 'scarparo.rafael@eqr.com.br', password: 'eqr002' },
                 { label: 'Kadu', email: 'kadu@eqr.com.br', password: 'eqr003' },
-                { label: 'Wesley', email: 'wesley@eqr.com.br', password: 'eqr004' },
+                { label: 'Wesley', email: 'wesleygomes@eqr.com.br', password: 'eqr004' },
               ].map((u) => (
                 <button
                   key={u.email}
