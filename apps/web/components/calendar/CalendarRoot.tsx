@@ -18,6 +18,7 @@ import type { CalendarEvent } from '@eqr/domain';
 import { useAgendaSettings } from '@/hooks/useAgendaSettings';
 import { BottomSheet } from '@/components/shared/BottomSheet';
 import { CalDAVConnectBanner } from '@/components/shared/CalDAVConnectBanner';
+import { CalDAVSyncNowButton } from './CalDAVSyncNowButton';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useTranslation } from '@/lib/i18n';
@@ -256,6 +257,12 @@ export function CalendarRoot({ initialMemberId, initialFilter }: CalendarRootPro
         onOpenMobileFilters={() => setMobileFiltersOpen(true)}
         showMobileFilters={view !== 'month' || (isAdmin && memberOptions.length > 0)}
       />
+
+      {/* Barra de ações CalDAV — sempre visível (mobile + desktop) pra forçar
+          sync imediato sem esperar throttle. Botão fica destacado em dourado. */}
+      <div className="flex items-center justify-end gap-2 px-3 sm:px-4 py-2 border-b border-surface-border bg-surface-elevated/50 shrink-0">
+        <CalDAVSyncNowButton />
+      </div>
 
       {/* Member filter pills — admin only — mobile usa BottomSheet, inline so em sm+ */}
       {isAdmin && memberOptions.length > 0 && (
