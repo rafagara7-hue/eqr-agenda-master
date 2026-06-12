@@ -35,7 +35,7 @@ function normalizeInput(s: string): string {
  *   - Pre-fill Apple ID com email do user
  *   - Auto-paste do clipboard quando user volta pra aba
  *   - Validação real-time da app-password
- *   - Auto-connect quando senha válida (debounce 800ms)
+ *   - Senha auto-detectada do clipboard; user confirma e clica Conectar
  *   - Enter pra submit
  *   - Click fora ou ESC fecha
  *
@@ -55,7 +55,9 @@ function isValidAppPassword(s: string): boolean {
 }
 
 function autoFormatPassword(s: string): string {
-  const cleaned = s.toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+  // Aplica normalizeInput PRIMEIRO (remove invisíveis), depois filtro a-z.
+  // Ordem inversa silenciosamente comeria chars válidos do clipboard.
+  const cleaned = normalizeInput(s).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
   return cleaned.replace(/(.{4})(?=.)/g, '$1-');
 }
 
@@ -116,13 +118,9 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
         const formatted = autoFormatPassword(text);
         if (isValidAppPassword(formatted)) {
           setAppPassword(formatted);
-          toast.success('Senha colada do clipboard ✓');
-          setTimeout(() => {
-            if (!autoConnectTriggeredRef.current && isValidAppPassword(formatted)) {
-              autoConnectTriggeredRef.current = true;
-              void handleConnect();
-            }
-          }, 800);
+          toast.success('Senha colada — revise e clique em Conectar');
+          // Auto-connect removido: clipboard pode ter dado corrompido + auto-
+          // submit é dark pattern. User confirma visualmente e clica.
         }
       } catch {}
     }
