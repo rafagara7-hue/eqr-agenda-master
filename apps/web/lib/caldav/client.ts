@@ -366,27 +366,67 @@ export async function updateEvent(
 }
 
 /**
- * Deleta event do calendar.
+ * Deleta event de uma coleção específica.
+ * Procura primeiro por filename (uid.ics), depois por substring no .data.
  */
 export async function deleteEvent(
   client: DAVClient,
   calendarUrl: string,
   uid: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; deleted: boolean } | { ok: false; error: string }> {
   try {
     const objects = await client.fetchCalendarObjects({
       calendar: { url: calendarUrl },
     });
-    const existing = objects.find((o) => o.url.endsWith(`${uid}.ics`));
+    const existing = objects.find((o) => {
+      const obj = o as { data?: string; url?: string };
+      if (typeof obj.url === 'string' && obj.url.includes(uid)) return true;
+      if (typeof obj.data === 'string' && obj.data.includes(`UID:${uid}`)) return true;
+      return false;
+    });
     if (!existing) {
-      return { ok: true }; // não existe, considera sucesso
+      return { ok: true, deleted: false }; // não existe nesta coleção
     }
     await client.deleteCalendarObject({ calendarObject: existing });
-    return { ok: true };
+    return { ok: true, deleted: true };
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Erro CalDAV DELETE',
     };
   }
+}
+
+/**
+ * Deleta event procurando em TODAS as coleções VEVENT-capable do user.
+ * Útil quando event veio do pull inbound e não sabemos em qual coleção mora.
+ * Para na primeira coleção que tiver o event (não esperaríamos mesmo UID em
+ * duas coleções, mas se acontecer, segue deletando — best-effort).
+ */
+export async function deleteEventFromAllCalendars(
+  client: DAVClient,
+  calendars: ReadonlyArray<{ url: string; displayName?: string }>,
+  uid: string
+): Promise<{ ok: true; deletedFromCalendars: string[] } | { ok: false; error: string }> {
+  const deletedFrom: string[] = [];
+  const errors: string[] = [];
+  for (const cal of calendars) {
+    const result = await deleteEvent(client, cal.url, uid);
+    if (!result.ok) {
+      errors.push(`${cal.displayName ?? cal.url}: ${result.error}`);
+      continue;
+    }
+    if (result.deleted) {
+      deletedFrom.push(cal.displayName ?? cal.url);
+    }
+  }
+  // Sucesso se conseguiu deletar de pelo menos uma OU se nenhuma tinha o evento
+  // (não-existência também é "sucesso" do ponto de vista do caller).
+  if (deletedFrom.length > 0 || errors.length === 0) {
+    return { ok: true, deletedFromCalendars: deletedFrom };
+  }
+  return {
+    ok: false,
+    error: `Falha ao deletar em todas coleções: ${errors.join(' | ').slice(0, 500)}`,
+  };
 }
