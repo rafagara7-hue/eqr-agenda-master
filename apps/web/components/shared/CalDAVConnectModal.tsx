@@ -399,20 +399,24 @@ export function CalDAVConnectModal({ open, onClose, onConnected }: Props) {
                         autoComplete="new-password"
                         maxLength={19}
                       />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      {/* Tap target 44×44 (iOS HIG) via padding + negative
+                          margin — no celular, sem isso o tap "vaza" pro input
+                          e move o cursor pra posição errada. */}
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                         {!passwordEmpty && passwordValid && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />
                         )}
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="text-text-muted hover:text-text-primary transition-colors"
+                          aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                          className="p-3 -m-2 text-text-muted hover:text-text-primary transition-colors touch-manipulation"
                           tabIndex={-1}
                         >
                           {showPassword ? (
-                            <EyeOff className="w-3.5 h-3.5" />
+                            <EyeOff className="w-4 h-4" />
                           ) : (
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-4 h-4" />
                           )}
                         </button>
                       </div>
