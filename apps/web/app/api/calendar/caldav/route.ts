@@ -141,7 +141,24 @@ export async function POST(req: NextRequest) {
     appPassword: parsed.data.appPassword.trim(),
   });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error, code: result.code }, { status: 400 });
+    // Status code distinto por categoria de erro pra cliente decidir mensagem:
+    //   401 auth invalida
+    //   422 conta válida mas sem capability (Web-Only / sem calendars)
+    //   503 problema temporário de rede
+    //   500 desconhecido
+    const status =
+      result.code === 'AUTH_FAILED' ? 401 :
+      result.code === 'WEB_ONLY_ACCOUNT' || result.code === 'NO_CALENDARS' ? 422 :
+      result.code === 'NETWORK' ? 503 :
+      500;
+    console.warn('[caldav POST] connect failed', {
+      memberId: auth.targetMemberId,
+      code: result.code,
+      error: result.error,
+      // Não loga email completo (PII) — apenas domínio pra padrão
+      appleDomain: parsed.data.appleIdEmail.split('@')[1] ?? 'unknown',
+    });
+    return NextResponse.json({ error: result.error, code: result.code }, { status });
   }
 
   // 2. Encripta password
