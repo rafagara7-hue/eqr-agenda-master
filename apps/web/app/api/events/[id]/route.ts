@@ -128,6 +128,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const member = await getAuthorizedMember(supabase, id, 'update');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  // BLOCK edit em events apple_caldav (read-only — fonte da verdade é Apple).
+  // Sócio que quer mudar evento sincronizado do Apple Calendar precisa fazer
+  // no próprio Apple Calendar — próximo pull reflete. Admin tem mesmo block
+  // (consistência: se editar aqui, próximo pull sobrescreve).
+  const { data: srcRow } = await supabase
+    .from('events')
+    .select('external_provider')
+    .eq('id', id)
+    .single();
+  const src = srcRow as { external_provider: string | null } | null;
+  if (src?.external_provider === 'apple_caldav') {
+    return NextResponse.json(
+      { error: 'Este evento é sincronizado do Apple Calendar (leitura apenas). Edite no Apple Calendar — a mudança aparece no EQR após a próxima sincronização.', code: 'APPLE_CALDAV_READONLY' },
+      { status: 409 }
+    );
+  }
+
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
@@ -235,6 +252,22 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const supabase = await getSupabaseServerClient();
   const member = await getAuthorizedMember(supabase, id, 'delete');
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // BLOCK delete em apple_caldav — read-only no EQR. Pra apagar de verdade,
+  // sócio deleta no Apple Calendar e o reverseSyncDeletes propaga. Sem isso,
+  // user deleta no EQR → próximo pull re-importa → frustração.
+  const { data: srcRow } = await supabase
+    .from('events')
+    .select('external_provider')
+    .eq('id', id)
+    .single();
+  const src = srcRow as { external_provider: string | null } | null;
+  if (src?.external_provider === 'apple_caldav') {
+    return NextResponse.json(
+      { error: 'Este evento é sincronizado do Apple Calendar. Apague no Apple Calendar — a remoção aparece no EQR após a próxima sincronização.', code: 'APPLE_CALDAV_READONLY' },
+      { status: 409 }
+    );
+  }
 
   // Fetch event details + participants before deletion (needed for notification + Calendar sync)
   const { data: rawEventSnapshot } = await supabase
